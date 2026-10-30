@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b3a2c" />
+    <title>Domino</title>
+    <link rel="icon" href="/icon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body class="landing">
+    <main class="landing-card">
+      <div class="logo" aria-hidden="true">
+        <div class="tile v big"><span class="half p6"></span><span class="bar"></span><span class="half p6"></span></div>
+        <div class="tile v big tilt"><span class="half p3"></span><span class="bar"></span><span class="half p5"></span></div>
+      </div>
+      <h1>Domino</h1>
+      <p class="sub">4 players · 2 vs 2 · no sign-up</p>
+
+      <button id="newMatch" class="btn primary block">New match</button>
+
+      <form id="joinForm" class="join">
+        <input id="joinId" placeholder="Match code" autocomplete="off" autocapitalize="none" spellcheck="false" />
+        <button class="btn">Join</button>
+      </form>
+
+      <p class="hint">Create a match and send the link to your friends. Empty seats can be filled with bots.</p>
+    </main>
+
+    <script type="module">
+      import { halfHTML } from '/js/tiles.js';
+      document.querySelectorAll('.logo .half').forEach((h) => {
+        h.outerHTML = halfHTML(Number(h.className.match(/p(\d)/)[1]), false);
+      });
+
+      const words = ['taco', 'mango', 'tigre', 'lobo', 'luna', 'sol', 'mate', 'pampa', 'rio', 'faro', 'nube', 'coco'];
+      const pick = (a) => a[Math.floor(Math.random() * a.length)];
+      document.getElementById('newMatch').onclick = () => {
+        const id = `${pick(words)}-${pick(words)}-${Math.floor(Math.random() * 900 + 100)}`;
+        location.href = `/play/${id}`;
+      };
+      document.getElementById('joinForm').onsubmit = (e) => {
+        e.preventDefault();
+        let v = document.getElementById('joinId').value.trim();
+        const m = v.match(/\/play\/([^/?#]+)/);
+        if (m) v = m[1];
+        v = v.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        if (v.length >= 3) location.href = `/play/${v}`;
+      };
+    </script>
+  </body>
+</html>

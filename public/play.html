@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#0b3a2c" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>Domino</title>
+    <link rel="icon" href="/icon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body class="game">
+    <div id="app">
+      <header class="topbar">
+        <a href="/" class="icon-btn" aria-label="Home">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </a>
+        <button id="scoreBtn" class="scoreboard" aria-label="Show score history">
+          <span class="team t0"><span class="label" id="label0">Us</span><span class="pts" id="score0">0</span></span>
+          <span class="meta"><span>to <b id="target">100</b></span><small id="roundNo">Lobby</small></span>
+          <span class="team t1"><span class="pts" id="score1">0</span><span class="label" id="label1">Them</span></span>
+        </button>
+        <button id="shareBtn" class="icon-btn" aria-label="Invite">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </header>
+
+      <main class="table">
+        <div class="seat top" id="seat-top"></div>
+        <div class="seat left" id="seat-left"></div>
+        <div class="seat right" id="seat-right"></div>
+        <div class="board" id="board"><p class="board-empty" id="boardEmpty"></p></div>
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
+      </main>
+
+      <footer class="hand-area">
+        <div class="me-row">
+          <div class="seat me" id="seat-me"></div>
+          <div class="status" id="status"></div>
+        </div>
+        <div class="end-picker" id="endPicker" hidden>
+          <button class="btn" data-end="L"></button>
+          <button class="btn ghost" data-end="cancel">Cancel</button>
+          <button class="btn" data-end="R"></button>
+        </div>
+        <div class="hand" id="hand"></div>
+      </footer>
+    </div>
+
+    <!-- Lobby -->
+    <section class="sheet" id="lobby" hidden>
+      <div class="sheet-body">
+        <h2>Match <span id="matchCode" class="code"></span></h2>
+        <div class="invite">
+          <input id="inviteUrl" readonly />
+          <button id="copyBtn" class="btn">Copy</button>
+        </div>
+
+        <label class="field">
+          <span>Your name</span>
+          <input id="nameInput" maxlength="16" autocomplete="nickname" enterkeyhint="done" />
+        </label>
+
+        <p class="section-title">Seats <small>— partners sit across from each other</small></p>
+        <div class="lobby-table" id="lobbySeats"></div>
+
+        <p class="section-title">Play to</p>
+        <div class="segmented" id="targetPicker">
+          <button data-target="100">100</button>
+          <button data-target="150">150</button>
+          <button data-target="200">200</button>
+        </div>
+
+        <div class="lobby-actions">
+          <button id="botsBtn" class="btn block">Fill empty seats with bots</button>
+          <button id="startBtn" class="btn primary block">Start game</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Score history -->
+    <section class="sheet" id="scoreSheet" hidden>
+      <div class="sheet-body">
+        <div class="sheet-head">
+          <h2>Score</h2>
+          <button class="icon-btn" data-close aria-label="Close">✕</button>
+        </div>
+        <table class="history">
+          <thead>
+            <tr><th>#</th><th class="c0" id="hLabel0">Us</th><th class="c1" id="hLabel1">Them</th><th>How</th></tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+          <tfoot>
+            <tr><th>Total</th><th class="c0" id="total0">0</th><th class="c1" id="total1">0</th><th id="totalTarget"></th></tr>
+          </tfoot>
+        </table>
+        <p class="rules">
+          Partners sit across. Whoever has the double six opens the first round; after that, the round
+          winner opens. Going out ("domino") scores every pip left in all hands. If the game is blocked,
+          the team with fewer pips wins them all.
+        </p>
+      </div>
+    </section>
+
+    <!-- Round / match result -->
+    <section class="overlay" id="result" hidden>
+      <div class="result-card" id="resultCard">
+        <div class="result-emoji" id="resultEmoji"></div>
+        <h2 id="resultTitle"></h2>
+        <p id="resultSub"></p>
+        <div class="result-scores" id="resultScores"></div>
+        <div class="result-hands" id="resultHands"></div>
+        <div class="result-actions" id="resultActions"></div>
+      </div>
+      <button class="btn primary peek-btn" data-act="unpeek">Show result</button>
+    </section>
+
+    <div class="conn" id="conn" hidden>Reconnecting…</div>
+    <canvas id="fx" hidden></canvas>
+
+    <script type="module" src="/js/play.js"></script>
+  </body>
+</html>

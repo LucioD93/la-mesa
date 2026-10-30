@@ -1,0 +1,10 @@
+{
+  "name": "Domino",
+  "short_name": "Domino",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b3a2c",
+  "theme_color": "#0b3a2c",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}
