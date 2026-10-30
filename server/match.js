@@ -1,8 +1,11 @@
+// A match as plain, serializable state plus the rules for changing it.
+// Connections, timers and storage live elsewhere (see hub.js / store.js) so a
+// match can be loaded and saved by any server instance.
 import * as G from './game.js';
 
 const BOT_NAMES = ['Bot Ana', 'Bot Beto', 'Bot Coco', 'Bot Dani'];
-const BOT_DELAY_MS = 900;
-const AUTO_PASS_DELAY_MS = 1300;
+export const BOT_DELAY_MS = 900;
+export const AUTO_PASS_DELAY_MS = 1300;
 const TARGETS = [100, 150, 200];
 const MAX_NAME = 16;
 
@@ -12,18 +15,14 @@ const cleanName = (name) =>
     .trim()
     .slice(0, MAX_NAME);
 
+const bot = (i) => ({ token: null, name: BOT_NAMES[i], bot: true });
+
 export class Match {
-  constructor(id, { onIdle, rng = Math.random, delays = {} } = {}) {
+  constructor(id, data = null) {
     this.id = id;
-    this.rng = rng;
-    this.onIdle = onIdle;
-    this.botDelay = delays.bot ?? BOT_DELAY_MS;
-    this.passDelay = delays.pass ?? AUTO_PASS_DELAY_MS;
-    this.lobbyGrace = delays.lobby ?? 15000;
     /** @type {({token: string|null, name: string, bot: boolean} | null)[]} */
     this.seats = [null, null, null, null];
-    /** @type {Map<any, {token: string, name: string}>} ws -> client info */
-    this.clients = new Map();
+    this.names = {}; // token -> display name (spectators included)
     this.phase = 'lobby'; // lobby | playing | roundEnd | matchEnd
     this.target = 100;
     this.scores = [0, 0];
@@ -31,204 +30,193 @@ export class Match {
     this.round = null;
     this.roundNo = 0;
     this.nextStarter = null;
-    this.timer = null;
-    this.idleTimer = null;
+    this.v = 0;
+    if (data) Object.assign(this, data, { id });
   }
 
-  // ---- connections ---------------------------------------------------------
-
-  join(ws, token, name) {
-    token = String(token || '').slice(0, 64);
-    name = cleanName(name) || 'Player';
-    this.clients.set(ws, { token, name });
-    clearTimeout(this.idleTimer);
-
-    const seat = this.seatOf(token);
-    if (seat !== -1) {
-      this.seats[seat].name = name;
-    } else if (this.phase === 'lobby') {
-      const empty = this.seats.indexOf(null);
-      if (empty !== -1) this.seats[empty] = { token, name, bot: false };
-    }
-    this.broadcast();
-  }
-
-  leave(ws) {
-    this.clients.delete(ws);
-    if (this.phase === 'lobby') {
-      // Free lobby seats of players who left, after a grace period so a page
-      // refresh keeps the seat.
-      setTimeout(() => {
-        if (this.phase !== 'lobby') return;
-        const before = this.seats.filter(Boolean).length;
-        this.seats = this.seats.map((s) => (s && !s.bot && !this.isOnline(s.token) ? null : s));
-        if (this.seats.filter(Boolean).length !== before) this.broadcast();
-      }, this.lobbyGrace).unref?.();
-    }
-    if (!this.clients.size) {
-      this.idleTimer = setTimeout(() => this.onIdle?.(this), 60 * 60 * 1000);
-    }
-    this.broadcast();
+  toJSON() {
+    const { id, seats, names, phase, target, scores, history, round, roundNo, nextStarter, v } = this;
+    return { id, seats, names, phase, target, scores, history, round, roundNo, nextStarter, v };
   }
 
   seatOf(token) {
     return this.seats.findIndex((s) => s && !s.bot && s.token === token);
   }
 
-  isOnline(token) {
-    for (const c of this.clients.values()) if (c.token === token) return true;
-    return false;
-  }
+  // ---- changes (each returns true if the match changed) ---------------------
 
-  // ---- messages ------------------------------------------------------------
-
-  handle(ws, msg) {
-    const client = this.clients.get(ws);
-    if (!client || !msg || typeof msg !== 'object') return;
-    const seat = this.seatOf(client.token);
-    try {
-      switch (msg.t) {
-        case 'rename': {
-          const name = cleanName(msg.name);
-          if (!name) return;
-          client.name = name;
-          if (seat !== -1) this.seats[seat].name = name;
-          break;
-        }
-        case 'sit':
-          this.sit(client, seat, Number(msg.seat));
-          break;
-        case 'stand':
-          if (this.phase === 'lobby' && seat !== -1) this.seats[seat] = null;
-          break;
-        case 'addBots':
-          if (this.phase !== 'lobby') return;
-          this.seats = this.seats.map((s, i) => s ?? { token: null, name: BOT_NAMES[i], bot: true });
-          break;
-        case 'removeBot': {
-          const i = Number(msg.seat);
-          if (this.phase === 'lobby' && this.seats[i]?.bot) this.seats[i] = null;
-          break;
-        }
-        case 'botify': {
-          // Replace a disconnected human with a bot so the game can continue.
-          const i = Number(msg.seat);
-          const s = this.seats[i];
-          if (seat === -1 || !s || s.bot || this.isOnline(s.token)) return;
-          this.seats[i] = { token: null, name: BOT_NAMES[i], bot: true };
-          break;
-        }
-        case 'target':
-          if (this.phase === 'lobby' && TARGETS.includes(Number(msg.target))) this.target = Number(msg.target);
-          break;
-        case 'start':
-          if (this.phase !== 'lobby' || seat === -1 || this.seats.includes(null)) return;
-          this.startRound();
-          break;
-        case 'play':
-          if (this.phase !== 'playing' || seat === -1) return;
-          G.play(this.round, seat, msg.tile, msg.end === 'L' ? 'L' : 'R');
-          this.afterMove();
-          break;
-        case 'next':
-          if (this.phase !== 'roundEnd' || seat === -1) return;
-          this.startRound();
-          break;
-        case 'rematch':
-          if (this.phase !== 'matchEnd' || seat === -1) return;
-          this.scores = [0, 0];
-          this.history = [];
-          this.roundNo = 0;
-          this.nextStarter = null;
-          this.startRound();
-          break;
-        case 'lobby':
-          // Back to the lobby to change seats/teams after a match.
-          if (this.phase !== 'matchEnd' || seat === -1) return;
-          this.phase = 'lobby';
-          this.round = null;
-          this.scores = [0, 0];
-          this.history = [];
-          this.roundNo = 0;
-          this.nextStarter = null;
-          break;
-        default:
-          return;
-      }
-    } catch (err) {
-      if (err instanceof G.MoveError) return this.send(ws, { t: 'error', message: err.message });
-      throw err;
+  join(token, name) {
+    name = cleanName(name) || 'Player';
+    this.names[token] = name;
+    const seat = this.seatOf(token);
+    if (seat !== -1) this.seats[seat].name = name;
+    else if (this.phase === 'lobby') {
+      const empty = this.seats.indexOf(null);
+      if (empty !== -1) this.seats[empty] = { token, name, bot: false };
     }
-    this.broadcast();
+    return true;
   }
 
-  sit(client, currentSeat, target) {
-    if (!(target >= 0 && target < 4)) return;
+  /** Free lobby seats whose players are gone. */
+  cleanupLobby(online) {
+    if (this.phase !== 'lobby') return false;
+    let changed = false;
+    this.seats = this.seats.map((s) => {
+      if (s && !s.bot && !online.has(s.token)) {
+        changed = true;
+        return null;
+      }
+      return s;
+    });
+    return changed;
+  }
+
+  /** Apply a player's message. Throws G.MoveError for illegal moves. */
+  handle(token, msg, online) {
+    const seat = this.seatOf(token);
+    switch (msg?.t) {
+      case 'rename': {
+        const name = cleanName(msg.name);
+        if (!name) return false;
+        this.names[token] = name;
+        if (seat !== -1) this.seats[seat].name = name;
+        return true;
+      }
+      case 'sit':
+        return this.sit(token, seat, Number(msg.seat));
+      case 'stand':
+        if (this.phase !== 'lobby' || seat === -1) return false;
+        this.seats[seat] = null;
+        return true;
+      case 'addBots':
+        if (this.phase !== 'lobby') return false;
+        this.seats = this.seats.map((s, i) => s ?? bot(i));
+        return true;
+      case 'removeBot': {
+        const i = Number(msg.seat);
+        if (this.phase !== 'lobby' || !this.seats[i]?.bot) return false;
+        this.seats[i] = null;
+        return true;
+      }
+      case 'botify': {
+        // Replace a disconnected human with a bot so the game can continue.
+        const i = Number(msg.seat);
+        const s = this.seats[i];
+        if (seat === -1 || !s || s.bot || online.has(s.token)) return false;
+        this.seats[i] = bot(i);
+        return true;
+      }
+      case 'target':
+        if (this.phase !== 'lobby' || !TARGETS.includes(Number(msg.target))) return false;
+        this.target = Number(msg.target);
+        return true;
+      case 'start':
+        if (this.phase !== 'lobby' || seat === -1 || this.seats.includes(null)) return false;
+        this.startRound();
+        return true;
+      case 'play':
+        if (this.phase !== 'playing' || seat === -1) return false;
+        G.play(this.round, seat, msg.tile, msg.end === 'L' ? 'L' : 'R');
+        this.afterMove();
+        return true;
+      case 'next':
+        if (this.phase !== 'roundEnd' || seat === -1) return false;
+        this.startRound();
+        return true;
+      case 'rematch':
+        if (this.phase !== 'matchEnd' || seat === -1) return false;
+        this.resetScores();
+        this.startRound();
+        return true;
+      case 'lobby':
+        // Back to the lobby to change seats/teams after a match.
+        if (this.phase !== 'matchEnd' || seat === -1) return false;
+        this.resetScores();
+        this.phase = 'lobby';
+        this.round = null;
+        return true;
+      default:
+        return false;
+    }
+  }
+
+  sit(token, currentSeat, target) {
+    if (!(target >= 0 && target < 4)) return false;
     const occupant = this.seats[target];
-    if (occupant && !occupant.bot) return;
+    if (occupant && !occupant.bot) return false;
+    const me = { token, name: this.names[token] || 'Player', bot: false };
     if (this.phase === 'lobby') {
-      if (occupant?.bot) return; // remove the bot first
+      if (occupant?.bot) return false; // remove the bot first
       if (currentSeat !== -1) this.seats[currentSeat] = null;
-      this.seats[target] = { token: client.token, name: client.name, bot: false };
-      return;
+      this.seats[target] = me;
+      return true;
     }
     // Mid-game a spectator can take over a bot (and its hand).
     if (currentSeat === -1 && occupant?.bot) {
-      this.seats[target] = { token: client.token, name: client.name, bot: false };
+      this.seats[target] = me;
+      return true;
     }
+    return false;
   }
 
-  // ---- game flow -----------------------------------------------------------
+  resetScores() {
+    this.scores = [0, 0];
+    this.history = [];
+    this.roundNo = 0;
+    this.nextStarter = null;
+  }
 
-  startRound() {
-    this.round = G.newRound({ starter: this.nextStarter, rng: this.rng });
+  startRound(rng = Math.random) {
+    this.round = G.newRound({ starter: this.nextStarter, rng });
     this.roundNo += 1;
     this.phase = 'playing';
-    this.schedule();
   }
 
   afterMove() {
     const r = this.round;
-    if (r.over) {
-      const { winnerTeam, points, reason, winnerSeat, teamPips } = r.over;
-      if (winnerTeam != null) this.scores[winnerTeam] += points;
-      this.history.push({ round: this.roundNo, reason, winnerTeam, winnerSeat, points, teamPips });
-      this.nextStarter = winnerSeat ?? G.nextSeat(r.starter);
-      this.phase = this.scores.some((s) => s >= this.target) ? 'matchEnd' : 'roundEnd';
-      clearTimeout(this.timer);
-      return;
-    }
-    this.schedule();
+    if (!r.over) return;
+    const { winnerTeam, points, reason, winnerSeat, teamPips } = r.over;
+    if (winnerTeam != null) this.scores[winnerTeam] += points;
+    this.history.push({ round: this.roundNo, reason, winnerTeam, winnerSeat, points, teamPips });
+    this.nextStarter = winnerSeat ?? G.nextSeat(r.starter);
+    this.phase = this.scores.some((s) => s >= this.target) ? 'matchEnd' : 'roundEnd';
   }
 
-  schedule() {
-    clearTimeout(this.timer);
-    if (this.phase !== 'playing') return;
+  // ---- automatic moves (bots, forced passes) -------------------------------
+
+  /** If the current turn should play itself, how long to wait and a key identifying the turn. */
+  pendingAuto() {
+    if (this.phase !== 'playing') return null;
     const r = this.round;
-    const seat = r.turn;
-    const isBot = this.seats[seat]?.bot;
-    const stuck = !G.legalMoves(r, seat).length;
-    if (!isBot && !stuck) return;
-    this.timer = setTimeout(
-      () => {
-        if (this.round !== r || r.turn !== seat || r.over) return;
-        const move = G.botMove(r, seat);
-        if (move && this.seats[seat]?.bot) G.play(r, seat, move.tile, move.end);
-        else if (!move) G.pass(r, seat);
-        else return; // a human took over this seat meanwhile
-        this.afterMove();
-        this.broadcast();
-      },
-      stuck ? this.passDelay : this.botDelay,
-    );
+    const isBot = this.seats[r.turn]?.bot;
+    const stuck = !G.legalMoves(r, r.turn).length;
+    if (!isBot && !stuck) return null;
+    return {
+      delay: stuck ? AUTO_PASS_DELAY_MS : BOT_DELAY_MS,
+      key: `${this.roundNo}:${r.line.length}:${r.turn}:${r.lastAction?.type ?? ''}`,
+    };
   }
 
-  // ---- state ---------------------------------------------------------------
+  /** Run the pending automatic move, but only if it is still the same turn. */
+  runAuto(key) {
+    const p = this.pendingAuto();
+    if (!p || p.key !== key) return false;
+    const r = this.round;
+    const move = G.botMove(r, r.turn);
+    if (move) G.play(r, r.turn, move.tile, move.end);
+    else G.pass(r, r.turn);
+    this.afterMove();
+    return true;
+  }
 
-  stateFor(token) {
+  // ---- view ----------------------------------------------------------------
+
+  stateFor(token, online) {
     const seat = this.seatOf(token);
     const r = this.round;
     const revealed = this.phase === 'roundEnd' || this.phase === 'matchEnd';
+    let spectators = 0;
+    for (const t of online) if (this.seatOf(t) === -1) spectators++;
     return {
       t: 'state',
       matchId: this.id,
@@ -238,13 +226,13 @@ export class Match {
       scores: this.scores,
       history: this.history,
       roundNo: this.roundNo,
-      spectators: [...this.clients.values()].filter((c) => this.seatOf(c.token) === -1).length,
+      spectators,
       seats: this.seats.map((s, i) =>
         s
           ? {
               name: s.name,
               bot: s.bot,
-              online: s.bot || this.isOnline(s.token),
+              online: s.bot || online.has(s.token),
               team: G.teamOf(i),
               count: r ? r.hands[i].length : 0,
             }
@@ -262,18 +250,5 @@ export class Match {
         hands: revealed ? r.hands : null,
       },
     };
-  }
-
-  send(ws, data) {
-    if (ws.readyState === 1) ws.send(JSON.stringify(data));
-  }
-
-  broadcast() {
-    for (const [ws, c] of this.clients) this.send(ws, this.stateFor(c.token));
-  }
-
-  dispose() {
-    clearTimeout(this.timer);
-    clearTimeout(this.idleTimer);
   }
 }

@@ -87,45 +87,49 @@ test('blocked game goes to the team with fewer pips', () => {
   assert.equal(r.over.winnerSeat, 2);
 });
 
-test('bot-only matches always reach a winner', async () => {
-  for (let seed = 1; seed <= 40; seed++) {
-    const m = new Match('t' + seed, { rng: mulberry32(seed), delays: { bot: 0, pass: 0 } });
-    const fakeWs = { readyState: 1, sent: [], send(d) { this.sent.push(d); } };
-    m.join(fakeWs, 'human', 'Me');
-    m.handle(fakeWs, { t: 'addBots' });
-    // Hand the human seat to a bot too, so the whole match runs unattended.
+test('bot-only matches always reach a winner (state survives JSON round-trips)', () => {
+  for (let seed = 1; seed <= 200; seed++) {
+    const rng = mulberry32(seed);
+    let m = new Match('t' + seed);
+    m.join('human', 'Me');
+    m.handle('human', { t: 'addBots' }, new Set());
     m.seats[0] = { token: null, name: 'Bot', bot: true };
-    m.seats[1].token = null;
-    m.startRound();
+    m.startRound(rng);
     let guard = 0;
     while (m.phase !== 'matchEnd') {
-      if (m.phase === 'roundEnd') m.startRound();
-      await new Promise((r) => setTimeout(r, 0));
+      if (m.phase === 'roundEnd') m.startRound(rng);
+      const p = m.pendingAuto();
+      assert.ok(p, 'a bot should always be due to move');
+      assert.ok(m.runAuto(p.key));
+      assert.equal(m.runAuto(p.key), false, 'a stale turn key must not move twice');
+      m = new Match(m.id, JSON.parse(JSON.stringify(m)));
       if (++guard > 5000) assert.fail('match did not finish, seed ' + seed);
-      // Invariant: tile count conserved.
-      const onTable = m.round.line.length + m.round.hands.flat().length;
-      assert.equal(onTable, 28);
+      assert.equal(m.round.line.length + m.round.hands.flat().length, 28);
     }
     assert.ok(Math.max(...m.scores) >= m.target);
     assert.equal(m.history.length, m.roundNo);
-    m.dispose();
   }
 });
 
 test('rejoining with the same token keeps the seat', () => {
-  const m = new Match('rejoin', { delays: { lobby: 0 } });
-  const a = { readyState: 1, send() {} };
-  const b = { readyState: 1, send() {} };
-  m.join(a, 'tok-a', 'Ann');
-  m.join(b, 'tok-b', 'Ben');
-  m.handle(b, { t: 'sit', seat: 3 });
+  const m = new Match('rejoin');
+  m.join('tok-a', 'Ann');
+  m.join('tok-b', 'Ben');
+  m.handle('tok-b', { t: 'sit', seat: 3 }, new Set());
   assert.equal(m.seatOf('tok-b'), 3);
-  m.handle(a, { t: 'addBots' });
-  m.handle(a, { t: 'start' });
-  m.leave(b);
-  const b2 = { readyState: 1, send() {} };
-  m.join(b2, 'tok-b', 'Ben');
+  m.handle('tok-a', { t: 'addBots' }, new Set());
+  m.handle('tok-a', { t: 'start' }, new Set());
+  m.join('tok-b', 'Ben');
   assert.equal(m.seatOf('tok-b'), 3);
-  assert.equal(m.stateFor('tok-b').round.hand.length, 7);
-  m.dispose();
+  assert.equal(m.stateFor('tok-b', new Set(['tok-b'])).round.hand.length, 7);
+});
+
+test('lobby frees seats of players who went offline', () => {
+  const m = new Match('lobby');
+  m.join('a', 'Ann');
+  m.join('b', 'Ben');
+  assert.equal(m.cleanupLobby(new Set(['a', 'b'])), false);
+  assert.equal(m.cleanupLobby(new Set(['a'])), true);
+  assert.equal(m.seatOf('b'), -1);
+  assert.equal(m.seatOf('a'), 0);
 });

@@ -26,7 +26,7 @@ let retryTimer;
 function connect() {
   clearTimeout(retryTimer);
   if (ws && ws.readyState <= 1) return;
-  ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws/${matchId}`);
+  ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/ws?match=${encodeURIComponent(matchId)}`);
   ws.onopen = () => {
     retry = 0;
     $('conn').hidden = true;
