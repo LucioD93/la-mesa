@@ -133,3 +133,19 @@ test('lobby frees seats of players who went offline', () => {
   assert.equal(m.seatOf('b'), -1);
   assert.equal(m.seatOf('a'), 0);
 });
+
+test('reactions: only seated players, known emoji, rate limited', () => {
+  const m = new Match('react');
+  m.join('a', 'Ann');
+  m.join('spec', 'Sam');
+  m.handle('a', { t: 'sit', seat: 2 }, new Set());
+  m.handle('spec', { t: 'stand' }, new Set());
+  assert.equal(m.handle('spec', { t: 'react', emoji: '👏' }, new Set()), false);
+  assert.equal(m.handle('a', { t: 'react', emoji: '💩' }, new Set()), false);
+  assert.equal(m.handle('a', { t: 'react', emoji: '👏' }, new Set()), true);
+  assert.equal(m.handle('a', { t: 'react', emoji: '😂' }, new Set()), false, 'cooldown');
+  assert.deepEqual(m.stateFor('spec', new Set()).reaction, { n: 1, seat: 2, emoji: '👏' });
+  m.reaction.at -= 1000;
+  assert.equal(m.handle('a', { t: 'react', emoji: '😂' }, new Set()), true);
+  assert.equal(m.reaction.n, 2);
+});

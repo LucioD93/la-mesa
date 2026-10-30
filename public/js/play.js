@@ -1,6 +1,7 @@
 import { BoardView } from './board.js';
 import { tileHTML, tileKey } from './tiles.js';
 import * as fx from './fx.js';
+import * as sound from './sound.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -131,16 +132,25 @@ function render(next) {
   renderStatus();
   renderResult(prev);
   renderScoreSheet();
+  $('reactBtn').hidden = me() === -1 || state.phase === 'lobby';
+  if ($('reactBtn').hidden) $('reactBar').hidden = true;
 
   // Feedback for what just happened.
   const la = r?.lastAction;
   const pla = prev?.round?.lastAction;
   if (la && JSON.stringify(la) !== JSON.stringify(pla) && prev?.roundNo === state.roundNo) {
-    if (la.type === 'pass') toast(la.seat === me() ? 'You pass' : `${seatName(la.seat)} passes`);
+    if (la.type === 'pass') {
+      toast(la.seat === me() ? 'You pass' : `${seatName(la.seat)} passes`);
+      sound.play('pass');
+    } else if (la.type === 'play') sound.play('place');
   }
+  if (prev && state.reaction && state.reaction.n !== prev.reaction?.n) showReaction(state.reaction);
   const myTurnNow = r && r.turn === me() && state.phase === 'playing';
   const myTurnBefore = prev?.round && prev.round.turn === prev.you && prev.phase === 'playing';
-  if (myTurnNow && !myTurnBefore && r.legal.length) buzz(30);
+  if (myTurnNow && !myTurnBefore && r.legal.length) {
+    buzz(30);
+    sound.play('turn');
+  }
 
   requestWakeLock();
 }
@@ -368,6 +378,21 @@ function hidePicker() {
   $('endPicker').hidden = true;
 }
 
+// ---- reactions ----------------------------------------------------------------
+
+function showReaction({ seat, emoji }) {
+  const anchor = $(['seat-me', 'seat-right', 'seat-top', 'seat-left'][posOf(seat)]);
+  const rect = anchor.getBoundingClientRect();
+  const el = document.createElement('span');
+  el.className = 'reaction';
+  el.textContent = emoji;
+  el.style.left = `${rect.left + rect.width / 2}px`;
+  el.style.top = `${rect.top + rect.height / 2}px`;
+  el.addEventListener('animationend', () => el.remove());
+  document.body.append(el);
+  sound.play('react');
+}
+
 // ---- results ----------------------------------------------------------------
 
 let resultKey = null;
@@ -468,7 +493,9 @@ function buildResult(fresh) {
   overlay.hidden = false;
   if (fresh) {
     overlay.classList.remove('peek');
+    if (!isMatch) sound.play('roundEnd');
     if (isMatch) {
+      sound.play(!mine || weWon ? 'win' : 'lose');
       if (!mine || weWon) {
         fx.confetti();
         buzz([40, 60, 40, 60, 120]);
@@ -566,6 +593,24 @@ $('shareBtn').onclick = share;
 $('copyBtn').onclick = () => copy(inviteUrl());
 $('botsBtn').onclick = () => send({ t: 'addBots' });
 $('startBtn').onclick = () => send({ t: 'start' });
+
+$('reactBtn').onclick = () => ($('reactBar').hidden = !$('reactBar').hidden);
+$('reactBar').addEventListener('click', (e) => {
+  const emoji = e.target.closest('[data-emoji]')?.dataset.emoji;
+  if (!emoji) return;
+  send({ t: 'react', emoji });
+  $('reactBar').hidden = true;
+});
+
+const paintSound = () => {
+  $('soundBtn').textContent = sound.isMuted() ? '🔇' : '🔊';
+  $('soundBtn').setAttribute('aria-pressed', String(sound.isMuted()));
+};
+$('soundBtn').onclick = () => {
+  sound.setMuted(!sound.isMuted());
+  paintSound();
+};
+paintSound();
 
 let nameTimer;
 $('nameInput').addEventListener('input', (e) => {

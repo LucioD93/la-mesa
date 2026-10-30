@@ -8,6 +8,8 @@ export const BOT_DELAY_MS = 900;
 export const AUTO_PASS_DELAY_MS = 1300;
 const TARGETS = [100, 150, 200];
 const MAX_NAME = 16;
+export const REACTIONS = ['👏', '😂', '😮', '😡', '🔥', '👋'];
+const REACTION_COOLDOWN_MS = 600;
 
 const cleanName = (name) =>
   String(name ?? '')
@@ -30,13 +32,14 @@ export class Match {
     this.round = null;
     this.roundNo = 0;
     this.nextStarter = null;
+    this.reaction = null; // latest emoji thrown at the table: { n, seat, emoji, at }
     this.v = 0;
     if (data) Object.assign(this, data, { id });
   }
 
   toJSON() {
-    const { id, seats, names, phase, target, scores, history, round, roundNo, nextStarter, v } = this;
-    return { id, seats, names, phase, target, scores, history, round, roundNo, nextStarter, v };
+    const { id, seats, names, phase, target, scores, history, round, roundNo, nextStarter, reaction, v } = this;
+    return { id, seats, names, phase, target, scores, history, round, roundNo, nextStarter, reaction, v };
   }
 
   seatOf(token) {
@@ -104,6 +107,13 @@ export class Match {
         const s = this.seats[i];
         if (seat === -1 || !s || s.bot || online.has(s.token)) return false;
         this.seats[i] = bot(i);
+        return true;
+      }
+      case 'react': {
+        if (seat === -1 || !REACTIONS.includes(msg.emoji)) return false;
+        const now = Date.now();
+        if (this.reaction && now - this.reaction.at < REACTION_COOLDOWN_MS) return false;
+        this.reaction = { n: (this.reaction?.n ?? 0) + 1, seat, emoji: msg.emoji, at: now };
         return true;
       }
       case 'target':
@@ -227,6 +237,7 @@ export class Match {
       history: this.history,
       roundNo: this.roundNo,
       spectators,
+      reaction: this.reaction && { n: this.reaction.n, seat: this.reaction.seat, emoji: this.reaction.emoji },
       seats: this.seats.map((s, i) =>
         s
           ? {

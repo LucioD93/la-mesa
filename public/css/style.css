@@ -126,6 +126,7 @@ body.landing { display: grid; place-items: center; min-height: 100dvh; padding: 
   font-size: 16px; /* avoids iOS zoom on focus */
 }
 .hint { color: var(--muted); font-size: 13px; margin-top: 24px; }
+.name-field { margin: 0 0 16px; text-align: left; }
 
 /* ---- game layout -------------------------------------------------------- */
 body.game { overflow: hidden; overscroll-behavior: none; }
@@ -270,6 +271,29 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 .status { font-weight: 600; color: var(--muted); }
 .status.mine { color: var(--gold); animation: blink 1.4s ease-in-out infinite; }
 @keyframes blink { 50% { opacity: 0.6; } }
+.me-tools { display: flex; gap: 6px; margin-left: auto; }
+.icon-btn.small { width: 36px; height: 36px; font-size: 17px; }
+
+.react-bar { display: flex; justify-content: space-between; gap: 6px; margin: 4px 0 8px; padding: 6px; border-radius: 999px; background: rgba(0, 0, 0, 0.35); }
+.react-bar button { flex: 1; border: 0; border-radius: 999px; padding: 4px 0; background: transparent; font-size: 24px; line-height: 1.2; }
+.react-bar button:active { background: rgba(255, 255, 255, 0.15); }
+
+.reaction {
+  position: fixed;
+  z-index: 40;
+  translate: -50% -50%;
+  font-size: 40px;
+  pointer-events: none;
+  animation: float-up 2.2s ease-out forwards;
+}
+@keyframes float-up {
+  0% { scale: 0.3; opacity: 0; translate: -50% -30%; }
+  15% { scale: 1.25; opacity: 1; }
+  30% { scale: 1; }
+  80% { opacity: 1; }
+  100% { opacity: 0; translate: -50% -230%; }
+}
+@media (prefers-reduced-motion: reduce) { .reaction { animation-duration: 1.2s; } }
 
 .end-picker { display: flex; gap: 8px; margin: 4px 0 8px; }
 .end-picker .btn { flex: 1; background: var(--gold); color: #2a2000; }
