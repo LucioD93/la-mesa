@@ -11,35 +11,44 @@
   </head>
   <body class="landing">
     <main class="landing-card">
+      <button id="langBtn" class="icon-btn small lang-btn" data-lang-btn data-i18n-aria="aria.lang">EN</button>
       <div class="logo" aria-hidden="true">
         <div class="tile v big"><span class="half p6"></span><span class="bar"></span><span class="half p6"></span></div>
         <div class="tile v big tilt"><span class="half p3"></span><span class="bar"></span><span class="half p5"></span></div>
       </div>
       <h1>Domino</h1>
-      <p class="sub">4 players · 2 vs 2 · no sign-up</p>
+      <p class="sub" data-i18n="landing.sub">4 players · 2 vs 2 · no sign-up</p>
 
       <label class="field name-field">
-        <span>Your name</span>
-        <input id="nameInput" maxlength="16" autocomplete="nickname" enterkeyhint="done" placeholder="Pick a name" />
+        <span data-i18n="landing.name">Your name</span>
+        <input id="nameInput" maxlength="16" autocomplete="nickname" enterkeyhint="done" placeholder="Pick a name" data-i18n-placeholder="landing.namePlaceholder" />
       </label>
 
-      <button id="newMatch" class="btn primary block">New match</button>
+      <button id="newMatch" class="btn primary block" data-i18n="landing.new">New match</button>
 
       <form id="joinForm" class="join">
-        <input id="joinId" placeholder="Match code" autocomplete="off" autocapitalize="none" spellcheck="false" />
-        <button class="btn">Join</button>
+        <input id="joinId" placeholder="Match code" data-i18n-placeholder="landing.code" autocomplete="off" autocapitalize="none" spellcheck="false" />
+        <button class="btn" data-i18n="landing.join">Join</button>
       </form>
 
-      <p class="hint">Create a match and send the link to your friends. Empty seats can be filled with bots.</p>
+      <p class="hint" data-i18n="landing.hint">Create a match and send the link to your friends. Empty seats can be filled with bots.</p>
     </main>
 
     <script type="module">
       import { halfHTML } from '/js/tiles.js';
+      import * as i18n from '/js/i18n.js';
+      i18n.apply();
+      document.getElementById('langBtn').onclick = () => i18n.cycle();
       document.querySelectorAll('.logo .half').forEach((h) => {
         h.outerHTML = halfHTML(Number(h.className.match(/p(\d)/)[1]), false);
       });
 
-      const words = ['taco', 'mango', 'tigre', 'lobo', 'luna', 'sol', 'mate', 'pampa', 'rio', 'faro', 'nube', 'coco'];
+      // Venezuelan food. Plain ASCII so the codes survive the join form's [a-z0-9-] filter.
+      const words = [
+        'arepa', 'empanada', 'cachapa', 'hallaca', 'tequeno', 'pabellon', 'tajada', 'caraota', 'perico',
+        'casabe', 'mandoca', 'bollito', 'pastelito', 'cachito', 'golfeado', 'quesillo', 'bienmesabe',
+        'majarete', 'catalina', 'cocada', 'chicha', 'papelon', 'patacon', 'mondongo', 'polvorosa',
+      ];
       const pick = (a) => a[Math.floor(Math.random() * a.length)];
       // The game page reads the same key, so the name follows you into every match.
       const nameInput = document.getElementById('nameInput');
@@ -52,7 +61,7 @@
       nameInput.addEventListener('keydown', (e) => e.key === 'Enter' && e.target.blur());
       document.getElementById('newMatch').onclick = () => {
         saveName();
-        const id = `${pick(words)}-${pick(words)}-${Math.floor(Math.random() * 900 + 100)}`;
+        const id = `${pick(words)}-${Math.floor(Math.random() * 900 + 100)}`;
         location.href = `/play/${id}`;
       };
       document.getElementById('joinForm').onsubmit = (e) => {
