@@ -2,6 +2,8 @@ import { BoardView } from './board.js';
 import { tileHTML, tileKey } from './tiles.js';
 import * as fx from './fx.js';
 import * as sound from './sound.js';
+import * as i18n from './i18n.js';
+import { t } from './i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -15,7 +17,7 @@ function randomHex(bytes) {
 }
 const token = localStorage.getItem('domino.token') || randomHex(16);
 localStorage.setItem('domino.token', token);
-let myName = localStorage.getItem('domino.name') || `Player ${Math.floor(Math.random() * 90 + 10)}`;
+let myName = localStorage.getItem('domino.name') || t('player', { n: Math.floor(Math.random() * 90 + 10) });
 localStorage.setItem('domino.name', myName);
 
 // ---- connection -------------------------------------------------------------
@@ -51,7 +53,7 @@ function connect() {
     setConnected(true);
     const msg = JSON.parse(e.data);
     if (msg.t === 'state') render(msg);
-    else if (msg.t === 'error') toast(msg.message);
+    else if (msg.t === 'error') toast(t(msg.message));
   };
   sock.onclose = () => {
     if (ws === sock) reconnectLater();
@@ -99,7 +101,7 @@ function setConnected(ok) {
   }
   // Brief blips reconnect before anyone notices; don't flash the banner.
   bannerTimer = setTimeout(() => {
-    $('conn').textContent = navigator.onLine === false ? 'No connection — waiting for network…' : 'Reconnecting…';
+    $('conn').textContent = navigator.onLine === false ? t('noNetwork') : t('reconnecting');
     $('conn').hidden = false;
     document.body.classList.add('offline');
   }, 1200);
@@ -108,7 +110,7 @@ function setConnected(ok) {
 function send(msg) {
   if (ws?.readyState !== 1) {
     if (msg.t !== 'ping') {
-      toast('Not connected — reconnecting…');
+      toast(t('notConnected'));
       reconnectNow();
     }
     return false;
@@ -152,8 +154,8 @@ const myTeam = () => (me() === -1 ? 0 : me() % 2);
 // Position around the table relative to me: 0 bottom, 1 right, 2 top, 3 left.
 const posOf = (seat) => (seat - (me() === -1 ? 0 : me()) + 4) % 4;
 const seatAt = (pos) => ((me() === -1 ? 0 : me()) + pos) % 4;
-const teamLabel = (team) => (me() === -1 ? `Team ${team + 1}` : team === myTeam() ? 'Us' : 'Them');
-const seatName = (seat) => (seat === me() ? 'You' : state.seats[seat]?.name ?? '—');
+const teamLabel = (team) => (me() === -1 ? t('team', { n: team + 1 }) : team === myTeam() ? t('us') : t('them'));
+const seatName = (seat) => (seat === me() ? t('you') : state.seats[seat]?.name ?? '—');
 
 let toastTimer;
 function toast(text, ms = 1800) {
@@ -181,7 +183,7 @@ async function share() {
   const url = inviteUrl();
   if (navigator.share) {
     try {
-      await navigator.share({ title: 'Play dominoes with me', text: 'Join my domino match', url });
+      await navigator.share({ title: t('shareTitle'), text: t('shareText'), url });
       return;
     } catch (e) {
       if (e.name === 'AbortError') return;
@@ -199,7 +201,7 @@ async function copy(text) {
     input.select();
     document.execCommand('copy');
   }
-  toast('Link copied');
+  toast(t('linkCopied'));
 }
 
 // ---- render -----------------------------------------------------------------
@@ -225,7 +227,7 @@ function render(next) {
   const pla = prev?.round?.lastAction;
   if (la && JSON.stringify(la) !== JSON.stringify(pla) && prev?.roundNo === state.roundNo) {
     if (la.type === 'pass') {
-      toast(la.seat === me() ? 'You pass' : `${seatName(la.seat)} passes`);
+      toast(la.seat === me() ? t('youPass') : t('passes', { name: seatName(la.seat) }));
       sound.play('pass');
     } else if (la.type === 'play') sound.play('place');
   }
@@ -250,7 +252,7 @@ function renderScores() {
   $('scoreBtn').querySelector('.t0').dataset.team = left;
   $('scoreBtn').querySelector('.t1').dataset.team = right;
   $('target').textContent = state.target;
-  $('roundNo').textContent = state.phase === 'lobby' ? 'Lobby' : `Round ${state.roundNo}`;
+  $('roundNo').textContent = state.phase === 'lobby' ? t('lobby') : t('round', { n: state.roundNo });
 }
 
 function renderLobby() {
@@ -268,16 +270,16 @@ function renderLobby() {
       .map((s, i) => {
         const mine = i === me();
         let body;
-        if (!s) body = `<span class="name muted">Empty</span><span class="act">Tap to sit</span>`;
+        if (!s) body = `<span class="name muted">${t('empty')}</span><span class="act">${t('tapToSit')}</span>`;
         else if (s.bot)
-          body = `<span class="name">🤖 ${esc(s.name)}</span><span class="act" data-remove="${i}">Remove</span>`;
+          body = `<span class="name">🤖 ${esc(s.name)}</span><span class="act" data-remove="${i}">${t('remove')}</span>`;
         else
-          body = `<span class="name">${esc(mine ? `${s.name} (you)` : s.name)}</span>${
-            mine ? `<span class="act" data-stand>Stand up</span>` : `<span class="act">${s.online ? 'Ready' : 'Offline'}</span>`
+          body = `<span class="name">${esc(mine ? t('youSuffix', { name: s.name }) : s.name)}</span>${
+            mine ? `<span class="act" data-stand>${t('standUp')}</span>` : `<span class="act">${s.online ? t('ready') : t('offline')}</span>`
           }`;
         return `<button class="lobby-seat ${cells[i]}" data-team="${i % 2}" data-sit="${i}" ${
           mine ? 'aria-current="true"' : ''
-        }><span class="team-tag">Team ${(i % 2) + 1}</span>${body}</button>`;
+        }><span class="team-tag">${t('team', { n: (i % 2) + 1 })}</span>${body}</button>`;
       })
       .join('') + `<div class="lobby-felt"></div>`;
 
@@ -285,7 +287,7 @@ function renderLobby() {
   const full = !state.seats.includes(null);
   $('botsBtn').disabled = full;
   $('startBtn').disabled = !full || me() === -1;
-  $('startBtn').textContent = me() === -1 ? 'Take a seat to start' : full ? 'Start game' : 'Waiting for 4 players…';
+  $('startBtn').textContent = me() === -1 ? t('takeSeatToStart') : full ? t('start') : t('waitingFor4');
 }
 
 function seatHTML(seat, pos) {
@@ -301,13 +303,13 @@ function seatHTML(seat, pos) {
   return `
     <div class="avatar ${turn ? 'turn' : ''}" data-team="${s.team}">${initial}${s.online ? '' : '<b class="off"></b>'}</div>
     <div class="seat-info">
-      <span class="name">${esc(seat === me() ? 'You' : s.name)}</span>
-      ${pos === 0 ? '' : `<span class="count" title="tiles left">${s.count}</span>`}
+      <span class="name">${esc(seat === me() ? t('you') : s.name)}</span>
+      ${pos === 0 ? '' : `<span class="count" title="${t('tilesLeft')}">${s.count}</span>`}
       ${backs}
     </div>
-    ${passed ? '<span class="bubble">Pass</span>' : ''}
-    ${canBotify ? `<button class="mini-btn" data-botify="${seat}">Use bot</button>` : ''}
-    ${canTake ? `<button class="mini-btn" data-sit="${seat}">Take seat</button>` : ''}`;
+    ${passed ? `<span class="bubble">${t('pass')}</span>` : ''}
+    ${canBotify ? `<button class="mini-btn" data-botify="${seat}">${t('useBot')}</button>` : ''}
+    ${canTake ? `<button class="mini-btn" data-sit="${seat}">${t('takeSeat')}</button>` : ''}`;
 }
 
 function renderSeats() {
@@ -332,8 +334,8 @@ function renderBoard() {
 
   let hint = '';
   if (r && !r.line.length && state.phase === 'playing') {
-    if (r.turn === me()) hint = r.mustPlay ? 'Open with the double six' : 'You open — play any tile';
-    else hint = `${seatName(r.turn)} opens${r.mustPlay ? ' with the double six' : ''}…`;
+    if (r.turn === me()) hint = r.mustPlay ? t('openDoubleSix') : t('youOpen');
+    else hint = t(r.mustPlay ? 'opensDoubleSix' : 'opens', { name: seatName(r.turn) });
   }
   $('boardEmpty').textContent = hint;
 }
@@ -349,7 +351,7 @@ function renderHand() {
   const hand = r?.hand;
   if (!hand) {
     handEl.innerHTML =
-      me() === -1 && state.phase !== 'lobby' ? '<p class="muted center">You are watching. Tap “Take seat” on a bot to play.</p>' : '';
+      me() === -1 && state.phase !== 'lobby' ? `<p class="muted center">${t('watchingHint')}</p>` : '';
     hidePicker();
     return;
   }
@@ -358,15 +360,15 @@ function renderHand() {
   if (selected && !playable.has(selected)) selected = null;
 
   handEl.innerHTML = sortHand(hand)
-    .map((t) => {
-      const key = tileKey(t);
+    .map((tile) => {
+      const key = tileKey(tile);
       const cls = [
         'tile v hand-tile',
         myTurn && playable.has(key) ? 'playable' : '',
         myTurn && !playable.has(key) ? 'dim' : '',
         selected === key ? 'selected' : '',
       ].join(' ');
-      return `<button class="${cls}" data-key="${key}" aria-label="${t[0]} and ${t[1]}">${tileHTML(t[0], t[1], false)}</button>`;
+      return `<button class="${cls}" data-key="${key}" aria-label="${t('aria.tile', { a: tile[0], b: tile[1] })}">${tileHTML(tile[0], tile[1], false)}</button>`;
     })
     .join('');
   handEl.style.setProperty('--n', Math.max(hand.length, 5));
@@ -377,15 +379,15 @@ function renderStatus() {
   const r = state.round;
   let text = '';
   let cls = '';
-  if (state.phase === 'lobby') text = 'Waiting for players';
+  if (state.phase === 'lobby') text = t('waitingPlayers');
   else if (state.phase === 'playing' && r) {
     if (r.turn === me()) {
       cls = 'mine';
-      text = r.legal.length ? 'Your turn' : 'No tile fits — passing…';
-    } else if (me() === -1) text = `Watching · ${seatName(r.turn)}’s turn`;
-    else text = `${seatName(r.turn)}’s turn`;
-  } else if (state.phase === 'roundEnd') text = 'Round over';
-  else if (state.phase === 'matchEnd') text = 'Match over';
+      text = r.legal.length ? t('yourTurn') : t('autoPass');
+    } else if (me() === -1) text = t('watchingTurn', { name: seatName(r.turn) });
+    else text = t('turnOf', { name: seatName(r.turn) });
+  } else if (state.phase === 'roundEnd') text = t('roundOver');
+  else if (state.phase === 'matchEnd') text = t('matchOver');
   $('status').textContent = text;
   $('status').className = `status ${cls}`;
 }
@@ -419,7 +421,7 @@ function onHandTap(btn) {
     btn.classList.remove('shake');
     void btn.offsetWidth;
     btn.classList.add('shake');
-    toast(`Wait for ${seatName(r.turn)}`, 1200);
+    toast(t('waitFor', { name: seatName(r.turn) }), 1200);
     return;
   }
   const ends = pickEnds(key);
@@ -454,8 +456,8 @@ function onHandTap(btn) {
 
 function showPicker(lv, rv) {
   const p = $('endPicker');
-  p.querySelector('[data-end="L"]').innerHTML = `◀ on the ${lv}`;
-  p.querySelector('[data-end="R"]').innerHTML = `on the ${rv} ▶`;
+  p.querySelector('[data-end="L"]').innerHTML = t('onLeft', { n: lv });
+  p.querySelector('[data-end="R"]').innerHTML = t('onRight', { n: rv });
   p.hidden = false;
 }
 
@@ -522,17 +524,19 @@ function buildResult(fresh) {
   const weWon = mine && winTeam === myTeam();
   const how =
     o.reason === 'domino'
-      ? `${seatName(o.winnerSeat)} ${o.winnerSeat === me() ? 'go' : 'goes'} out!`
-      : `Blocked! Pips — ${teamLabel(0)}: ${o.teamPips[0]}, ${teamLabel(1)}: ${o.teamPips[1]}`;
+      ? o.winnerSeat === me()
+        ? t('youGoOut')
+        : t('goesOut', { name: seatName(o.winnerSeat) })
+      : t('blockedPips', { a: teamLabel(0), pa: o.teamPips[0], b: teamLabel(1), pb: o.teamPips[1] });
 
   if (isMatch) {
     emoji = !mine ? '🏆' : weWon ? '🏆' : '😭';
-    title = !mine ? `${teamLabel(winTeam)} wins the match!` : weWon ? 'You win the match!' : 'You lose the match';
-    sub = `${state.scores[winTeam]} to ${state.scores[1 - winTeam]} · ${state.roundNo} rounds`;
+    title = !mine ? t('teamWinsMatch', { team: teamLabel(winTeam) }) : weWon ? t('youWinMatch') : t('youLoseMatch');
+    sub = t('matchSub', { a: state.scores[winTeam], b: state.scores[1 - winTeam], n: state.roundNo });
   } else if (winTeam == null) {
     emoji = '🤝';
-    title = 'Blocked — it’s a tie';
-    sub = `Both teams have ${o.teamPips[0]} pips. No points.`;
+    title = t('tieTitle');
+    sub = t('tieSub', { n: o.teamPips[0] });
   } else {
     emoji = !mine ? '🁢' : weWon ? '🎉' : '😬';
     title = `${teamLabel(winTeam)} +${o.points}`;
@@ -542,15 +546,16 @@ function buildResult(fresh) {
   card.className = `result-card ${isMatch ? 'match' : ''} ${isMatch && mine ? (weWon ? 'won' : 'lost') : ''}`;
   $('resultEmoji').textContent = emoji;
   $('resultTitle').textContent = title;
-  $('resultSub').textContent = isMatch ? `${sub} · last round: ${how}` : sub;
+  $('resultSub').textContent = isMatch ? t('lastRound', { sub, how }) : sub;
 
-  const gained = (t) => (!isMatch && o.winnerTeam === t && o.points ? `<em>+${o.points}</em>` : '');
+  const gained = (team) => (!isMatch && o.winnerTeam === team && o.points ? `<em>+${o.points}</em>` : '');
   const order = [myTeam(), 1 - myTeam()];
   $('resultScores').innerHTML = order
     .map(
-      (t) => `<div class="rs" data-team="${t}"><span>${teamLabel(t)}</span><b>${state.scores[t]}</b>${gained(t)}</div>`,
+      (team) =>
+        `<div class="rs" data-team="${team}"><span>${teamLabel(team)}</span><b>${state.scores[team]}</b>${gained(team)}</div>`,
     )
-    .join(`<div class="rs-target">to ${state.target}</div>`);
+    .join(`<div class="rs-target">${t('to', { n: state.target })}</div>`);
 
   $('resultHands').innerHTML = r.hands
     ? [0, 1, 2, 3]
@@ -560,8 +565,8 @@ function buildResult(fresh) {
             <span class="rh-name">${esc(seatName(s))}</span>
             <span class="rh-tiles">${
               r.hands[s].length
-                ? r.hands[s].map((t) => `<span class="tile h mini">${tileHTML(t[0], t[1], true)}</span>`).join('')
-                : '<span class="muted">out ✓</span>'
+                ? r.hands[s].map((tile) => `<span class="tile h mini">${tileHTML(tile[0], tile[1], true)}</span>`).join('')
+                : `<span class="muted">${t('outCheck')}</span>`
             }</span></div>`,
         )
         .join('')
@@ -569,10 +574,13 @@ function buildResult(fresh) {
 
   const actions = [];
   if (mine) {
-    if (isMatch) actions.push('<button class="btn primary" data-act="rematch">Rematch</button>', '<button class="btn" data-act="lobby">Change seats</button>');
-    else actions.push('<button class="btn primary" data-act="next">Next round</button>');
-  } else actions.push('<p class="muted">Waiting for players…</p>');
-  actions.push('<button class="btn ghost" data-act="peek">See board</button>');
+    if (isMatch) actions.push(
+        `<button class="btn primary" data-act="rematch">${t('rematch')}</button>`,
+        `<button class="btn" data-act="lobby">${t('changeSeats')}</button>`,
+      );
+    else actions.push(`<button class="btn primary" data-act="next">${t('nextRound')}</button>`);
+  } else actions.push(`<p class="muted">${t('waitingPlayers')}…</p>`);
+  actions.push(`<button class="btn ghost" data-act="peek">${t('seeBoard')}</button>`);
   $('resultActions').innerHTML = actions.join('');
 
   overlay.hidden = false;
@@ -602,17 +610,21 @@ function renderScoreSheet() {
   $('hLabel1').textContent = teamLabel(right);
   $('total0').textContent = state.scores[left];
   $('total1').textContent = state.scores[right];
-  $('totalTarget').textContent = `to ${state.target}`;
+  $('totalTarget').textContent = t('to', { n: state.target });
   $('historyBody').innerHTML = state.history.length
     ? state.history
         .map((h) => {
-          const cell = (t) => (h.winnerTeam === t ? `+${h.points}` : '·');
+          const cell = (team) => (h.winnerTeam === team ? `+${h.points}` : '·');
           const how =
-            h.reason === 'domino' ? `${esc(seatName(h.winnerSeat))} out` : h.winnerTeam == null ? 'Blocked, tie' : 'Blocked';
+            h.reason === 'domino'
+              ? esc(t('histOut', { name: seatName(h.winnerSeat) }))
+              : h.winnerTeam == null
+                ? t('histTie')
+                : t('histBlocked');
           return `<tr><td>${h.round}</td><td class="c0">${cell(left)}</td><td class="c1">${cell(right)}</td><td class="how">${how}</td></tr>`;
         })
         .join('')
-    : '<tr><td colspan="4" class="muted center">No rounds yet</td></tr>';
+    : `<tr><td colspan="4" class="muted center">${t('noRounds')}</td></tr>`;
 }
 
 // ---- events -----------------------------------------------------------------
@@ -653,7 +665,7 @@ document.body.addEventListener('click', (e) => {
   if ('stand' in el.dataset) return send({ t: 'stand' });
   if (el.dataset.sit) {
     const s = state.seats[Number(el.dataset.sit)];
-    if (state.phase === 'lobby' && s?.bot) return toast('Remove the bot first');
+    if (state.phase === 'lobby' && s?.bot) return toast(t('removeBotFirst'));
     return send({ t: 'sit', seat: Number(el.dataset.sit) });
   }
   if (el.dataset.target) return send({ t: 'target', target: Number(el.dataset.target) });
@@ -696,6 +708,12 @@ $('soundBtn').onclick = () => {
   paintSound();
 };
 paintSound();
+
+i18n.apply();
+$('langBtn').onclick = () => {
+  i18n.cycle();
+  if (state) render(state);
+};
 
 let nameTimer;
 $('nameInput').addEventListener('input', (e) => {

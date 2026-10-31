@@ -14,6 +14,7 @@ Created in [T3 Code](https://t3.codes).
 - **Spectators.** Anyone who opens the link after the seats are taken watches the game.
 - **Reconnects.** Reloading or briefly losing the connection puts you back in your seat with your hand. The client notices dead connections within seconds, reconnects with backoff, and retries right away when the network or the tab comes back. If you were swapped for a bot while away, rejoining gives you your seat back.
 - **Reactions and sound.** Emoji reactions shown at the table (👏 😂 😮 😡 🔥 👋), sound effects, and a pass animation.
+- **English and Spanish.** The language follows the browser, and the EN/ES button switches it (saved in `localStorage`).
 - **Installable.** Ships a web app manifest, so it can be added to the home screen.
 
 ### Rules
@@ -56,6 +57,7 @@ public/
   js/tiles.js      Tile markup
   js/fx.js         Animations and reactions
   js/sound.js      Sound effects
+  js/i18n.js       UI strings (English, Spanish) and language switching
   css/style.css    Styles
 test/              Game and board layout tests
 vercel.json        Rewrites /play/:id → /play.html

@@ -13,15 +13,15 @@
   <body class="game">
     <div id="app">
       <header class="topbar">
-        <a href="/" class="icon-btn" aria-label="Home">
+        <a href="/" class="icon-btn" aria-label="Home" data-i18n-aria="aria.home">
           <svg viewBox="0 0 24 24" width="22" height="22"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </a>
-        <button id="scoreBtn" class="scoreboard" aria-label="Show score history">
+        <button id="scoreBtn" class="scoreboard" aria-label="Show score history" data-i18n-aria="aria.score">
           <span class="team t0"><span class="label" id="label0">Us</span><span class="pts" id="score0">0</span></span>
           <span class="meta"><span>to <b id="target">100</b></span><small id="roundNo">Lobby</small></span>
           <span class="team t1"><span class="pts" id="score1">0</span><span class="label" id="label1">Them</span></span>
         </button>
-        <button id="shareBtn" class="icon-btn" aria-label="Invite">
+        <button id="shareBtn" class="icon-btn" aria-label="Invite" data-i18n-aria="aria.invite">
           <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
       </header>
@@ -39,8 +39,9 @@
           <div class="seat me" id="seat-me"></div>
           <div class="status" id="status"></div>
           <div class="me-tools">
-            <button id="reactBtn" class="icon-btn small" aria-label="Send a reaction" hidden>😀</button>
-            <button id="soundBtn" class="icon-btn small" aria-label="Toggle sound">🔊</button>
+            <button id="reactBtn" class="icon-btn small" aria-label="Send a reaction" data-i18n-aria="aria.react" hidden>😀</button>
+            <button id="langBtn" class="icon-btn small" data-lang-btn data-i18n-aria="aria.lang">EN</button>
+            <button id="soundBtn" class="icon-btn small" aria-label="Toggle sound" data-i18n-aria="aria.sound">🔊</button>
           </div>
         </div>
         <div class="react-bar" id="reactBar" hidden>
@@ -53,7 +54,7 @@
         </div>
         <div class="end-picker" id="endPicker" hidden>
           <button class="btn" data-end="L"></button>
-          <button class="btn ghost" data-end="cancel">Cancel</button>
+          <button class="btn ghost" data-end="cancel" data-i18n="cancel">Cancel</button>
           <button class="btn" data-end="R"></button>
         </div>
         <div class="hand" id="hand"></div>
@@ -63,21 +64,21 @@
     <!-- Lobby -->
     <section class="sheet" id="lobby" hidden>
       <div class="sheet-body">
-        <h2>Match <span id="matchCode" class="code"></span></h2>
+        <h2><span data-i18n="match">Match</span> <span id="matchCode" class="code"></span></h2>
         <div class="invite">
           <input id="inviteUrl" readonly />
-          <button id="copyBtn" class="btn">Copy</button>
+          <button id="copyBtn" class="btn" data-i18n="copy">Copy</button>
         </div>
 
         <label class="field">
-          <span>Your name</span>
+          <span data-i18n="yourName">Your name</span>
           <input id="nameInput" maxlength="16" autocomplete="nickname" enterkeyhint="done" />
         </label>
 
-        <p class="section-title">Seats <small>— partners sit across from each other</small></p>
+        <p class="section-title"><span data-i18n="seats">Seats</span> <small data-i18n="seatsNote">— partners sit across from each other</small></p>
         <div class="lobby-table" id="lobbySeats"></div>
 
-        <p class="section-title">Play to</p>
+        <p class="section-title" data-i18n="playTo">Play to</p>
         <div class="segmented" id="targetPicker">
           <button data-target="100">100</button>
           <button data-target="150">150</button>
@@ -85,7 +86,7 @@
         </div>
 
         <div class="lobby-actions">
-          <button id="botsBtn" class="btn block">Fill empty seats with bots</button>
+          <button id="botsBtn" class="btn block" data-i18n="fillBots">Fill empty seats with bots</button>
           <button id="startBtn" class="btn primary block">Start game</button>
         </div>
       </div>
@@ -95,19 +96,19 @@
     <section class="sheet" id="scoreSheet" hidden>
       <div class="sheet-body">
         <div class="sheet-head">
-          <h2>Score</h2>
-          <button class="icon-btn" data-close aria-label="Close">✕</button>
+          <h2 data-i18n="score">Score</h2>
+          <button class="icon-btn" data-close aria-label="Close" data-i18n-aria="aria.close">✕</button>
         </div>
         <table class="history">
           <thead>
-            <tr><th>#</th><th class="c0" id="hLabel0">Us</th><th class="c1" id="hLabel1">Them</th><th>How</th></tr>
+            <tr><th>#</th><th class="c0" id="hLabel0">Us</th><th class="c1" id="hLabel1">Them</th><th data-i18n="how">How</th></tr>
           </thead>
           <tbody id="historyBody"></tbody>
           <tfoot>
-            <tr><th>Total</th><th class="c0" id="total0">0</th><th class="c1" id="total1">0</th><th id="totalTarget"></th></tr>
+            <tr><th data-i18n="total">Total</th><th class="c0" id="total0">0</th><th class="c1" id="total1">0</th><th id="totalTarget"></th></tr>
           </tfoot>
         </table>
-        <p class="rules">
+        <p class="rules" data-i18n="rules">
           Partners sit across. Whoever has the double six opens the first round; after that, the round
           winner opens. Going out ("domino") scores every pip left in all hands. If the game is blocked,
           the team with fewer pips wins them all.
@@ -125,10 +126,10 @@
         <div class="result-hands" id="resultHands"></div>
         <div class="result-actions" id="resultActions"></div>
       </div>
-      <button class="btn primary peek-btn" data-act="unpeek">Show result</button>
+      <button class="btn primary peek-btn" data-act="unpeek" data-i18n="showResult">Show result</button>
     </section>
 
-    <div class="conn" id="conn" hidden>Reconnecting…</div>
+    <div class="conn" id="conn" hidden data-i18n="reconnecting">Reconnecting…</div>
     <canvas id="fx" hidden></canvas>
 
     <script type="module" src="/js/play.js"></script>
