@@ -386,6 +386,7 @@ function onDragMove(e) {
   for (const node of board.nodes.values()) node.classList.remove('drop-hover');
   $('board').classList.toggle('drop-hover', !!drag.target && !drag.target.node);
   drag.target?.node?.classList.add('drop-hover');
+  board.preview(drag.target ? drag.key.split('-').map(Number) : null, drag.target?.end);
 }
 
 function onDragEnd(e) {
@@ -406,6 +407,7 @@ function cancelDrag() {
   for (const node of board.nodes.values()) node.classList.remove('drop-hover');
   $('board').classList.remove('drop-hover');
   board.highlight(null);
+  board.preview(null);
 }
 
 /** Which legal end ('L' / 'R') is the pointer over? */
