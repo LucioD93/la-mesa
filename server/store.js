@@ -7,7 +7,7 @@ import { Match } from './match.js';
 const MATCH_TTL_S = 60 * 60 * 24; // forget matches idle for a day
 const PRESENCE_MS = 40_000; // a connection refreshes its presence every 15s
 export const PRESENCE_REFRESH_MS = 15_000;
-export const LEAVE_GRACE_MS = 6_000; // keep "online" briefly so a reload doesn't flicker
+export const LEAVE_GRACE_MS = 20_000; // keep "online" briefly so a reload or network blip doesn't free the seat
 
 const onlineFrom = (entries, now = Date.now()) =>
   new Set(Object.entries(entries || {}).filter(([, exp]) => Number(exp) > now).map(([t]) => t));

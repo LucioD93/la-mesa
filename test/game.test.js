@@ -124,6 +124,23 @@ test('rejoining with the same token keeps the seat', () => {
   assert.equal(m.stateFor('tok-b', new Set(['tok-b'])).round.hand.length, 7);
 });
 
+test('a player replaced by a bot after dropping gets the seat back on rejoin', () => {
+  let m = new Match('reclaim');
+  m.join('tok-a', 'Ann');
+  m.join('tok-b', 'Ben');
+  m.handle('tok-a', { t: 'addBots' }, new Set());
+  m.handle('tok-a', { t: 'start' }, new Set());
+  const hand = m.round.hands[1];
+  // Ben drops; Ann hands his seat to a bot.
+  assert.equal(m.handle('tok-a', { t: 'botify', seat: 1 }, new Set(['tok-a'])), true);
+  assert.equal(m.seatOf('tok-b'), -1);
+  assert.equal(m.stateFor('tok-a', new Set(['tok-a'])).seats[1].bot, true);
+  m = new Match(m.id, JSON.parse(JSON.stringify(m)));
+  m.join('tok-b', 'Ben');
+  assert.equal(m.seatOf('tok-b'), 1);
+  assert.deepEqual(m.stateFor('tok-b', new Set(['tok-b'])).round.hand, hand);
+});
+
 test('lobby frees seats of players who went offline', () => {
   const m = new Match('lobby');
   m.join('a', 'Ann');

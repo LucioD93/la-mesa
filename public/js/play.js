@@ -20,38 +20,123 @@ localStorage.setItem('domino.name', myName);
 
 // ---- connection -------------------------------------------------------------
 
+// Spotty networks (mobile, wifi handoffs) often leave a socket half-open: it
+// looks connected but nothing gets through and `onclose` fires much later. So
+// we expect traffic: the server answers every `ping`, and if nothing arrives
+// within a deadline we drop the socket ourselves and dial again.
+const PING_MS = 10000; // idle ping interval
+const SILENCE_MS = 25000; // no message for this long → assume the socket is dead
+const ACK_MS = 6000; // after an action, expect a reply this fast
+const CONNECT_MS = 8000; // give up on a handshake that hangs
+
 let ws;
 let retry = 0;
 let retryTimer;
+let deadline = 0; // drop the socket if nothing arrives before this time
+let bannerTimer;
 
 function connect() {
   clearTimeout(retryTimer);
   if (ws && ws.readyState <= 1) return;
-  ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/ws?match=${encodeURIComponent(matchId)}`);
-  ws.onopen = () => {
-    retry = 0;
-    $('conn').hidden = true;
+  const sock = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/ws?match=${encodeURIComponent(matchId)}`);
+  ws = sock;
+  deadline = Date.now() + CONNECT_MS;
+  sock.onopen = () => {
+    deadline = Date.now() + SILENCE_MS;
     send({ t: 'hello', token, name: myName });
   };
-  ws.onmessage = (e) => {
+  sock.onmessage = (e) => {
+    deadline = Date.now() + SILENCE_MS;
+    retry = 0; // only count a connection as good once the server talks back
+    setConnected(true);
     const msg = JSON.parse(e.data);
     if (msg.t === 'state') render(msg);
     else if (msg.t === 'error') toast(msg.message);
   };
-  ws.onclose = () => {
-    $('conn').hidden = false;
-    retryTimer = setTimeout(connect, Math.min(5000, 400 * 2 ** retry++));
+  sock.onclose = () => {
+    if (ws === sock) reconnectLater();
   };
 }
 
-function send(msg) {
-  if (ws?.readyState === 1) ws.send(JSON.stringify(msg));
+/** Abandon the current socket (even if the browser still thinks it is open). */
+function drop() {
+  const sock = ws;
+  ws = null;
+  if (sock) {
+    sock.onopen = sock.onmessage = sock.onclose = null;
+    try {
+      sock.close();
+    } catch {}
+  }
+  reconnectLater();
 }
 
-setInterval(() => send({ t: 'ping' }), 20000);
+function reconnectLater() {
+  ws = null;
+  setConnected(false);
+  clearTimeout(retryTimer);
+  // Exponential backoff with jitter so a server blip doesn't get every client
+  // reconnecting in lockstep.
+  const base = Math.min(8000, 500 * 2 ** retry++);
+  retryTimer = setTimeout(connect, base / 2 + Math.random() * (base / 2));
+}
+
+/** Try right away (network came back, tab became visible) instead of waiting. */
+function reconnectNow() {
+  if (ws?.readyState === 1 && Date.now() < deadline) return;
+  if (ws?.readyState === 0) return; // already dialing; the connect deadline covers it
+  retry = 0;
+  if (ws) drop();
+  connect();
+}
+
+function setConnected(ok) {
+  clearTimeout(bannerTimer);
+  if (ok) {
+    $('conn').hidden = true;
+    document.body.classList.remove('offline');
+    return;
+  }
+  // Brief blips reconnect before anyone notices; don't flash the banner.
+  bannerTimer = setTimeout(() => {
+    $('conn').textContent = navigator.onLine === false ? 'No connection — waiting for network…' : 'Reconnecting…';
+    $('conn').hidden = false;
+    document.body.classList.add('offline');
+  }, 1200);
+}
+
+function send(msg) {
+  if (ws?.readyState !== 1) {
+    if (msg.t !== 'ping') {
+      toast('Not connected — reconnecting…');
+      reconnectNow();
+    }
+    return false;
+  }
+  ws.send(JSON.stringify(msg));
+  if (msg.t !== 'ping') {
+    // Probe right behind the action so a dead socket is noticed in seconds
+    // rather than after the idle timeout.
+    ws.send(JSON.stringify({ t: 'ping' }));
+    deadline = Math.min(deadline, Date.now() + ACK_MS);
+  }
+  return true;
+}
+
+setInterval(() => {
+  if (!ws) return;
+  // Hidden tabs get their timers throttled, so silence there proves nothing;
+  // coming back to the tab re-checks the socket (see visibilitychange).
+  if (document.visibilityState === 'visible' && Date.now() > deadline) return drop();
+  if (ws.readyState === 1) send({ t: 'ping' });
+}, PING_MS);
+
+window.addEventListener('online', reconnectNow);
+window.addEventListener('offline', () => ws && drop());
+window.addEventListener('pageshow', (e) => e.persisted && reconnectNow());
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') {
-    connect();
+    reconnectNow();
     requestWakeLock();
   }
 });

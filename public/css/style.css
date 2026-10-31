@@ -354,6 +354,8 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
   font-size: 13px;
   font-weight: 700;
 }
+/* While reconnecting, moves can't be sent; make that visible. */
+.offline .hand { opacity: 0.5; pointer-events: none; transition: opacity 0.2s; }
 
 /* ---- sheets ------------------------------------------------------------- */
 .sheet {
