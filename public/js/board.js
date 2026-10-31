@@ -121,6 +121,7 @@ export class BoardView {
       const offX = (W - b.w * unit) / 2 - b.minX * unit;
       const offY = (H - b.h * unit) / 2 - b.minY * unit;
       this.el.style.setProperty('--u', `${unit}px`);
+      this.geom = { offX, offY, unit };
 
       const lastL = rects[0];
       const lastR = rects[rects.length - 1];
@@ -158,6 +159,70 @@ export class BoardView {
         this.nodes.delete(key);
       }
     }
+  }
+
+  /** Where `tile` would land if played on `end`, in board pixels. */
+  landing(tile, end) {
+    const W = this.el.clientWidth;
+    const H = this.el.clientHeight;
+    let line, center, rects, offX, offY, unit;
+    if (!this.line.length) {
+      line = [tile];
+      rects = layoutLine(line, 0, 16);
+      const b = bbox(rects);
+      unit = Math.min(W / (b.w + 1), H / (b.h + 1), MAX_UNIT);
+      offX = (W - b.w * unit) / 2 - b.minX * unit;
+      offY = (H - b.h * unit) / 2 - b.minY * unit;
+    } else {
+      if (!this.geom) return null;
+      ({ offX, offY, unit } = this.geom);
+      const lv = this.line[0][0];
+      const rv = this.line[this.line.length - 1][1];
+      const [p, q] = tile;
+      if (end === 'L') {
+        line = [q === lv ? [p, q] : [q, p], ...this.line];
+        center = this.center + 1;
+      } else {
+        line = [...this.line, p === rv ? [p, q] : [q, p]];
+        center = this.center;
+      }
+      rects = layoutLine(line, center, this.maxX);
+    }
+    const r = end === 'L' || !this.line.length ? rects[0] : rects[rects.length - 1];
+    return {
+      left: offX + r.x * unit,
+      top: offY + r.y * unit,
+      width: r.w * unit,
+      height: r.h * unit,
+      horizontal: r.w > r.h,
+      a: r.a,
+      b: r.b,
+    };
+  }
+
+  /** Outline where the dragged tile will land; pass null to hide it. */
+  preview(tile, end) {
+    const spot = tile && this.landing(tile, end);
+    if (!spot) {
+      this.previewEl?.remove();
+      this.previewEl = null;
+      return;
+    }
+    if (!this.previewEl) {
+      this.previewEl = document.createElement('div');
+      this.el.appendChild(this.previewEl);
+    }
+    const el = this.previewEl;
+    const sig = `${spot.a}${spot.b}${spot.horizontal}`;
+    if (el.dataset.sig !== sig) {
+      el.dataset.sig = sig;
+      el.innerHTML = tileHTML(spot.a, spot.b, spot.horizontal);
+    }
+    el.className = `tile drop-preview ${spot.horizontal ? 'h' : 'v'}`;
+    el.style.left = `${spot.left}px`;
+    el.style.top = `${spot.top}px`;
+    el.style.width = `${spot.width}px`;
+    el.style.height = `${spot.height}px`;
   }
 
   /** Highlight the board ends a selected tile can go to. */

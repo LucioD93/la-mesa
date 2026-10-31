@@ -295,9 +295,6 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 }
 @media (prefers-reduced-motion: reduce) { .reaction { animation-duration: 1.2s; } }
 
-.end-picker { display: flex; gap: 8px; margin: 4px 0 8px; }
-.end-picker .btn { flex: 1; background: var(--gold); color: #2a2000; }
-.end-picker .btn.ghost { flex: 0.7; background: transparent; color: var(--muted); }
 
 .hand {
   --gap: 6px;
@@ -316,7 +313,33 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
   transition: transform 0.18s, opacity 0.2s, filter 0.2s, box-shadow 0.2s;
 }
 .hand-tile.playable { transform: translateY(-8px); box-shadow: 0 0 0 2px var(--gold), 0 8px 18px rgba(0, 0, 0, 0.45); }
-.hand-tile.selected { transform: translateY(-16px) scale(1.04); box-shadow: 0 0 0 3px var(--gold), 0 0 22px var(--gold); }
+.hand-tile { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.hand-tile.playable { cursor: grab; }
+.hand-tile.dragging { opacity: 0.25; transform: none; box-shadow: none; }
+.drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 50;
+  pointer-events: none;
+  box-shadow: 0 0 0 3px var(--gold), 0 14px 28px rgba(0, 0, 0, 0.55);
+  will-change: transform;
+}
+.board.drop-hover { box-shadow: inset 0 0 0 2px var(--gold); border-radius: 12px; }
+.board .tile.drop-preview {
+  z-index: 3;
+  pointer-events: none;
+  transition: none;
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+  outline: 2px dashed var(--gold);
+  outline-offset: 1px;
+  opacity: 0.75;
+  animation: preview 0.8s ease-in-out infinite alternate;
+}
+.board .tile.drop-preview .half { opacity: 0.45; }
+@keyframes preview { from { opacity: 0.5; } to { opacity: 0.9; } }
+.board .tile.drop-hover { box-shadow: 0 0 0 3px var(--gold), 0 0 22px var(--gold); }
 .hand-tile.dim { opacity: 0.5; filter: saturate(0.4) brightness(0.8); }
 .hand-tile:active { transform: translateY(-4px) scale(0.97); }
 .shake { animation: shake 0.35s; }

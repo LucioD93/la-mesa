@@ -144,7 +144,7 @@ document.addEventListener('visibilitychange', () => {
 // ---- helpers ----------------------------------------------------------------
 
 let state = null;
-let selected = null; // tile key chosen while picking an end
+let drag = null; // tile being dragged from the hand to the board
 const board = new BoardView($('board'));
 
 const me = () => state?.you ?? -1;
@@ -328,7 +328,7 @@ function renderBoard() {
     node.classList.toggle('last', key === last);
     if (key === last) node.dataset.team = r.lastAction.seat % 2;
   }
-  board.highlight(selected ? pickEnds(selected) : null);
+  board.highlight(drag ? pickEnds(drag.key) : null);
 
   let hint = '';
   if (r && !r.line.length && state.phase === 'playing') {
@@ -350,12 +350,12 @@ function renderHand() {
   if (!hand) {
     handEl.innerHTML =
       me() === -1 && state.phase !== 'lobby' ? '<p class="muted center">You are watching. Tap “Take seat” on a bot to play.</p>' : '';
-    hidePicker();
+    cancelDrag();
     return;
   }
   const playable = new Set(r.legal.map((m) => tileKey(m.tile)));
   const myTurn = r.turn === me() && state.phase === 'playing';
-  if (selected && !playable.has(selected)) selected = null;
+  if (drag && (!myTurn || !playable.has(drag.key))) cancelDrag();
 
   handEl.innerHTML = sortHand(hand)
     .map((t) => {
@@ -364,13 +364,12 @@ function renderHand() {
         'tile v hand-tile',
         myTurn && playable.has(key) ? 'playable' : '',
         myTurn && !playable.has(key) ? 'dim' : '',
-        selected === key ? 'selected' : '',
+        drag?.key === key ? 'dragging' : '',
       ].join(' ');
       return `<button class="${cls}" data-key="${key}" aria-label="${t[0]} and ${t[1]}">${tileHTML(t[0], t[1], false)}</button>`;
     })
     .join('');
   handEl.style.setProperty('--n', Math.max(hand.length, 5));
-  if (!selected) hidePicker();
 }
 
 function renderStatus() {
@@ -397,70 +396,127 @@ function pickEnds(key) {
   return [...new Set(state.round.legal.filter((m) => tileKey(m.tile) === key).map((m) => m.end))];
 }
 
-function boardEnds() {
-  const line = state.round.line;
-  return line.length ? [line[0][0], line[line.length - 1][1]] : null;
-}
-
 function playTile(key, end) {
   const [a, b] = key.split('-').map(Number);
   send({ t: 'play', tile: [a, b], end });
-  selected = null;
-  hidePicker();
-  board.highlight(null);
   buzz(15);
 }
 
-function onHandTap(btn) {
-  const r = state.round;
-  const key = btn.dataset.key;
-  if (state.phase !== 'playing') return;
+function shake(btn) {
+  btn.classList.remove('shake');
+  void btn.offsetWidth;
+  btn.classList.add('shake');
+}
+
+/** Can this hand tile be picked up right now? Gives feedback when it can't. */
+function canDrag(btn) {
+  const r = state?.round;
+  if (!r || state.phase !== 'playing') return false;
   if (r.turn !== me()) {
-    btn.classList.remove('shake');
-    void btn.offsetWidth;
-    btn.classList.add('shake');
+    shake(btn);
     toast(`Wait for ${seatName(r.turn)}`, 1200);
-    return;
+    return false;
   }
-  const ends = pickEnds(key);
-  if (!ends.length) {
-    btn.classList.remove('shake');
-    void btn.offsetWidth;
-    btn.classList.add('shake');
+  if (!pickEnds(btn.dataset.key).length) {
+    shake(btn);
     buzz([10, 40, 10]);
-    return;
+    return false;
   }
-  if (ends.length === 1) return playTile(key, ends[0]);
-
-  const [lv, rv] = boardEnds();
-  if (lv === rv) {
-    // Same number on both ends: put it on the shorter arm.
-    const leftLen = r.center;
-    const rightLen = r.line.length - r.center - 1;
-    return playTile(key, leftLen < rightLen ? 'L' : 'R');
-  }
-  if (selected === key) {
-    selected = null;
-    hidePicker();
-    renderHand();
-    board.highlight(null);
-    return;
-  }
-  selected = key;
-  renderHand();
-  showPicker(lv, rv);
-  board.highlight(ends);
+  return true;
 }
 
-function showPicker(lv, rv) {
-  const p = $('endPicker');
-  p.querySelector('[data-end="L"]').innerHTML = `◀ on the ${lv}`;
-  p.querySelector('[data-end="R"]').innerHTML = `on the ${rv} ▶`;
-  p.hidden = false;
+const DRAG_START = 6; // px of movement before a press becomes a drag
+
+function onHandDown(e) {
+  const btn = e.target.closest('.hand-tile');
+  if (!btn || !state || drag || e.button > 0) return;
+  if (!canDrag(btn)) return;
+  e.preventDefault();
+  drag = {
+    key: btn.dataset.key,
+    btn,
+    id: e.pointerId,
+    x0: e.clientX,
+    y0: e.clientY,
+    ghost: null,
+    target: null,
+  };
 }
 
-function hidePicker() {
-  $('endPicker').hidden = true;
+function startGhost() {
+  const rect = drag.btn.getBoundingClientRect();
+  const ghost = drag.btn.cloneNode(true);
+  ghost.className = 'tile v drag-ghost';
+  ghost.style.width = `${rect.width}px`;
+  ghost.style.height = `${rect.height}px`;
+  ghost.style.setProperty('--u', `${rect.width}px`);
+  drag.dx = drag.x0 - rect.left;
+  drag.dy = drag.y0 - rect.top;
+  drag.ghost = ghost;
+  document.body.append(ghost);
+  drag.btn.classList.add('dragging');
+  board.highlight(pickEnds(drag.key));
+  buzz(8);
+}
+
+function onDragMove(e) {
+  if (!drag || e.pointerId !== drag.id) return;
+  if (!drag.ghost) {
+    if (Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0) < DRAG_START) return;
+    startGhost();
+  }
+  e.preventDefault();
+  drag.ghost.style.transform = `translate(${e.clientX - drag.dx}px, ${e.clientY - drag.dy}px) rotate(-4deg) scale(1.08)`;
+  drag.target = dropTarget(e.clientX, e.clientY);
+  for (const node of board.nodes.values()) node.classList.remove('drop-hover');
+  $('board').classList.toggle('drop-hover', !!drag.target && !drag.target.node);
+  drag.target?.node?.classList.add('drop-hover');
+  board.preview(drag.target ? drag.key.split('-').map(Number) : null, drag.target?.end);
+}
+
+function onDragEnd(e) {
+  if (!drag || e.pointerId !== drag.id) return;
+  const { key, ghost, btn } = drag;
+  const target = e.type === 'pointerup' && ghost ? dropTarget(e.clientX, e.clientY) : null;
+  cancelDrag();
+  if (target) playTile(key, target.end);
+  else if (!ghost && e.type === 'pointerup') toast('Drag the tile onto the board', 1400);
+  else if (ghost) shake(btn);
+}
+
+function cancelDrag() {
+  if (!drag) return;
+  drag.ghost?.remove();
+  drag.btn.classList.remove('dragging');
+  drag = null;
+  for (const node of board.nodes.values()) node.classList.remove('drop-hover');
+  $('board').classList.remove('drop-hover');
+  board.highlight(null);
+  board.preview(null);
+}
+
+/** Which legal end ('L' / 'R') is the pointer over? */
+function dropTarget(x, y) {
+  const ends = pickEnds(drag.key);
+  const boardRect = $('board').getBoundingClientRect();
+  const inBoard = x >= boardRect.left && x <= boardRect.right && y >= boardRect.top && y <= boardRect.bottom;
+  if (!state.round.line.length) return inBoard ? { end: ends[0], node: null } : null;
+
+  const unit = parseFloat(getComputedStyle($('board')).getPropertyValue('--u')) || 24;
+  const reach = Math.max(44, unit * 2.2);
+  let best = null;
+  for (const end of ends) {
+    const node = [...board.nodes.values()].find((n) => n.classList.contains(end === 'L' ? 'end-l' : 'end-r'));
+    if (!node) continue;
+    const r = node.getBoundingClientRect();
+    const dist = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
+    if (dist > reach) continue;
+    // A lone opening tile is both ends: pick the side the tile is dropped on.
+    const side = x < r.left + r.width / 2 ? 'L' : 'R';
+    const score = dist + (ends.length > 1 && end !== side ? 0.5 : 0);
+    if (!best || score < best.score) best = { end, node, score };
+  }
+  return best;
 }
 
 // ---- reactions ----------------------------------------------------------------
@@ -617,30 +673,10 @@ function renderScoreSheet() {
 
 // ---- events -----------------------------------------------------------------
 
-$('hand').addEventListener('click', (e) => {
-  const btn = e.target.closest('.hand-tile');
-  if (btn && state) onHandTap(btn);
-});
-
-$('endPicker').addEventListener('click', (e) => {
-  const end = e.target.closest('[data-end]')?.dataset.end;
-  if (!end) return;
-  if (end === 'cancel' || !selected) {
-    selected = null;
-    hidePicker();
-    renderHand();
-    board.highlight(null);
-    return;
-  }
-  playTile(selected, end);
-});
-
-$('board').addEventListener('click', (e) => {
-  if (!selected) return;
-  const t = e.target.closest('.tile');
-  if (t?.classList.contains('target-l')) playTile(selected, 'L');
-  else if (t?.classList.contains('target-r')) playTile(selected, 'R');
-});
+$('hand').addEventListener('pointerdown', onHandDown);
+window.addEventListener('pointermove', onDragMove, { passive: false });
+window.addEventListener('pointerup', onDragEnd);
+window.addEventListener('pointercancel', onDragEnd);
 
 document.body.addEventListener('click', (e) => {
   const el = e.target.closest('[data-botify],[data-sit],[data-remove],[data-stand],[data-act],[data-close],[data-target]');
