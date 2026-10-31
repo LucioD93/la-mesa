@@ -12,7 +12,7 @@ Created in [T3 Code](https://t3.codes).
 - **Shareable matches.** A match lives at `/play/<id>`. The invite button uses the native share sheet when the browser has one.
 - **Bots.** Fill empty seats from the lobby. Mid-game, a spectator can take over a bot's seat and hand, and a player who disconnected can be replaced by a bot so the game keeps going.
 - **Spectators.** Anyone who opens the link after the seats are taken watches the game.
-- **Reconnects.** Reloading or briefly losing the connection puts you back in your seat with your hand.
+- **Reconnects.** Reloading or briefly losing the connection puts you back in your seat with your hand. The client notices dead connections within seconds, reconnects with backoff, and retries right away when the network or the tab comes back. If you were swapped for a bot while away, rejoining gives you your seat back.
 - **Reactions and sound.** Emoji reactions shown at the table (👏 😂 😮 😡 🔥 👋), sound effects, and a pass animation.
 - **Installable.** Ships a web app manifest, so it can be added to the home screen.
 
@@ -127,8 +127,8 @@ Key points:
 - **Optimistic concurrency.** `RedisStore.update` writes with a Lua compare-and-set on a version key. If another instance saved first, it reloads and re-applies the change (up to 8 attempts).
 - **Fan-out.** Every saved change is published on `domino:{id}:ch`. Each instance subscribed to that match sends every connected player a personalized view (`Match.stateFor`), so you only see your own hand until the round ends.
 - **Bots and forced passes.** Every instance with players in the match schedules the automatic move, keyed by turn (`round:lineLength:seat:lastAction`). Only the first one to run gets applied, so duplicates are harmless.
-- **Presence.** Each connection refreshes a presence entry every 15 s (expires after 40 s). When a socket closes, the player keeps a 6 s grace period so a page reload doesn't show them as offline. Lobby seats held by players who have gone offline are freed.
-- **Heartbeats.** The server pings sockets every 25 s and drops dead ones, and the client sends an app-level `ping` every 20 s.
+- **Presence.** Each connection refreshes a presence entry every 15 s (expires after 40 s). When a socket closes, the player keeps a 20 s grace period so a reload or a network blip doesn't show them as offline (or free their seat). Lobby seats held by players who have gone offline are freed.
+- **Heartbeats.** The server pings sockets every 25 s and drops ones that neither answered nor sent anything. The client sends an app-level `ping` every 10 s, plus one right after each action. If no reply arrives within 25 s (6 s after an action), it treats the socket as half-open, drops it and reconnects.
 - **Expiry.** Redis keys expire after a day without activity.
 
 ### WebSocket protocol

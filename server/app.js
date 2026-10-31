@@ -84,6 +84,7 @@ export function createApp({ store: storeOverride } = {}) {
     wss.handleUpgrade(req, socket, head, (ws) => {
       ws.isAlive = true;
       ws.on('pong', () => (ws.isAlive = true));
+      ws.on('message', () => (ws.isAlive = true)); // client pings count too
       hub.connect(ws, id);
     });
   });

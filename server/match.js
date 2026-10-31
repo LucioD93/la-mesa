@@ -22,7 +22,7 @@ const bot = (i) => ({ token: null, name: BOT_NAMES[i], bot: true });
 export class Match {
   constructor(id, data = null) {
     this.id = id;
-    /** @type {({token: string|null, name: string, bot: boolean} | null)[]} */
+    /** @type {({token: string|null, name: string, bot: boolean, replaced?: string} | null)[]} */
     this.seats = [null, null, null, null];
     this.names = {}; // token -> display name (spectators included)
     this.phase = 'lobby'; // lobby | playing | roundEnd | matchEnd
@@ -52,7 +52,10 @@ export class Match {
     name = cleanName(name) || 'Player';
     this.names[token] = name;
     const seat = this.seatOf(token);
+    // A player who dropped and got swapped for a bot gets their seat back.
+    const replaced = this.seats.findIndex((s) => s?.bot && s.replaced === token);
     if (seat !== -1) this.seats[seat].name = name;
+    else if (replaced !== -1) this.seats[replaced] = { token, name, bot: false };
     else if (this.phase === 'lobby') {
       const empty = this.seats.indexOf(null);
       if (empty !== -1) this.seats[empty] = { token, name, bot: false };
@@ -106,7 +109,7 @@ export class Match {
         const i = Number(msg.seat);
         const s = this.seats[i];
         if (seat === -1 || !s || s.bot || online.has(s.token)) return false;
-        this.seats[i] = bot(i);
+        this.seats[i] = { ...bot(i), replaced: s.token };
         return true;
       }
       case 'react': {
