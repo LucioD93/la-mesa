@@ -26,10 +26,10 @@ const en = {
   'you': 'You',
   'player': ({ n }) => `Player ${n}`,
   'to': ({ n }) => `to ${n}`,
+  'toWord': 'to',
   'lobby': 'Lobby',
   'round': ({ n }) => `Round ${n}`,
 
-  'cancel': 'Cancel',
   'match': 'Match',
   'copy': 'Copy',
   'yourName': 'Your name',
@@ -85,8 +85,7 @@ const en = {
   'roundOver': 'Round over',
   'matchOver': 'Match over',
   'waitFor': ({ name }) => `Wait for ${name}`,
-  'onLeft': ({ n }) => `◀ on the ${n}`,
-  'onRight': ({ n }) => `on the ${n} ▶`,
+  'dragHint': 'Drag the tile onto the board',
 
   'youGoOut': 'You go out!',
   'goesOut': ({ name }) => `${name} goes out!`,
@@ -130,10 +129,10 @@ const es = {
   'you': 'Tú',
   'player': ({ n }) => `Jugador ${n}`,
   'to': ({ n }) => `a ${n}`,
+  'toWord': 'a',
   'lobby': 'Sala',
   'round': ({ n }) => `Mano ${n}`,
 
-  'cancel': 'Cancelar',
   'match': 'Partida',
   'copy': 'Copiar',
   'yourName': 'Tu nombre',
@@ -189,8 +188,7 @@ const es = {
   'roundOver': 'Mano terminada',
   'matchOver': 'Partida terminada',
   'waitFor': ({ name }) => `Espera a ${name}`,
-  'onLeft': ({ n }) => `◀ en el ${n}`,
-  'onRight': ({ n }) => `en el ${n} ▶`,
+  'dragHint': 'Arrastra la ficha a la mesa',
 
   'youGoOut': '¡Dominaste!',
   'goesOut': ({ name }) => `¡${name} dominó!`,

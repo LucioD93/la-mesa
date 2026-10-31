@@ -18,7 +18,7 @@
         </a>
         <button id="scoreBtn" class="scoreboard" aria-label="Show score history" data-i18n-aria="aria.score">
           <span class="team t0"><span class="label" id="label0">Us</span><span class="pts" id="score0">0</span></span>
-          <span class="meta"><span>to <b id="target">100</b></span><small id="roundNo">Lobby</small></span>
+          <span class="meta"><span><span data-i18n="toWord">to</span> <b id="target">100</b></span><small id="roundNo">Lobby</small></span>
           <span class="team t1"><span class="pts" id="score1">0</span><span class="label" id="label1">Them</span></span>
         </button>
         <button id="shareBtn" class="icon-btn" aria-label="Invite" data-i18n-aria="aria.invite">
@@ -51,11 +51,6 @@
           <button data-emoji="😡">😡</button>
           <button data-emoji="🔥">🔥</button>
           <button data-emoji="👋">👋</button>
-        </div>
-        <div class="end-picker" id="endPicker" hidden>
-          <button class="btn" data-end="L"></button>
-          <button class="btn ghost" data-end="cancel" data-i18n="cancel">Cancel</button>
-          <button class="btn" data-end="R"></button>
         </div>
         <div class="hand" id="hand"></div>
       </footer>
