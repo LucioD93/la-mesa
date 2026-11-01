@@ -68,7 +68,7 @@ function matchIdFrom(reqUrl) {
 
 export function createApp({ store: storeOverride } = {}) {
   const server = http.createServer(serveStatic);
-  const wss = new WebSocketServer({ noServer: true, maxPayload: 4096 });
+  const wss = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024 });
   const hubReady = (storeOverride ? Promise.resolve(storeOverride) : createStore()).then(createHub);
 
   server.on('upgrade', async (req, socket, head) => {

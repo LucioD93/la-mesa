@@ -44,9 +44,18 @@ export class MemoryStore {
     this.events.emit(id, match, online);
   }
 
-  async subscribe(id, cb) {
+  /** Fire-and-forget message for everyone in the match (voice chat signaling). */
+  async signal(id, msg) {
+    this.events.emit(`${id}:sig`, msg);
+  }
+
+  async subscribe(id, cb, onSignal) {
     this.events.on(id, cb);
-    return async () => this.events.off(id, cb);
+    if (onSignal) this.events.on(`${id}:sig`, onSignal);
+    return async () => {
+      this.events.off(id, cb);
+      if (onSignal) this.events.off(`${id}:sig`, onSignal);
+    };
   }
 
   async setPresence(id, token, ms = PRESENCE_MS) {
@@ -81,7 +90,13 @@ export class RedisStore {
 
   // Hash tags keep a match's keys in one slot (cluster-safe).
   keys(id) {
-    return { m: `domino:{${id}}:m`, v: `domino:{${id}}:v`, p: `domino:{${id}}:p`, ch: `domino:{${id}}:ch` };
+    return {
+      m: `domino:{${id}}:m`,
+      v: `domino:{${id}}:v`,
+      p: `domino:{${id}}:p`,
+      ch: `domino:{${id}}:ch`,
+      sig: `domino:{${id}}:sig`,
+    };
   }
 
   async get(id) {
@@ -123,28 +138,46 @@ export class RedisStore {
     await this.publish(id, JSON.stringify(match), online);
   }
 
-  async subscribe(id, cb) {
-    const ch = this.keys(id).ch;
+  /** Fire-and-forget message for everyone in the match (voice chat signaling). */
+  async signal(id, msg) {
+    await this.client.publish(this.keys(id).sig, JSON.stringify(msg));
+  }
+
+  async subscribe(id, cb, onSignal) {
+    const { ch, sig } = this.keys(id);
+    const unsubs = [
+      await this.listen(ch, (message) => {
+        const { json, online } = JSON.parse(message);
+        cb(new Match(id, JSON.parse(json)), new Set(online));
+      }),
+    ];
+    if (onSignal) unsubs.push(await this.listen(sig, (message) => onSignal(JSON.parse(message))));
+    return async () => {
+      for (const u of unsubs) await u();
+    };
+  }
+
+  // One Redis subscription per channel, shared by every local listener.
+  async listen(channel, fn) {
     if (!this.sub) {
       this.sub = this.client.duplicate();
       this.sub.on('error', (e) => console.error('[redis sub]', e.message));
       await this.sub.connect();
     }
-    let set = this.listeners.get(ch);
+    let set = this.listeners.get(channel);
     if (!set) {
       set = new Set();
-      this.listeners.set(ch, set);
-      await this.sub.subscribe(ch, (message) => {
-        const { json, online } = JSON.parse(message);
-        for (const fn of this.listeners.get(ch) ?? []) fn(new Match(id, JSON.parse(json)), new Set(online));
+      this.listeners.set(channel, set);
+      await this.sub.subscribe(channel, (message) => {
+        for (const f of this.listeners.get(channel) ?? []) f(message);
       });
     }
-    set.add(cb);
+    set.add(fn);
     return async () => {
-      set.delete(cb);
-      if (!set.size) {
-        this.listeners.delete(ch);
-        await this.sub.unsubscribe(ch);
+      set.delete(fn);
+      if (!set.size && this.listeners.get(channel) === set) {
+        this.listeners.delete(channel);
+        await this.sub.unsubscribe(channel);
       }
     };
   }

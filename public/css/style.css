@@ -273,6 +273,42 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 @keyframes blink { 50% { opacity: 0.6; } }
 .me-tools { display: flex; gap: 6px; margin-left: auto; }
 .icon-btn.small { width: 36px; height: 36px; font-size: 17px; }
+
+/* ---- voice chat --------------------------------------------------------- */
+.voice-btn { position: relative; }
+.voice-btn .slash { display: none; }
+.voice-btn.on { background: #16a34a; }
+.voice-btn.muted { background: #6b7280; }
+.voice-btn.muted .slash { display: inline; }
+.voice-leave { background: var(--accent); }
+.voice-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #2a2000;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 16px;
+}
+.voice-count:empty { display: none; }
+.avatar[data-voice]::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #16a34a url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round'%3E%3Crect x='9' y='3' width='6' height='11' rx='3'/%3E%3Cpath d='M18 11a6 6 0 01-12 0M12 17v3'/%3E%3C/svg%3E") center / 10px no-repeat;
+  box-shadow: 0 0 0 2px var(--felt-dark);
+}
+.avatar[data-voice='muted']::after { background-color: #6b7280; }
+.avatar.speaking:not(.turn) { box-shadow: 0 0 0 3px #22c55e, 0 0 12px rgba(34, 197, 94, 0.7); }
 [data-lang-btn] { font-weight: 700; font-size: 12px; letter-spacing: 0.04em; cursor: pointer; }
 .lang-btn { position: fixed; top: max(14px, env(safe-area-inset-top)); right: 14px; }
 

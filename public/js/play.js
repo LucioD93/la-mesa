@@ -4,6 +4,7 @@ import * as fx from './fx.js';
 import * as sound from './sound.js';
 import * as i18n from './i18n.js';
 import { t } from './i18n.js';
+import { createVoice } from './voice.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -54,6 +55,8 @@ function connect() {
     const msg = JSON.parse(e.data);
     if (msg.t === 'state') render(msg);
     else if (msg.t === 'error') toast(t(msg.message));
+    else if (msg.t === 'voice') voice.receive(msg.from, msg.data);
+    else if (msg.t === 'voiceConfig') voice.setConfig(msg);
   };
   sock.onclose = () => {
     if (ws === sock) reconnectLater();
@@ -214,6 +217,8 @@ function render(next) {
   renderScores();
   renderLobby();
   renderSeats();
+  voice.updateMeta({ seat: me(), name: myName });
+  paintVoice();
   renderBoard();
   renderHand();
   renderStatus();
@@ -535,6 +540,55 @@ function showReaction({ seat, emoji }) {
   document.body.append(el);
   sound.play('react');
 }
+
+// ---- voice chat ---------------------------------------------------------------
+
+const voice = createVoice({
+  // Signaling is best-effort: no "not connected" toast; a reconnect re-joins.
+  send: (msg) => ws?.readyState === 1 && ws.send(JSON.stringify(msg)),
+  onChange: paintVoice,
+  onJoin: (name) => toast(t('voiceJoined', { name: name || '?' })),
+});
+
+function paintVoice() {
+  const btn = $('voiceBtn');
+  btn.classList.toggle('on', voice.joined && !voice.muted);
+  btn.classList.toggle('muted', voice.joined && voice.muted);
+  btn.setAttribute('aria-pressed', String(voice.joined));
+  btn.setAttribute(
+    'aria-label',
+    t(!voice.joined ? 'aria.voiceJoin' : voice.muted ? 'aria.voiceUnmute' : 'aria.voiceMute'),
+  );
+  $('voiceLeaveBtn').hidden = !voice.joined;
+  $('voiceCount').textContent = voice.joined && voice.count ? voice.count : '';
+  if (!state) return;
+  // Mic badge on the avatars of seated players in voice; a ring while they talk.
+  const inVoice = voice.bySeat();
+  const ids = ['seat-me', 'seat-right', 'seat-top', 'seat-left'];
+  for (let pos = 0; pos < 4; pos++) {
+    const avatar = $(ids[pos]).querySelector('.avatar');
+    if (!avatar) continue;
+    const v = inVoice.get(seatAt(pos));
+    avatar.classList.toggle('speaking', !!v?.speaking);
+    if (v) avatar.dataset.voice = v.muted ? 'muted' : 'on';
+    else delete avatar.dataset.voice;
+  }
+}
+
+$('voiceBtn').onclick = async () => {
+  if (!voice.joined) {
+    const result = await voice.join();
+    toast(t({ ok: 'voiceOn', blocked: 'voiceBlocked', noMic: 'voiceNoMic' }[result]), result === 'ok' ? 1800 : 3200);
+    return;
+  }
+  if (!voice.canTalk) return toast(t('voiceListening'));
+  voice.setMuted(!voice.muted);
+};
+$('voiceLeaveBtn').onclick = () => {
+  voice.leave();
+  toast(t('voiceOff'));
+};
+window.addEventListener('pagehide', () => voice.leave());
 
 // ---- results ----------------------------------------------------------------
 
