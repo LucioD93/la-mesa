@@ -6,6 +6,7 @@ import * as G from './game.js';
 const BOT_NAMES = ['Bot Ana', 'Bot Beto', 'Bot Coco', 'Bot Dani'];
 export const BOT_DELAY_MS = 900;
 export const AUTO_PASS_DELAY_MS = 1300;
+export const STUCK_PLAYER_DELAY_MS = 3000; // long enough to try an illegal tile before the forced pass
 const TARGETS = [100, 150, 200];
 const MAX_NAME = 16;
 export const REACTIONS = ['👏', '😂', '😮', '😡', '🔥', '👋'];
@@ -215,7 +216,7 @@ export class Match {
     const stuck = !G.legalMoves(r, r.turn).length;
     if (!isBot && !stuck) return null;
     return {
-      delay: stuck ? AUTO_PASS_DELAY_MS : BOT_DELAY_MS,
+      delay: !isBot ? STUCK_PLAYER_DELAY_MS : stuck ? AUTO_PASS_DELAY_MS : BOT_DELAY_MS,
       key: `${this.roundNo}:${r.line.length}:${r.turn}:${r.lastAction?.type ?? ''}`,
     };
   }

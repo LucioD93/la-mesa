@@ -174,8 +174,6 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 .board .tile { position: absolute; transition: left 0.35s, top 0.35s, width 0.35s, height 0.35s, box-shadow 0.3s; }
 .board .tile.fresh { animation: drop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1); }
 .board .tile.last { box-shadow: 0 0 0 2px var(--team), 0 0 14px var(--team); }
-.board .tile.target-l,
-.board .tile.target-r { animation: target 0.9s ease-in-out infinite alternate; z-index: 2; }
 .board-empty {
   position: absolute;
   inset: 0;
@@ -187,10 +185,6 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
   color: var(--muted);
 }
 @keyframes drop { from { transform: scale(1.35); opacity: 0; } }
-@keyframes target {
-  from { box-shadow: 0 0 0 2px var(--gold), 0 0 6px var(--gold); }
-  to { box-shadow: 0 0 0 3px var(--gold), 0 0 20px var(--gold); }
-}
 
 /* ---- seats -------------------------------------------------------------- */
 .seat { position: relative; display: flex; align-items: center; gap: 8px; }
@@ -316,7 +310,7 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 }
 .hand-tile.playable { transform: translateY(-8px); box-shadow: 0 0 0 2px var(--gold), 0 8px 18px rgba(0, 0, 0, 0.45); }
 .hand-tile { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.hand-tile.playable, .hand-tile.dim { cursor: grab; }
+.hand-tile.playable { cursor: grab; }
 .hand-tile.dragging { opacity: 0.25; transform: none; box-shadow: none; }
 .drag-ghost {
   position: fixed;
@@ -342,7 +336,6 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 .board .tile.drop-preview .half { opacity: 0.45; }
 @keyframes preview { from { opacity: 0.5; } to { opacity: 0.9; } }
 .board .tile.drop-hover { box-shadow: 0 0 0 3px var(--gold), 0 0 22px var(--gold); }
-.hand-tile.dim { opacity: 0.5; filter: saturate(0.4) brightness(0.8); }
 .hand-tile:active { transform: translateY(-4px) scale(0.97); }
 .shake { animation: shake 0.35s; }
 @keyframes shake {

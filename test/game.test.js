@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../server/game.js';
-import { Match } from '../server/match.js';
+import { AUTO_PASS_DELAY_MS, Match, STUCK_PLAYER_DELAY_MS } from '../server/match.js';
 
 // Deterministic RNG so failures are reproducible.
 function mulberry32(seed) {
@@ -149,6 +149,22 @@ test('lobby frees seats of players who went offline', () => {
   assert.equal(m.cleanupLobby(new Set(['a'])), true);
   assert.equal(m.seatOf('b'), -1);
   assert.equal(m.seatOf('a'), 0);
+});
+
+test('a stuck human gets longer than a bot before the forced pass', () => {
+  const m = new Match('stuck');
+  m.join('a', 'Ann');
+  m.handle('a', { t: 'addBots' }, new Set());
+  m.handle('a', { t: 'start' }, new Set());
+  const seat = m.seatOf('a');
+  const r = m.round;
+  r.line = [[6, 6]];
+  r.center = 0;
+  r.hands = r.hands.map(() => [[0, 1]]);
+  r.turn = seat;
+  assert.equal(m.pendingAuto().delay, STUCK_PLAYER_DELAY_MS);
+  r.turn = (seat + 1) % 4;
+  assert.equal(m.pendingAuto().delay, AUTO_PASS_DELAY_MS);
 });
 
 test('blunders: only the player on turn, rate limited, tile never revealed', () => {

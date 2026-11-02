@@ -334,7 +334,6 @@ function renderBoard() {
     node.classList.toggle('last', key === last);
     if (key === last) node.dataset.team = r.lastAction.seat % 2;
   }
-  board.highlight(drag ? pickEnds(drag.key) : null);
 
   let hint = '';
   if (r && !r.line.length && state.phase === 'playing') {
@@ -359,7 +358,6 @@ function renderHand() {
     cancelDrag();
     return;
   }
-  const playable = new Set(r.legal.map((m) => tileKey(m.tile)));
   const myTurn = r.turn === me() && state.phase === 'playing';
   if (drag && !myTurn) cancelDrag();
 
@@ -368,8 +366,7 @@ function renderHand() {
       const key = tileKey(tile);
       const cls = [
         'tile v hand-tile',
-        myTurn && playable.has(key) ? 'playable' : '',
-        myTurn && !playable.has(key) ? 'dim' : '',
+        myTurn ? 'playable' : '',
         drag?.key === key ? 'dragging' : '',
       ].join(' ');
       return `<button class="${cls}" data-key="${key}" aria-label="${t('aria.tile', { a: tile[0], b: tile[1] })}">${tileHTML(tile[0], tile[1], false)}</button>`;
@@ -456,7 +453,6 @@ function startGhost() {
   drag.ghost = ghost;
   document.body.append(ghost);
   drag.btn.classList.add('dragging');
-  board.highlight(pickEnds(drag.key));
   buzz(8);
 }
 
@@ -480,7 +476,7 @@ function onDragEnd(e) {
   const { key, ghost, btn, dx, dy } = drag;
   const dropped = e.type === 'pointerup' && ghost;
   const target = dropped ? dropTarget(e.clientX, e.clientY) : null;
-  const illegal = dropped && !target && isIllegalDrop(key, e.clientX, e.clientY);
+  const illegal = dropped && !target && inBoard(e.clientX, e.clientY);
   if (illegal) drag.ghost = null; // the mock animation takes over the ghost
   cancelDrag();
   if (target) playTile(key, target.end);
@@ -496,7 +492,6 @@ function cancelDrag() {
   drag = null;
   for (const node of board.nodes.values()) node.classList.remove('drop-hover');
   $('board').classList.remove('drop-hover');
-  board.highlight(null);
   board.preview(null);
 }
 
@@ -505,31 +500,19 @@ function inBoard(x, y) {
   return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
 }
 
-const endNode = (end) => [...board.nodes.values()].find((n) => n.classList.contains(end === 'L' ? 'end-l' : 'end-r'));
-
-/** How far from a board end's tile (in px) a drop still counts as aimed at it. */
-function dropReach() {
-  const unit = parseFloat(getComputedStyle($('board')).getPropertyValue('--u')) || 24;
-  return Math.max(44, unit * 2.2);
-}
-
-function distanceTo(node, x, y) {
-  const r = node.getBoundingClientRect();
-  return Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
-}
-
 /** Which legal end ('L' / 'R') is the pointer over? */
 function dropTarget(x, y) {
   const ends = pickEnds(drag.key);
   if (!state.round.line.length) return inBoard(x, y) && ends.length ? { end: ends[0], node: null } : null;
 
-  const reach = dropReach();
+  const unit = parseFloat(getComputedStyle($('board')).getPropertyValue('--u')) || 24;
+  const reach = Math.max(44, unit * 2.2);
   let best = null;
   for (const end of ends) {
-    const node = endNode(end);
+    const node = [...board.nodes.values()].find((n) => n.classList.contains(end === 'L' ? 'end-l' : 'end-r'));
     if (!node) continue;
     const r = node.getBoundingClientRect();
-    const dist = distanceTo(node, x, y);
+    const dist = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
     if (dist > reach) continue;
     // A lone opening tile is both ends: pick the side the tile is dropped on.
     const side = x < r.left + r.width / 2 ? 'L' : 'R';
@@ -537,21 +520,6 @@ function dropTarget(x, y) {
     if (!best || score < best.score) best = { end, node, score };
   }
   return best;
-}
-
-/**
- * Was this drop an attempt at an illegal move? Either the tile fits nowhere and
- * landed on the table, or it fits but was aimed at the end it doesn't match. A
- * playable tile dropped away from both ends is just a sloppy drop, not a blunder.
- */
-function isIllegalDrop(key, x, y) {
-  const ends = pickEnds(key);
-  if (!ends.length) return inBoard(x, y);
-  const reach = dropReach();
-  return ['L', 'R'].some((end) => {
-    const node = !ends.includes(end) && endNode(end);
-    return node && distanceTo(node, x, y) <= reach;
-  });
 }
 
 // ---- mocking illegal moves ----------------------------------------------------
