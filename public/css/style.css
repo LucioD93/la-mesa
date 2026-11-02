@@ -316,7 +316,7 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 }
 .hand-tile.playable { transform: translateY(-8px); box-shadow: 0 0 0 2px var(--gold), 0 8px 18px rgba(0, 0, 0, 0.45); }
 .hand-tile { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.hand-tile.playable { cursor: grab; }
+.hand-tile.playable, .hand-tile.dim { cursor: grab; }
 .hand-tile.dragging { opacity: 0.25; transform: none; box-shadow: none; }
 .drag-ghost {
   position: fixed;
@@ -348,6 +348,54 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 @keyframes shake {
   20%, 60% { translate: -4px 0; }
   40%, 80% { translate: 4px 0; }
+}
+
+/* ---- mocking illegal moves ------------------------------------------------ */
+.drag-ghost.rejected {
+  box-shadow: 0 0 0 3px var(--accent), 0 0 24px var(--accent);
+  animation: reject 1.15s ease-in forwards;
+}
+/* Slams down, shakes its head at you, then gets flung back into the hand. */
+@keyframes reject {
+  0% { transform: translate(var(--x0), var(--y0)) rotate(-4deg) scale(1.08); }
+  10% { transform: translate(var(--x0), var(--y0)) rotate(0) scale(1.45, 0.7); }
+  20% { transform: translate(var(--x0), var(--y0)) rotate(-20deg) scale(1.2); }
+  32% { transform: translate(var(--x0), var(--y0)) rotate(20deg) scale(1.2); }
+  44% { transform: translate(var(--x0), var(--y0)) rotate(-20deg) scale(1.2); }
+  56% { transform: translate(var(--x0), var(--y0)) rotate(20deg) scale(1.2); }
+  100% { transform: translate(var(--x1), var(--y1)) rotate(1080deg) scale(1); }
+}
+.mock {
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: max-content;
+  max-width: 86%;
+  translate: -50% -50%;
+  text-align: center;
+  pointer-events: none;
+  animation: mock-in 0.45s cubic-bezier(0.2, 1.6, 0.4, 1), mock-out 0.3s ease-in 2s forwards;
+}
+.mock-emoji { font-size: 72px; line-height: 1.1; animation: mock-laugh 0.3s ease-in-out 6 alternate; }
+.mock-line {
+  padding: 6px 16px;
+  border-radius: 14px;
+  rotate: -3deg;
+  background: var(--gold);
+  color: #2a2000;
+  font-size: 20px;
+  font-weight: 800;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+}
+@keyframes mock-in { from { scale: 0.2; opacity: 0; } }
+@keyframes mock-out { to { scale: 0.7; opacity: 0; } }
+@keyframes mock-laugh {
+  from { transform: rotate(-12deg) translateY(0); }
+  to { transform: rotate(12deg) translateY(-8px); }
 }
 
 /* ---- toast / connection -------------------------------------------------- */

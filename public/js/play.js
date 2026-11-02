@@ -232,6 +232,10 @@ function render(next) {
     } else if (la.type === 'play') sound.play('place');
   }
   if (prev && state.reaction && state.reaction.n !== prev.reaction?.n) showReaction(state.reaction);
+  if (prev && state.blunder && state.blunder.n !== prev.blunder?.n && state.blunder.seat !== me()) {
+    floatEmoji(state.blunder.seat, '🤡');
+    sound.play('laugh');
+  }
   const myTurnNow = r && r.turn === me() && state.phase === 'playing';
   const myTurnBefore = prev?.round && prev.round.turn === prev.you && prev.phase === 'playing';
   if (myTurnNow && !myTurnBefore && r.legal.length) {
@@ -357,7 +361,7 @@ function renderHand() {
   }
   const playable = new Set(r.legal.map((m) => tileKey(m.tile)));
   const myTurn = r.turn === me() && state.phase === 'playing';
-  if (drag && (!myTurn || !playable.has(drag.key))) cancelDrag();
+  if (drag && !myTurn) cancelDrag();
 
   handEl.innerHTML = sortHand(hand)
     .map((tile) => {
@@ -410,18 +414,13 @@ function shake(btn) {
   btn.classList.add('shake');
 }
 
-/** Can this hand tile be picked up right now? Gives feedback when it can't. */
+/** Can this hand tile be picked up right now? Any tile can be tried on your turn. */
 function canDrag(btn) {
   const r = state?.round;
   if (!r || state.phase !== 'playing') return false;
   if (r.turn !== me()) {
     shake(btn);
     toast(t('waitFor', { name: seatName(r.turn) }), 1200);
-    return false;
-  }
-  if (!pickEnds(btn.dataset.key).length) {
-    shake(btn);
-    buzz([10, 40, 10]);
     return false;
   }
   return true;
@@ -478,10 +477,14 @@ function onDragMove(e) {
 
 function onDragEnd(e) {
   if (!drag || e.pointerId !== drag.id) return;
-  const { key, ghost, btn } = drag;
-  const target = e.type === 'pointerup' && ghost ? dropTarget(e.clientX, e.clientY) : null;
+  const { key, ghost, btn, dx, dy } = drag;
+  const dropped = e.type === 'pointerup' && ghost;
+  const target = dropped ? dropTarget(e.clientX, e.clientY) : null;
+  const illegal = dropped && !target && isIllegalDrop(key, e.clientX, e.clientY);
+  if (illegal) drag.ghost = null; // the mock animation takes over the ghost
   cancelDrag();
   if (target) playTile(key, target.end);
+  else if (illegal) mockMove(ghost, key, e.clientX - dx, e.clientY - dy);
   else if (!ghost && e.type === 'pointerup') toast(t('dragHint'), 1400);
   else if (ghost) shake(btn);
 }
@@ -497,21 +500,36 @@ function cancelDrag() {
   board.preview(null);
 }
 
+function inBoard(x, y) {
+  const r = $('board').getBoundingClientRect();
+  return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+}
+
+const endNode = (end) => [...board.nodes.values()].find((n) => n.classList.contains(end === 'L' ? 'end-l' : 'end-r'));
+
+/** How far from a board end's tile (in px) a drop still counts as aimed at it. */
+function dropReach() {
+  const unit = parseFloat(getComputedStyle($('board')).getPropertyValue('--u')) || 24;
+  return Math.max(44, unit * 2.2);
+}
+
+function distanceTo(node, x, y) {
+  const r = node.getBoundingClientRect();
+  return Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
+}
+
 /** Which legal end ('L' / 'R') is the pointer over? */
 function dropTarget(x, y) {
   const ends = pickEnds(drag.key);
-  const boardRect = $('board').getBoundingClientRect();
-  const inBoard = x >= boardRect.left && x <= boardRect.right && y >= boardRect.top && y <= boardRect.bottom;
-  if (!state.round.line.length) return inBoard ? { end: ends[0], node: null } : null;
+  if (!state.round.line.length) return inBoard(x, y) && ends.length ? { end: ends[0], node: null } : null;
 
-  const unit = parseFloat(getComputedStyle($('board')).getPropertyValue('--u')) || 24;
-  const reach = Math.max(44, unit * 2.2);
+  const reach = dropReach();
   let best = null;
   for (const end of ends) {
-    const node = [...board.nodes.values()].find((n) => n.classList.contains(end === 'L' ? 'end-l' : 'end-r'));
+    const node = endNode(end);
     if (!node) continue;
     const r = node.getBoundingClientRect();
-    const dist = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
+    const dist = distanceTo(node, x, y);
     if (dist > reach) continue;
     // A lone opening tile is both ends: pick the side the tile is dropped on.
     const side = x < r.left + r.width / 2 ? 'L' : 'R';
@@ -521,9 +539,64 @@ function dropTarget(x, y) {
   return best;
 }
 
+/**
+ * Was this drop an attempt at an illegal move? Either the tile fits nowhere and
+ * landed on the table, or it fits but was aimed at the end it doesn't match. A
+ * playable tile dropped away from both ends is just a sloppy drop, not a blunder.
+ */
+function isIllegalDrop(key, x, y) {
+  const ends = pickEnds(key);
+  if (!ends.length) return inBoard(x, y);
+  const reach = dropReach();
+  return ['L', 'R'].some((end) => {
+    const node = !ends.includes(end) && endNode(end);
+    return node && distanceTo(node, x, y) <= reach;
+  });
+}
+
+// ---- mocking illegal moves ----------------------------------------------------
+
+const MOCK_EMOJI = ['🤡', '🤦', '🙈', '🤣', '🐔'];
+const LAUGHS = ['😂', '🤣', '😆'];
+let lastMockLine = -1;
+
+/** Spit the ghost tile back into the hand while the whole table laughs. */
+function mockMove(ghost, key, x, y) {
+  const slot = $('hand').querySelector(`[data-key="${key}"]`);
+  const home = slot.getBoundingClientRect();
+  slot.classList.add('dragging');
+  ghost.style.setProperty('--x0', `${x}px`);
+  ghost.style.setProperty('--y0', `${y}px`);
+  ghost.style.setProperty('--x1', `${home.left}px`);
+  ghost.style.setProperty('--y1', `${home.top}px`);
+  ghost.addEventListener('animationend', () => {
+    ghost.remove();
+    slot.classList.remove('dragging');
+    shake(slot);
+  });
+  ghost.classList.add('rejected');
+
+  // Never the same line twice in a row.
+  const lines = t('mock.lines');
+  lastMockLine = (lastMockLine + 1 + Math.floor(Math.random() * (lines.length - 1))) % lines.length;
+  $('mockEmoji').textContent = MOCK_EMOJI[Math.floor(Math.random() * MOCK_EMOJI.length)];
+  $('mockLine').textContent = lines[lastMockLine];
+  const banner = $('mock');
+  banner.hidden = true;
+  void banner.offsetWidth; // restart the animation if one is still showing
+  banner.hidden = false;
+
+  [1, 2, 3].forEach((pos, i) =>
+    setTimeout(() => floatEmoji(seatAt(pos), LAUGHS[Math.floor(Math.random() * LAUGHS.length)]), 150 + i * 180),
+  );
+  sound.play('mock');
+  buzz([60, 40, 60, 40, 180]);
+  send({ t: 'blunder' }); // let the others laugh too
+}
+
 // ---- reactions ----------------------------------------------------------------
 
-function showReaction({ seat, emoji }) {
+function floatEmoji(seat, emoji) {
   const anchor = $(['seat-me', 'seat-right', 'seat-top', 'seat-left'][posOf(seat)]);
   const rect = anchor.getBoundingClientRect();
   const el = document.createElement('span');
@@ -533,6 +606,10 @@ function showReaction({ seat, emoji }) {
   el.style.top = `${rect.top + rect.height / 2}px`;
   el.addEventListener('animationend', () => el.remove());
   document.body.append(el);
+}
+
+function showReaction({ seat, emoji }) {
+  floatEmoji(seat, emoji);
   sound.play('react');
 }
 
@@ -686,6 +763,9 @@ function renderScoreSheet() {
 // ---- events -----------------------------------------------------------------
 
 $('hand').addEventListener('pointerdown', onHandDown);
+$('mock').addEventListener('animationend', (e) => {
+  if (e.animationName === 'mock-out') $('mock').hidden = true;
+});
 window.addEventListener('pointermove', onDragMove, { passive: false });
 window.addEventListener('pointerup', onDragEnd);
 window.addEventListener('pointercancel', onDragEnd);

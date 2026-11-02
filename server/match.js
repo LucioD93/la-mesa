@@ -10,6 +10,7 @@ const TARGETS = [100, 150, 200];
 const MAX_NAME = 16;
 export const REACTIONS = ['👏', '😂', '😮', '😡', '🔥', '👋'];
 const REACTION_COOLDOWN_MS = 600;
+const BLUNDER_COOLDOWN_MS = 2000;
 
 const cleanName = (name) =>
   String(name ?? '')
@@ -33,13 +34,14 @@ export class Match {
     this.roundNo = 0;
     this.nextStarter = null;
     this.reaction = null; // latest emoji thrown at the table: { n, seat, emoji, at }
+    this.blunder = null; // latest illegal move attempt, for the table to mock: { n, seat, at }
     this.v = 0;
     if (data) Object.assign(this, data, { id });
   }
 
   toJSON() {
-    const { id, seats, names, phase, target, scores, history, round, roundNo, nextStarter, reaction, v } = this;
-    return { id, seats, names, phase, target, scores, history, round, roundNo, nextStarter, reaction, v };
+    const { id, seats, names, phase, target, scores, history, round, roundNo, nextStarter, reaction, blunder, v } = this;
+    return { id, seats, names, phase, target, scores, history, round, roundNo, nextStarter, reaction, blunder, v };
   }
 
   seatOf(token) {
@@ -117,6 +119,14 @@ export class Match {
         const now = Date.now();
         if (this.reaction && now - this.reaction.at < REACTION_COOLDOWN_MS) return false;
         this.reaction = { n: (this.reaction?.n ?? 0) + 1, seat, emoji: msg.emoji, at: now };
+        return true;
+      }
+      case 'blunder': {
+        // The client caught an illegal move on its own turn; the tile is never revealed.
+        if (this.phase !== 'playing' || seat === -1 || this.round.turn !== seat) return false;
+        const now = Date.now();
+        if (this.blunder && now - this.blunder.at < BLUNDER_COOLDOWN_MS) return false;
+        this.blunder = { n: (this.blunder?.n ?? 0) + 1, seat, at: now };
         return true;
       }
       case 'target':
@@ -241,6 +251,7 @@ export class Match {
       roundNo: this.roundNo,
       spectators,
       reaction: this.reaction && { n: this.reaction.n, seat: this.reaction.seat, emoji: this.reaction.emoji },
+      blunder: this.blunder && { n: this.blunder.n, seat: this.blunder.seat },
       seats: this.seats.map((s, i) =>
         s
           ? {

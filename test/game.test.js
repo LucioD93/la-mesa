@@ -151,6 +151,28 @@ test('lobby frees seats of players who went offline', () => {
   assert.equal(m.seatOf('a'), 0);
 });
 
+test('blunders: only the player on turn, rate limited, tile never revealed', () => {
+  const m = new Match('blunder');
+  m.join('a', 'Ann');
+  m.join('spec', 'Sam');
+  m.handle('spec', { t: 'stand' }, new Set());
+  const seat = m.seatOf('a');
+  assert.equal(m.handle('a', { t: 'blunder' }, new Set()), false, 'lobby');
+  m.handle('a', { t: 'addBots' }, new Set());
+  m.handle('a', { t: 'start' }, new Set());
+  m.round.turn = (seat + 1) % 4;
+  assert.equal(m.handle('a', { t: 'blunder' }, new Set()), false, 'not your turn');
+  m.round.turn = seat;
+  assert.equal(m.handle('spec', { t: 'blunder' }, new Set()), false, 'spectator');
+  assert.equal(m.handle('a', { t: 'blunder', tile: [6, 6] }, new Set()), true);
+  assert.equal(m.handle('a', { t: 'blunder' }, new Set()), false, 'cooldown');
+  assert.deepEqual(m.stateFor('spec', new Set()).blunder, { n: 1, seat });
+  assert.equal(JSON.parse(JSON.stringify(m)).blunder.n, 1, 'survives a store round trip');
+  m.blunder.at -= 2000;
+  assert.equal(m.handle('a', { t: 'blunder' }, new Set()), true);
+  assert.equal(m.blunder.n, 2);
+});
+
 test('reactions: only seated players, known emoji, rate limited', () => {
   const m = new Match('react');
   m.join('a', 'Ann');
