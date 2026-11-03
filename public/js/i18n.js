@@ -96,6 +96,15 @@ const en = {
   'matchOver': 'Match over',
   'waitFor': ({ name }) => `Wait for ${name}`,
   'dragHint': 'Drag the tile onto the board',
+  'mock.lines': [
+    'Nice try, genius',
+    'Can you even count pips?',
+    'That tile? Really?',
+    'Bold move. Also illegal.',
+    'Your partner just sighed',
+    'Maybe try checkers?',
+    'The tiles have dots for a reason',
+  ],
 
   'youGoOut': 'You go out!',
   'goesOut': ({ name }) => `${name} goes out!`,
@@ -209,6 +218,15 @@ const es = {
   'matchOver': 'Partida terminada',
   'waitFor': ({ name }) => `Espera a ${name}`,
   'dragHint': 'Arrastra la ficha a la mesa',
+  'mock.lines': [
+    '¿Y esa ficha qué, mi pana?',
+    '¡Esa no pega ni con pega!',
+    '¿Tú sabes contar puntos?',
+    'Valiente, pero no va',
+    'Tu compañero acaba de suspirar',
+    'Mejor juega metras',
+    '¡Ponte las pilas!',
+  ],
 
   'youGoOut': '¡Dominaste!',
   'goesOut': ({ name }) => `¡${name} dominó!`,

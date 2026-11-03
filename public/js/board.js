@@ -224,12 +224,4 @@ export class BoardView {
     el.style.width = `${spot.width}px`;
     el.style.height = `${spot.height}px`;
   }
-
-  /** Highlight the board ends a selected tile can go to. */
-  highlight(ends) {
-    for (const node of this.nodes.values()) {
-      node.classList.toggle('target-l', !!ends?.includes('L') && node.classList.contains('end-l'));
-      node.classList.toggle('target-r', !!ends?.includes('R') && node.classList.contains('end-r'));
-    }
-  }
 }

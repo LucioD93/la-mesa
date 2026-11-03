@@ -237,6 +237,10 @@ function render(next) {
     } else if (la.type === 'play') sound.play('place');
   }
   if (prev && state.reaction && state.reaction.n !== prev.reaction?.n) showReaction(state.reaction);
+  if (prev && state.blunder && state.blunder.n !== prev.blunder?.n && state.blunder.seat !== me()) {
+    floatEmoji(state.blunder.seat, '🤡');
+    sound.play('laugh');
+  }
   const myTurnNow = r && r.turn === me() && state.phase === 'playing';
   const myTurnBefore = prev?.round && prev.round.turn === prev.you && prev.phase === 'playing';
   if (myTurnNow && !myTurnBefore && r.legal.length) {
@@ -335,7 +339,6 @@ function renderBoard() {
     node.classList.toggle('last', key === last);
     if (key === last) node.dataset.team = r.lastAction.seat % 2;
   }
-  board.highlight(drag ? pickEnds(drag.key) : null);
 
   let hint = '';
   if (r && !r.line.length && state.phase === 'playing') {
@@ -360,17 +363,15 @@ function renderHand() {
     cancelDrag();
     return;
   }
-  const playable = new Set(r.legal.map((m) => tileKey(m.tile)));
   const myTurn = r.turn === me() && state.phase === 'playing';
-  if (drag && (!myTurn || !playable.has(drag.key))) cancelDrag();
+  if (drag && !myTurn) cancelDrag();
 
   handEl.innerHTML = sortHand(hand)
     .map((tile) => {
       const key = tileKey(tile);
       const cls = [
         'tile v hand-tile',
-        myTurn && playable.has(key) ? 'playable' : '',
-        myTurn && !playable.has(key) ? 'dim' : '',
+        myTurn ? 'playable' : '',
         drag?.key === key ? 'dragging' : '',
       ].join(' ');
       return `<button class="${cls}" data-key="${key}" aria-label="${t('aria.tile', { a: tile[0], b: tile[1] })}">${tileHTML(tile[0], tile[1], false)}</button>`;
@@ -415,18 +416,13 @@ function shake(btn) {
   btn.classList.add('shake');
 }
 
-/** Can this hand tile be picked up right now? Gives feedback when it can't. */
+/** Can this hand tile be picked up right now? Any tile can be tried on your turn. */
 function canDrag(btn) {
   const r = state?.round;
   if (!r || state.phase !== 'playing') return false;
   if (r.turn !== me()) {
     shake(btn);
     toast(t('waitFor', { name: seatName(r.turn) }), 1200);
-    return false;
-  }
-  if (!pickEnds(btn.dataset.key).length) {
-    shake(btn);
-    buzz([10, 40, 10]);
     return false;
   }
   return true;
@@ -462,7 +458,6 @@ function startGhost() {
   drag.ghost = ghost;
   document.body.append(ghost);
   drag.btn.classList.add('dragging');
-  board.highlight(pickEnds(drag.key));
   buzz(8);
 }
 
@@ -483,10 +478,14 @@ function onDragMove(e) {
 
 function onDragEnd(e) {
   if (!drag || e.pointerId !== drag.id) return;
-  const { key, ghost, btn } = drag;
-  const target = e.type === 'pointerup' && ghost ? dropTarget(e.clientX, e.clientY) : null;
+  const { key, ghost, btn, dx, dy } = drag;
+  const dropped = e.type === 'pointerup' && ghost;
+  const target = dropped ? dropTarget(e.clientX, e.clientY) : null;
+  const illegal = dropped && !target && inBoard(e.clientX, e.clientY);
+  if (illegal) drag.ghost = null; // the mock animation takes over the ghost
   cancelDrag();
   if (target) playTile(key, target.end);
+  else if (illegal) mockMove(ghost, key, e.clientX - dx, e.clientY - dy);
   else if (!ghost && e.type === 'pointerup') toast(t('dragHint'), 1400);
   else if (ghost) shake(btn);
 }
@@ -498,16 +497,18 @@ function cancelDrag() {
   drag = null;
   for (const node of board.nodes.values()) node.classList.remove('drop-hover');
   $('board').classList.remove('drop-hover');
-  board.highlight(null);
   board.preview(null);
+}
+
+function inBoard(x, y) {
+  const r = $('board').getBoundingClientRect();
+  return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
 }
 
 /** Which legal end ('L' / 'R') is the pointer over? */
 function dropTarget(x, y) {
   const ends = pickEnds(drag.key);
-  const boardRect = $('board').getBoundingClientRect();
-  const inBoard = x >= boardRect.left && x <= boardRect.right && y >= boardRect.top && y <= boardRect.bottom;
-  if (!state.round.line.length) return inBoard ? { end: ends[0], node: null } : null;
+  if (!state.round.line.length) return inBoard(x, y) && ends.length ? { end: ends[0], node: null } : null;
 
   const unit = parseFloat(getComputedStyle($('board')).getPropertyValue('--u')) || 24;
   const reach = Math.max(44, unit * 2.2);
@@ -526,9 +527,49 @@ function dropTarget(x, y) {
   return best;
 }
 
+// ---- mocking illegal moves ----------------------------------------------------
+
+const MOCK_EMOJI = ['🤡', '🤦', '🙈', '🤣', '🐔'];
+const LAUGHS = ['😂', '🤣', '😆'];
+let lastMockLine = -1;
+
+/** Spit the ghost tile back into the hand while the whole table laughs. */
+function mockMove(ghost, key, x, y) {
+  const slot = $('hand').querySelector(`[data-key="${key}"]`);
+  const home = slot.getBoundingClientRect();
+  slot.classList.add('dragging');
+  ghost.style.setProperty('--x0', `${x}px`);
+  ghost.style.setProperty('--y0', `${y}px`);
+  ghost.style.setProperty('--x1', `${home.left}px`);
+  ghost.style.setProperty('--y1', `${home.top}px`);
+  ghost.addEventListener('animationend', () => {
+    ghost.remove();
+    slot.classList.remove('dragging');
+    shake(slot);
+  });
+  ghost.classList.add('rejected');
+
+  // Never the same line twice in a row.
+  const lines = t('mock.lines');
+  lastMockLine = (lastMockLine + 1 + Math.floor(Math.random() * (lines.length - 1))) % lines.length;
+  $('mockEmoji').textContent = MOCK_EMOJI[Math.floor(Math.random() * MOCK_EMOJI.length)];
+  $('mockLine').textContent = lines[lastMockLine];
+  const banner = $('mock');
+  banner.hidden = true;
+  void banner.offsetWidth; // restart the animation if one is still showing
+  banner.hidden = false;
+
+  [1, 2, 3].forEach((pos, i) =>
+    setTimeout(() => floatEmoji(seatAt(pos), LAUGHS[Math.floor(Math.random() * LAUGHS.length)]), 150 + i * 180),
+  );
+  sound.play('mock');
+  buzz([60, 40, 60, 40, 180]);
+  send({ t: 'blunder' }); // let the others laugh too
+}
+
 // ---- reactions ----------------------------------------------------------------
 
-function showReaction({ seat, emoji }) {
+function floatEmoji(seat, emoji) {
   const anchor = $(['seat-me', 'seat-right', 'seat-top', 'seat-left'][posOf(seat)]);
   const rect = anchor.getBoundingClientRect();
   const el = document.createElement('span');
@@ -538,6 +579,10 @@ function showReaction({ seat, emoji }) {
   el.style.top = `${rect.top + rect.height / 2}px`;
   el.addEventListener('animationend', () => el.remove());
   document.body.append(el);
+}
+
+function showReaction({ seat, emoji }) {
+  floatEmoji(seat, emoji);
   sound.play('react');
 }
 
@@ -740,6 +785,9 @@ function renderScoreSheet() {
 // ---- events -----------------------------------------------------------------
 
 $('hand').addEventListener('pointerdown', onHandDown);
+$('mock').addEventListener('animationend', (e) => {
+  if (e.animationName === 'mock-out') $('mock').hidden = true;
+});
 window.addEventListener('pointermove', onDragMove, { passive: false });
 window.addEventListener('pointerup', onDragEnd);
 window.addEventListener('pointercancel', onDragEnd);
