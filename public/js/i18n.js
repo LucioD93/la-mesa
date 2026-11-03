@@ -64,7 +64,7 @@ const en = {
   'histBlocked': 'Blocked',
   'histTie': 'Blocked, tie',
   'rules':
-    'Partners sit across. Whoever has the double six opens the first round; after that, the round winner opens. Going out ("domino") scores every pip left in all hands. If the game is blocked, the team with fewer pips wins them all.',
+    'Partners sit across. Whoever has the double six opens the first round; after that, the opener rotates to the right each round. Going out ("domino") scores every pip left in all hands. If the game is blocked, the team with fewer pips wins them all.',
 
   'showResult': 'Show result',
   'reconnecting': 'Reconnecting…',
@@ -186,7 +186,7 @@ const es = {
   'histBlocked': 'Tranque',
   'histTie': 'Tranque, empate',
   'rules':
-    'Los compañeros se sientan enfrente. Quien tiene el doble seis abre la primera mano; después, abre el ganador de la mano anterior. Quien se queda sin fichas ("dominó") suma todos los puntos que quedan en las manos. Si el juego se tranca, el equipo con menos puntos se los lleva todos.',
+    'Los compañeros se sientan enfrente. Quien tiene el doble seis abre la primera mano; después, la salida rota hacia la derecha en cada mano. Quien se queda sin fichas ("dominó") suma todos los puntos que quedan en las manos. Si el juego se tranca, el equipo con menos puntos se los lleva todos.',
 
   'showResult': 'Ver resultado',
   'reconnecting': 'Reconectando…',

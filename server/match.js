@@ -202,7 +202,8 @@ export class Match {
     const { winnerTeam, points, reason, winnerSeat, teamPips } = r.over;
     if (winnerTeam != null) this.scores[winnerTeam] += points;
     this.history.push({ round: this.roundNo, reason, winnerTeam, winnerSeat, points, teamPips });
-    this.nextStarter = winnerSeat ?? G.nextSeat(r.starter);
+    // The opener rotates to the right every round, whoever won.
+    this.nextStarter = G.nextSeat(r.starter);
     this.phase = this.scores.some((s) => s >= this.target) ? 'matchEnd' : 'roundEnd';
   }
 

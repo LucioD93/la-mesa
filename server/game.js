@@ -104,15 +104,9 @@ function finishByBlock(round) {
   if (tp[0] < tp[1]) winnerTeam = 0;
   else if (tp[1] < tp[0]) winnerTeam = 1;
 
-  // Next round is opened by the lightest hand on the winning team.
-  let winnerSeat = null;
-  if (winnerTeam != null) {
-    const [a, b] = [winnerTeam, winnerTeam + 2];
-    winnerSeat = handPips(round.hands[a]) <= handPips(round.hands[b]) ? a : b;
-  }
   round.over = {
     reason: 'blocked',
-    winnerSeat,
+    winnerSeat: null,
     winnerTeam,
     points: winnerTeam == null ? 0 : points,
     teamPips: tp,

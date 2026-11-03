@@ -84,7 +84,55 @@ test('blocked game goes to the team with fewer pips', () => {
   assert.deepEqual(r.over.teamPips, [14, 16]);
   assert.equal(r.over.winnerTeam, 0);
   assert.equal(r.over.points, 30);
-  assert.equal(r.over.winnerSeat, 2);
+});
+
+test('the opener rotates to the right each round, whoever won', () => {
+  const m = new Match('rotate');
+  m.join('a', 'Ann');
+  m.handle('a', { t: 'addBots' }, new Set());
+  m.startRound(mulberry32(8));
+  const first = m.round.starter;
+  for (let i = 1; i <= 8; i++) {
+    const r = m.round;
+    // End the round by domino from a seat other than the opener.
+    const winner = (r.starter + 1 + (i % 3)) % 4;
+    r.turn = winner;
+    r.hands[winner] = [[1, 1]];
+    r.line = [];
+    r.mustPlay = null;
+    G.play(r, winner, [1, 1], 'R');
+    m.afterMove();
+    m.phase = 'roundEnd';
+    m.startRound(mulberry32(8 + i));
+    assert.equal(m.round.starter, (first + i) % 4);
+    assert.equal(m.round.mustPlay, null);
+  }
+});
+
+test('a blocked round passes the opener to the right too', () => {
+  const m = new Match('rotate-blocked');
+  m.join('a', 'Ann');
+  m.handle('a', { t: 'addBots' }, new Set());
+  m.nextStarter = 1;
+  m.startRound(mulberry32(9));
+  const r = m.round;
+  r.line = [[0, 1], [1, 0]];
+  r.hands = [[[3, 3]], [[0, 2], [6, 6]], [[1, 1]], [[5, 5]]];
+  G.play(r, 1, [0, 2], 'R');
+  m.afterMove();
+  assert.equal(r.over.reason, 'blocked');
+  assert.equal(m.nextStarter, 2);
+});
+
+test('a new match goes back to the double six', () => {
+  const m = new Match('rotate-rematch');
+  m.join('a', 'Ann');
+  m.handle('a', { t: 'addBots' }, new Set());
+  m.startRound(mulberry32(10));
+  m.nextStarter = 2;
+  m.phase = 'matchEnd';
+  m.handle('a', { t: 'rematch' }, new Set());
+  assert.deepEqual(m.round.mustPlay, [6, 6]);
 });
 
 test('bot-only matches always reach a winner (state survives JSON round-trips)', () => {
