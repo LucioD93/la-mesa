@@ -192,19 +192,37 @@ async function share() {
       if (e.name === 'AbortError') return;
     }
   }
-  copy(url);
+  if (await copy(url)) toast(t('linkCopied'));
 }
 
 async function copy(text) {
   try {
     await navigator.clipboard.writeText(text);
+    return true;
   } catch {
     const input = $('inviteUrl');
     input.value = text;
     input.select();
-    document.execCommand('copy');
+    if (document.execCommand('copy')) return true;
+    toast(t('copyFailed'), 3200);
+    return false;
   }
-  toast(t('linkCopied'));
+}
+
+let copiedTimer;
+async function copyInvite() {
+  if (!(await copy(inviteUrl()))) return;
+  const btn = $('copyBtn');
+  btn.dataset.i18n = 'copied';
+  btn.textContent = t('copied');
+  btn.classList.add('done');
+  buzz(15);
+  clearTimeout(copiedTimer);
+  copiedTimer = setTimeout(() => {
+    btn.dataset.i18n = 'copy';
+    btn.textContent = t('copy');
+    btn.classList.remove('done');
+  }, 1800);
 }
 
 // ---- render -----------------------------------------------------------------
@@ -719,16 +737,18 @@ const voice = createVoice({
 });
 
 function paintVoice() {
-  const btn = $('voiceBtn');
-  btn.classList.toggle('on', voice.joined && !voice.muted);
-  btn.classList.toggle('muted', voice.joined && voice.muted);
-  btn.setAttribute('aria-pressed', String(voice.joined));
-  btn.setAttribute(
-    'aria-label',
-    t(!voice.joined ? 'aria.voiceJoin' : voice.muted ? 'aria.voiceUnmute' : 'aria.voiceMute'),
-  );
-  $('voiceLeaveBtn').hidden = !voice.joined;
-  $('voiceCount').textContent = voice.joined && voice.count ? voice.count : '';
+  // The same controls appear in the lobby and at the table.
+  for (const btn of document.querySelectorAll('.voice-btn')) {
+    btn.classList.toggle('on', voice.joined && !voice.muted);
+    btn.classList.toggle('muted', voice.joined && voice.muted);
+    btn.setAttribute('aria-pressed', String(voice.joined));
+    btn.setAttribute(
+      'aria-label',
+      t(!voice.joined ? 'aria.voiceJoin' : voice.muted ? 'aria.voiceUnmute' : 'aria.voiceMute'),
+    );
+    btn.querySelector('.voice-count').textContent = voice.joined && voice.count ? voice.count : '';
+  }
+  for (const btn of document.querySelectorAll('.voice-leave')) btn.hidden = !voice.joined;
   if (!state) return;
   // Mic badge on the avatars of seated players in voice; a ring while they talk.
   const inVoice = voice.bySeat();
@@ -741,21 +761,31 @@ function paintVoice() {
     if (v) avatar.dataset.voice = v.muted ? 'muted' : 'on';
     else delete avatar.dataset.voice;
   }
+  for (const el of $('lobbySeats').querySelectorAll('.lobby-seat')) {
+    const v = inVoice.get(Number(el.dataset.sit));
+    el.classList.toggle('speaking', !!v?.speaking);
+    if (v) el.dataset.voice = v.muted ? 'muted' : 'on';
+    else delete el.dataset.voice;
+  }
 }
 
-$('voiceBtn').onclick = async () => {
-  if (!voice.joined) {
-    const result = await voice.join();
-    toast(t({ ok: 'voiceOn', blocked: 'voiceBlocked', noMic: 'voiceNoMic' }[result]), result === 'ok' ? 1800 : 3200);
-    return;
-  }
-  if (!voice.canTalk) return toast(t('voiceListening'));
-  voice.setMuted(!voice.muted);
-};
-$('voiceLeaveBtn').onclick = () => {
-  voice.leave();
-  toast(t('voiceOff'));
-};
+for (const btn of document.querySelectorAll('.voice-btn')) {
+  btn.onclick = async () => {
+    if (!voice.joined) {
+      const result = await voice.join();
+      toast(t({ ok: 'voiceOn', blocked: 'voiceBlocked', noMic: 'voiceNoMic' }[result]), result === 'ok' ? 1800 : 3200);
+      return;
+    }
+    if (!voice.canTalk) return toast(t('voiceListening'));
+    voice.setMuted(!voice.muted);
+  };
+}
+for (const btn of document.querySelectorAll('.voice-leave')) {
+  btn.onclick = () => {
+    voice.leave();
+    toast(t('voiceOff'));
+  };
+}
 window.addEventListener('pagehide', () => voice.leave());
 
 // ---- results ----------------------------------------------------------------
@@ -950,7 +980,7 @@ $('result').addEventListener('click', (e) => {
 $('scoreBtn').onclick = () => state && state.phase !== 'lobby' && ($('scoreSheet').hidden = false);
 $('scoreSheet').addEventListener('click', (e) => e.target === $('scoreSheet') && ($('scoreSheet').hidden = true));
 $('shareBtn').onclick = share;
-$('copyBtn').onclick = () => copy(inviteUrl());
+$('copyBtn').onclick = copyInvite;
 $('botsBtn').onclick = () => send({ t: 'addBots' });
 $('startBtn').onclick = () => send({ t: 'start' });
 
