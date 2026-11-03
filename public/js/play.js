@@ -737,16 +737,18 @@ const voice = createVoice({
 });
 
 function paintVoice() {
-  const btn = $('voiceBtn');
-  btn.classList.toggle('on', voice.joined && !voice.muted);
-  btn.classList.toggle('muted', voice.joined && voice.muted);
-  btn.setAttribute('aria-pressed', String(voice.joined));
-  btn.setAttribute(
-    'aria-label',
-    t(!voice.joined ? 'aria.voiceJoin' : voice.muted ? 'aria.voiceUnmute' : 'aria.voiceMute'),
-  );
-  $('voiceLeaveBtn').hidden = !voice.joined;
-  $('voiceCount').textContent = voice.joined && voice.count ? voice.count : '';
+  // The same controls appear in the lobby and at the table.
+  for (const btn of document.querySelectorAll('.voice-btn')) {
+    btn.classList.toggle('on', voice.joined && !voice.muted);
+    btn.classList.toggle('muted', voice.joined && voice.muted);
+    btn.setAttribute('aria-pressed', String(voice.joined));
+    btn.setAttribute(
+      'aria-label',
+      t(!voice.joined ? 'aria.voiceJoin' : voice.muted ? 'aria.voiceUnmute' : 'aria.voiceMute'),
+    );
+    btn.querySelector('.voice-count').textContent = voice.joined && voice.count ? voice.count : '';
+  }
+  for (const btn of document.querySelectorAll('.voice-leave')) btn.hidden = !voice.joined;
   if (!state) return;
   // Mic badge on the avatars of seated players in voice; a ring while they talk.
   const inVoice = voice.bySeat();
@@ -759,21 +761,31 @@ function paintVoice() {
     if (v) avatar.dataset.voice = v.muted ? 'muted' : 'on';
     else delete avatar.dataset.voice;
   }
+  for (const el of $('lobbySeats').querySelectorAll('.lobby-seat')) {
+    const v = inVoice.get(Number(el.dataset.sit));
+    el.classList.toggle('speaking', !!v?.speaking);
+    if (v) el.dataset.voice = v.muted ? 'muted' : 'on';
+    else delete el.dataset.voice;
+  }
 }
 
-$('voiceBtn').onclick = async () => {
-  if (!voice.joined) {
-    const result = await voice.join();
-    toast(t({ ok: 'voiceOn', blocked: 'voiceBlocked', noMic: 'voiceNoMic' }[result]), result === 'ok' ? 1800 : 3200);
-    return;
-  }
-  if (!voice.canTalk) return toast(t('voiceListening'));
-  voice.setMuted(!voice.muted);
-};
-$('voiceLeaveBtn').onclick = () => {
-  voice.leave();
-  toast(t('voiceOff'));
-};
+for (const btn of document.querySelectorAll('.voice-btn')) {
+  btn.onclick = async () => {
+    if (!voice.joined) {
+      const result = await voice.join();
+      toast(t({ ok: 'voiceOn', blocked: 'voiceBlocked', noMic: 'voiceNoMic' }[result]), result === 'ok' ? 1800 : 3200);
+      return;
+    }
+    if (!voice.canTalk) return toast(t('voiceListening'));
+    voice.setMuted(!voice.muted);
+  };
+}
+for (const btn of document.querySelectorAll('.voice-leave')) {
+  btn.onclick = () => {
+    voice.leave();
+    toast(t('voiceOff'));
+  };
+}
 window.addEventListener('pagehide', () => voice.leave());
 
 // ---- results ----------------------------------------------------------------

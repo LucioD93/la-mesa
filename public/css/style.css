@@ -290,7 +290,7 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
   line-height: 16px;
 }
 .voice-count:empty { display: none; }
-.avatar[data-voice]::after {
+.avatar[data-voice]::after, .lobby-seat[data-voice]::after {
   content: '';
   position: absolute;
   top: -3px;
@@ -301,7 +301,7 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
   background: #16a34a url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2.6' stroke-linecap='round'%3E%3Crect x='9' y='3' width='6' height='11' rx='3'/%3E%3Cpath d='M18 11a6 6 0 01-12 0M12 17v3'/%3E%3C/svg%3E") center / 10px no-repeat;
   box-shadow: 0 0 0 2px var(--felt-dark);
 }
-.avatar[data-voice='muted']::after { background-color: #6b7280; }
+.avatar[data-voice='muted']::after, .lobby-seat[data-voice='muted']::after { background-color: #6b7280; }
 .avatar.speaking:not(.turn) { box-shadow: 0 0 0 3px #22c55e, 0 0 12px rgba(34, 197, 94, 0.7); }
 [data-lang-btn] { font-weight: 700; font-size: 12px; letter-spacing: 0.04em; cursor: pointer; }
 .lang-btn { position: fixed; top: max(14px, env(safe-area-inset-top)); right: 14px; }
@@ -541,7 +541,8 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 
 /* The lobby has to fit on one phone screen: seats shrink with the viewport height. */
 .lobby-body { max-height: 100dvh; padding-top: 12px; padding-bottom: calc(var(--safe-b) + 12px); }
-.lobby-body h2 { margin-bottom: 8px; }
+.lobby-body .sheet-head { gap: 8px; min-height: 36px; margin-bottom: 6px; }
+.lobby-body h2 { min-width: 0; overflow-wrap: anywhere; }
 .lobby-body .btn, .lobby-body input { min-height: 44px; }
 .lobby-body .field { margin-top: 0; gap: 4px; }
 .lobby-body .section-title { margin: 0 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -564,6 +565,7 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 .lobby-seat {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -577,6 +579,8 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
   text-align: center;
 }
 .lobby-seat[aria-current='true'] { background: color-mix(in srgb, var(--team) 22%, transparent); box-shadow: inset 0 0 0 2px var(--team); }
+.lobby-seat[data-voice]::after { top: 4px; left: 4px; }
+.lobby-seat.speaking { box-shadow: inset 0 0 0 2px #22c55e, 0 0 12px rgba(34, 197, 94, 0.7); }
 .lobby-seat.top { grid-area: top; }
 .lobby-seat.left { grid-area: left; }
 .lobby-seat.right { grid-area: right; }
