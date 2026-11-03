@@ -26,7 +26,7 @@ Created in [T3 Code](https://t3.codes).
 - On your turn you can try any tile, even when none of them fit. Dropping one anywhere on the table where it can't go is not played, and the table mocks you for it: everyone else hears a laugh and sees a 🤡 over your seat.
 - **Domino:** the player who empties their hand wins for their team. The team scores the pips left in all four hands.
 - **Blocked game:** the team with fewer pips wins and scores both teams' pips. A tie scores nothing.
-- The match ends when a team reaches the target score, which you set in the lobby to 100, 150 or 200.
+- The match ends when a team reaches the target score, which you set in the lobby to 50, 75 or 100.
 
 ## Stack
 
@@ -147,7 +147,7 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `rename` | `name` | Any time |
 | `sit` / `stand` | `seat` | Lobby. `sit` also lets a spectator take over a bot mid-game. |
 | `addBots` / `removeBot` | `seat` | Lobby |
-| `target` | `100 \| 150 \| 200` | Lobby |
+| `target` | `50 \| 75 \| 100` | Lobby |
 | `start` | | Lobby, once all 4 seats are filled |
 | `play` | `tile: [a, b]`, `end: "L" \| "R"` | On your turn |
 | `next` / `rematch` / `lobby` | | After a round or match ends |
