@@ -87,19 +87,19 @@ export function isBlocked(round) {
 }
 
 function finishByDomino(round, seat) {
-  const points = round.hands.reduce((sum, h) => sum + handPips(h), 0);
+  const tp = teamPips(round);
+  const winnerTeam = teamOf(seat);
   round.over = {
     reason: 'domino',
     winnerSeat: seat,
-    winnerTeam: teamOf(seat),
-    points,
-    teamPips: teamPips(round),
+    winnerTeam,
+    points: tp[1 - winnerTeam],
+    teamPips: tp,
   };
 }
 
 function finishByBlock(round) {
   const tp = teamPips(round);
-  const points = tp[0] + tp[1];
   let winnerTeam = null;
   if (tp[0] < tp[1]) winnerTeam = 0;
   else if (tp[1] < tp[0]) winnerTeam = 1;
@@ -108,7 +108,7 @@ function finishByBlock(round) {
     reason: 'blocked',
     winnerSeat: null,
     winnerTeam,
-    points: winnerTeam == null ? 0 : points,
+    points: winnerTeam == null ? 0 : tp[1 - winnerTeam],
     teamPips: tp,
   };
 }

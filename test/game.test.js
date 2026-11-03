@@ -62,14 +62,14 @@ test('rejects illegal moves', () => {
   assert.throws(() => G.pass(r, r.turn), G.MoveError);
 });
 
-test('domino scores all pips left in every hand', () => {
+test('domino scores only the pips left in the losing team\'s hands', () => {
   const r = G.newRound({ starter: 1, rng: mulberry32(6) });
   r.hands[1] = [[4, 4]];
-  const leftover = r.hands.reduce((s, h, i) => (i === 1 ? s : s + G.handPips(h)), 0);
+  const losers = G.handPips(r.hands[0]) + G.handPips(r.hands[2]);
   G.play(r, 1, [4, 4], 'R');
   assert.equal(r.over.reason, 'domino');
   assert.equal(r.over.winnerTeam, 1);
-  assert.equal(r.over.points, leftover);
+  assert.equal(r.over.points, losers);
 });
 
 test('blocked game goes to the team with fewer pips', () => {
@@ -83,7 +83,7 @@ test('blocked game goes to the team with fewer pips', () => {
   // team 0: 12 + 2 = 14, team 1: 6 + 10 = 16
   assert.deepEqual(r.over.teamPips, [14, 16]);
   assert.equal(r.over.winnerTeam, 0);
-  assert.equal(r.over.points, 30);
+  assert.equal(r.over.points, 16);
 });
 
 test('the opener rotates to the right each round, whoever won', () => {
