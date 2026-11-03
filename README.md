@@ -13,6 +13,7 @@ Created in [T3 Code](https://t3.codes).
 - **Bots.** Fill empty seats from the lobby. Mid-game, a spectator can take over a bot's seat and hand, and a player who disconnected can be replaced by a bot so the game keeps going.
 - **Spectators.** Anyone who opens the link after the seats are taken watches the game.
 - **Reconnects.** Reloading or briefly losing the connection puts you back in your seat with your hand. The client notices dead connections within seconds, reconnects with backoff, and retries right away when the network or the tab comes back. If you were swapped for a bot while away, rejoining gives you your seat back.
+- **Voice chat.** Everyone in a match (players and spectators) can join the room's voice chat with the mic button, mute themselves, or hang up. Audio goes peer to peer over WebRTC; the server only relays the connection setup. Seated players in voice get a mic badge on their avatar and a green ring while they talk. Without a microphone (blocked, missing, or a plain-`http` LAN page) you join as a listener.
 - **Reactions and sound.** Emoji reactions shown at the table (👏 😂 😮 😡 🔥 👋), sound effects, and a pass animation.
 - **English and Spanish.** The language follows the browser, and the EN/ES button switches it (saved in `localStorage`).
 - **Installable.** Ships a web app manifest, so it can be added to the home screen.
@@ -58,6 +59,7 @@ public/
   js/tiles.js      Tile markup
   js/fx.js         Animations and reactions
   js/sound.js      Sound effects
+  js/voice.js      Voice chat (WebRTC mesh, signaling over the game socket)
   js/i18n.js       UI strings (English, Spanish) and language switching
   css/style.css    Styles
 test/              Game and board layout tests
@@ -132,11 +134,12 @@ Key points:
 - **Bots and forced passes.** Every instance with players in the match schedules the automatic move, keyed by turn (`round:lineLength:seat:lastAction`). Only the first one to run gets applied, so duplicates are harmless.
 - **Presence.** Each connection refreshes a presence entry every 15 s (expires after 40 s). When a socket closes, the player keeps a 20 s grace period so a reload or a network blip doesn't show them as offline (or free their seat). Lobby seats held by players who have gone offline are freed.
 - **Heartbeats.** The server pings sockets every 25 s and drops ones that neither answered nor sent anything. The client sends an app-level `ping` every 10 s, plus one right after each action. If no reply arrives within 25 s (6 s after an action), it treats the socket as half-open, drops it and reconnects.
+- **Voice chat.** A full mesh of WebRTC audio connections between everyone in voice. Signaling goes over the game socket and, between instances, through `domino:{id}:sig` (pub/sub only, nothing stored). Each connection gets a random public peer id, so tokens never reach other clients. A newcomer broadcasts `join`, members answer `hello`, and in each pair only the peer with the smaller id sends offers, so they never collide. When a socket closes the server broadcasts `bye`; after a reconnect the client re-joins with its new peer id.
 - **Expiry.** Redis keys expire after a day without activity.
 
 ### WebSocket protocol
 
-All messages are JSON with a `t` field. Messages are limited to 4 KB.
+All messages are JSON with a `t` field. Messages are limited to 16 KB (voice signaling to 12 KB).
 
 | Client → server | Payload | When |
 | --- | --- | --- |
@@ -151,12 +154,15 @@ All messages are JSON with a `t` field. Messages are limited to 4 KB.
 | `botify` | `seat` | Replace a disconnected player with a bot |
 | `react` | `emoji` | Seated players (600 ms cooldown) |
 | `blunder` | | You tried an illegal move on your turn, so the others can mock you (2 s cooldown) |
+| `voice` | `to?` (peer id), `data` | Voice chat signaling, relayed to one peer or everyone else in the match (rate limited) |
 | `ping` | | Keep-alive. The server replies `pong`. |
 
 | Server → client | Payload |
 | --- | --- |
 | `state` | Full personalized view: phase, seats, scores, history, board line, your hand and legal moves |
 | `error` | `message` (illegal move) |
+| `voiceConfig` | `peer` (this connection's public voice id), `iceServers`. Sent after `hello`. |
+| `voice` | `from` (peer id), `data`: relayed voice signaling. `data.kind: "bye"` means that connection closed. |
 | `pong` | |
 
 ## Running locally
@@ -174,6 +180,7 @@ Open http://localhost:3000. On startup the server also prints a LAN address so p
 | --- | --- | --- |
 | `PORT` | `3000` | HTTP/WebSocket port (local server) |
 | `REDIS_URL` (or `KV_URL`) | unset | Use Redis instead of memory. Optional locally, required on Vercel. |
+| `ICE_SERVERS` | Google STUN | JSON array of [`RTCIceServer`](https://developer.mozilla.org/docs/Web/API/RTCIceServer)s for voice chat. Add a TURN server so voice works for players behind strict NATs (common on mobile data). |
 
 Health check: `GET /healthz` → `ok` (local server).
 
