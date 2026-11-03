@@ -1,7 +1,7 @@
 // Connects WebSocket clients to matches in a store. Each server instance keeps
 // only its own sockets; match state and change notifications go through the
 // store, so players on different instances still share a match.
-import { randomBytes } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { MoveError } from './game.js';
 import { PRESENCE_REFRESH_MS, LEAVE_GRACE_MS } from './store.js';
 
@@ -118,6 +118,11 @@ export function createHub(store) {
       if (!conn.token) {
         if (msg.t !== 'hello' || !msg.token) return;
         conn.token = String(msg.token).slice(0, 64);
+        // A client handing over to a new socket keeps its voice id by sending the
+        // same session. Hashing in the token means nobody else can claim that id.
+        if (typeof msg.session === 'string') {
+          conn.peer = createHash('sha256').update(`${conn.token}:${msg.session.slice(0, 64)}`).digest('hex').slice(0, 12);
+        }
         await store.setPresence(id, conn.token);
         await store.update(id, (m) => m.join(conn.token, msg.name));
         send(ws, { t: 'voiceConfig', peer: conn.peer, iceServers: iceServers() });
@@ -141,12 +146,14 @@ export function createHub(store) {
       if (!msg || typeof msg !== 'object') return;
       if (msg.t === 'ping') return send(ws, { t: 'pong' });
       if (msg.t === 'voice') return onVoice(msg, raw.length);
+      if (msg.t === 'handoff') return void (conn.handoff = true);
       queue = queue.then(() => onMessage(msg)).catch(log(id));
     });
 
     ws.on('close', () => {
       r.conns.delete(conn);
-      const token = conn.token;
+      // After a handoff the player is still here, on another socket.
+      const token = conn.handoff ? null : conn.token;
       // Tell voice peers to hang up on this connection.
       if (token) {
         voiceQueue = voiceQueue

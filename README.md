@@ -12,7 +12,7 @@ Created in [T3 Code](https://t3.codes).
 - **Shareable matches.** A match lives at `/play/<id>`. The invite button uses the native share sheet when the browser has one, and links unfurl with a preview image in WhatsApp and other chat apps.
 - **Bots.** Fill empty seats from the lobby. Mid-game, a spectator can take over a bot's seat and hand, and a player who disconnected can be replaced by a bot so the game keeps going.
 - **Spectators.** Anyone who opens the link after the seats are taken watches the game.
-- **Reconnects.** Reloading or briefly losing the connection puts you back in your seat with your hand. The client notices dead connections within seconds, reconnects with backoff, and retries right away when the network or the tab comes back. If you were swapped for a bot while away, rejoining gives you your seat back.
+- **Reconnects.** Reloading or briefly losing the connection puts you back in your seat with your hand. Sockets are replaced before the host's time limit ends them, so games and voice calls carry on without a drop. The client notices dead connections within seconds, reconnects with backoff, and retries right away when the network or the tab comes back. If you were swapped for a bot while away, rejoining gives you your seat back.
 - **Voice chat.** Everyone in a match (players and spectators) can join the room's voice chat with the mic button, from the lobby or the table, mute themselves, or hang up. Audio goes peer to peer over WebRTC; the server only relays the connection setup. Seated players in voice get a mic badge on their avatar and a green ring while they talk. Without a microphone (blocked, missing, or a plain-`http` LAN page) you join as a listener.
 - **Reactions and sound.** Emoji reactions shown at the table (👏 😂 😮 😡 🔥 👋), sound effects, and a pass animation.
 - **English and Spanish.** The language follows the browser, and the EN/ES button switches it (saved in `localStorage`).
@@ -134,7 +134,8 @@ Key points:
 - **Bots and forced passes.** Every instance with players in the match schedules the automatic move, keyed by turn (`round:lineLength:seat:lastAction`). Only the first one to run gets applied, so duplicates are harmless.
 - **Presence.** Each connection refreshes a presence entry every 15 s (expires after 40 s). When a socket closes, the player keeps a 20 s grace period so a reload or a network blip doesn't show them as offline (or free their seat). Lobby seats held by players who have gone offline are freed.
 - **Heartbeats.** The server pings sockets every 25 s and drops ones that neither answered nor sent anything. The client sends an app-level `ping` every 10 s, plus one right after each action. If no reply arrives within 25 s (6 s after an action), it treats the socket as half-open, drops it and reconnects.
-- **Voice chat.** A full mesh of WebRTC audio connections between everyone in voice. Signaling goes over the game socket and, between instances, through `domino:{id}:sig` (pub/sub only, nothing stored). Each connection gets a random public peer id, so tokens never reach other clients. A newcomer broadcasts `join`, members answer `hello`, and in each pair only the peer with the smaller id sends offers, so they never collide. When a socket closes the server broadcasts `bye`; after a reconnect the client re-joins with its new peer id.
+- **Socket handover.** A Vercel Function, and every socket it holds, ends at its max duration (300 s by default). About 4 minutes into a socket's life (with jitter), the client opens a second socket and sends `hello` with the same `session`. When `voiceConfig` arrives on the new socket, the client switches to it, sends `handoff` on the old one and closes it. The server skips the voice `bye` and the presence grace period for a socket that sent `handoff`. If the old socket dies first, the client falls back to a normal reconnect.
+- **Voice chat.** A full mesh of WebRTC audio connections between everyone in voice. Signaling goes over the game socket and, between instances, through `domino:{id}:sig` (pub/sub only, nothing stored). Each client gets a public peer id, a hash of its token and `session`, so tokens never reach other clients. Every normal connect uses a new `session`; a handover reuses it, which keeps the id and leaves the audio connections untouched. A newcomer broadcasts `join`, members answer `hello`, and in each pair only the peer with the smaller id sends offers, so they never collide. When a socket closes the server broadcasts `bye`; after a reconnect the client re-joins with its new peer id.
 - **Expiry.** Redis keys expire after a day without activity.
 
 ### WebSocket protocol
@@ -143,7 +144,8 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 
 | Client → server | Payload | When |
 | --- | --- | --- |
-| `hello` | `token`, `name` | First message. Joins the match and takes a free seat if in the lobby. |
+| `hello` | `token`, `name`, `session?` | First message. Joins the match and takes a free seat if in the lobby. `session` determines the voice peer id. |
+| `handoff` | | The client is moving to another socket and is about to close this one |
 | `rename` | `name` | Any time |
 | `sit` / `stand` | `seat` | Lobby. `sit` also lets a spectator take over a bot mid-game. |
 | `addBots` / `removeBot` | `seat` | Lobby |

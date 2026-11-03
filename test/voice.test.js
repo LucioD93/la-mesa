@@ -8,7 +8,7 @@ import { MemoryStore } from '../server/store.js';
 // Voice chat signaling: the server relays {t: 'voice'} messages between
 // connections in the same match and never leaks player tokens.
 
-async function client(port, match, token) {
+async function client(port, match, token, session) {
   const ws = new WebSocket(`ws://127.0.0.1:${port}/api/ws?match=${match}`);
   const inbox = [];
   const waiters = [];
@@ -19,7 +19,7 @@ async function client(port, match, token) {
     else inbox.push(msg);
   });
   await once(ws, 'open');
-  ws.send(JSON.stringify({ t: 'hello', token, name: token }));
+  ws.send(JSON.stringify({ t: 'hello', token, name: token, session }));
   const next = (pred) => {
     const i = inbox.findIndex(pred);
     if (i >= 0) return Promise.resolve(inbox.splice(i, 1)[0]);
@@ -64,4 +64,41 @@ test('relays voice signaling within a match only', async (t) => {
   await new Promise((r) => setTimeout(r, 50));
   assert.ok(!c.inbox.some((m) => m.t === 'voice'));
   assert.ok(!a.inbox.some((m) => m.t === 'voice' && m.from === a.peer));
+});
+
+test('a socket handover keeps the voice id and does not hang up', async (t) => {
+  const { server } = createApp({ store: new MemoryStore() });
+  server.listen(0);
+  await once(server, 'listening');
+  const { port } = server.address();
+  t.after(() => server.close());
+
+  const a = await client(port, 'room-1', 'token-a', 'session-1');
+  const b = await client(port, 'room-1', 'token-b');
+  const a2 = await client(port, 'room-1', 'token-a', 'session-1');
+  t.after(() => [a, b, a2].forEach((x) => x.ws.terminate()));
+
+  assert.equal(a2.peer, a.peer);
+
+  // Same session, different token: the id can't be claimed by someone else.
+  const other = await client(port, 'room-1', 'token-x', 'session-1');
+  t.after(() => other.ws.terminate());
+  assert.notEqual(other.peer, a.peer);
+
+  a.send({ t: 'handoff' });
+  a.ws.close();
+  await once(a.ws, 'close');
+  await new Promise((r) => setTimeout(r, 50));
+  assert.ok(!b.inbox.some((m) => m.t === 'voice' && m.data.kind === 'bye'));
+
+  // Still online, and signaling for that id now reaches the new socket.
+  const state = await (b.send({ t: 'rename', name: 'B' }), b.next((m) => m.t === 'state' && m.seats[1]?.name === 'B'));
+  assert.equal(state.seats[0].online, true);
+  b.send({ t: 'voice', to: a.peer, data: { kind: 'hello' } });
+  assert.equal((await a2.next((m) => m.t === 'voice')).from, b.peer);
+
+  // A real drop still hangs up.
+  a2.ws.close();
+  const bye = await b.next((m) => m.t === 'voice' && m.data.kind === 'bye');
+  assert.equal(bye.from, a.peer);
 });

@@ -189,9 +189,10 @@ export function createVoice({ send, onChange, onJoin }) {
 
   /** The server gave this socket a peer id (first connect or after a reconnect). */
   function setConfig(config) {
+    const moved = config.peer !== me; // a planned socket handover keeps the same id
     me = config.peer;
     iceServers = Array.isArray(config.iceServers) ? config.iceServers : [];
-    if (!joined) return;
+    if (!joined || !moved) return;
     // Our old peer id is gone; everyone hung up on it. Start over.
     for (const id of [...peers.keys()]) closePeer(id);
     signal(null, { kind: 'join', ...myMeta() });
