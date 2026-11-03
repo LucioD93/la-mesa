@@ -824,8 +824,23 @@ function floatEmoji(seat, emoji) {
   document.body.append(el);
 }
 
-function showReaction({ seat, emoji }) {
+/** Several players sending the same emoji: a big one over the table, bigger with each player. */
+function crowdEmoji(emoji, crowd) {
+  document.querySelector('.reaction-crowd')?.remove();
+  const rect = $('board').getBoundingClientRect();
+  const el = document.createElement('span');
+  el.className = 'reaction-crowd';
+  el.textContent = emoji;
+  el.style.left = `${rect.left + rect.width / 2}px`;
+  el.style.top = `${rect.top + rect.height / 2}px`;
+  el.style.setProperty('--crowd', crowd);
+  el.addEventListener('animationend', () => el.remove());
+  document.body.append(el);
+}
+
+function showReaction({ seat, emoji, crowd }) {
   floatEmoji(seat, emoji);
+  if (crowd > 1) crowdEmoji(emoji, crowd);
   sound.play('react');
 }
 

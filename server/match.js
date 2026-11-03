@@ -10,7 +10,8 @@ export const STUCK_PLAYER_DELAY_MS = 3000; // long enough to try an illegal tile
 const TARGETS = [50, 75, 100];
 const MAX_NAME = 16;
 export const REACTIONS = ['👏', '😂', '😮', '😡', '🔥', '👋'];
-const REACTION_COOLDOWN_MS = 600;
+const REACTION_COOLDOWN_MS = 600; // per player, so a pile-on is not throttled
+const REACTION_CROWD_MS = 3000; // same emoji from others within this joins the crowd
 const BLUNDER_COOLDOWN_MS = 2000;
 
 const cleanName = (name) =>
@@ -34,7 +35,7 @@ export class Match {
     this.round = null;
     this.roundNo = 0;
     this.nextStarter = null;
-    this.reaction = null; // latest emoji thrown at the table: { n, seat, emoji, at }
+    this.reaction = null; // latest emoji thrown at the table: { n, seat, emoji, at, sent, crowd }
     this.blunder = null; // latest illegal move attempt, for the table to mock: { n, seat, at }
     this.v = 0;
     if (data) Object.assign(this, data, { id });
@@ -118,8 +119,18 @@ export class Match {
       case 'react': {
         if (seat === -1 || !REACTIONS.includes(msg.emoji)) return false;
         const now = Date.now();
-        if (this.reaction && now - this.reaction.at < REACTION_COOLDOWN_MS) return false;
-        this.reaction = { n: (this.reaction?.n ?? 0) + 1, seat, emoji: msg.emoji, at: now };
+        const last = this.reaction;
+        const sent = last?.sent ?? {}; // seat -> when they last reacted
+        if (now - (sent[seat] ?? 0) < REACTION_COOLDOWN_MS) return false;
+        const joins = last?.emoji === msg.emoji && now - last.at < REACTION_CROWD_MS;
+        this.reaction = {
+          n: (last?.n ?? 0) + 1,
+          seat,
+          emoji: msg.emoji,
+          at: now,
+          sent: { ...sent, [seat]: now },
+          crowd: [...new Set([...(joins ? last.crowd ?? [] : []), seat])], // seats sending this emoji together
+        };
         return true;
       }
       case 'blunder': {
@@ -252,7 +263,12 @@ export class Match {
       history: this.history,
       roundNo: this.roundNo,
       spectators,
-      reaction: this.reaction && { n: this.reaction.n, seat: this.reaction.seat, emoji: this.reaction.emoji },
+      reaction: this.reaction && {
+        n: this.reaction.n,
+        seat: this.reaction.seat,
+        emoji: this.reaction.emoji,
+        crowd: this.reaction.crowd?.length ?? 1,
+      },
       blunder: this.blunder && { n: this.blunder.n, seat: this.blunder.seat },
       seats: this.seats.map((s, i) =>
         s

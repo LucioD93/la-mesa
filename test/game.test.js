@@ -247,8 +247,36 @@ test('reactions: only seated players, known emoji, rate limited', () => {
   assert.equal(m.handle('a', { t: 'react', emoji: '💩' }, new Set()), false);
   assert.equal(m.handle('a', { t: 'react', emoji: '👏' }, new Set()), true);
   assert.equal(m.handle('a', { t: 'react', emoji: '😂' }, new Set()), false, 'cooldown');
-  assert.deepEqual(m.stateFor('spec', new Set()).reaction, { n: 1, seat: 2, emoji: '👏' });
-  m.reaction.at -= 1000;
+  assert.deepEqual(m.stateFor('spec', new Set()).reaction, { n: 1, seat: 2, emoji: '👏', crowd: 1 });
+  m.reaction.sent[2] -= 1000;
   assert.equal(m.handle('a', { t: 'react', emoji: '😂' }, new Set()), true);
   assert.equal(m.reaction.n, 2);
+});
+
+test('reactions: the crowd counts different players sending the same emoji in time', () => {
+  const m = new Match('crowd');
+  for (const p of ['a', 'b', 'c']) m.join(p, p);
+  const react = (p, emoji) => m.handle(p, { t: 'react', emoji }, new Set());
+  const crowd = () => m.stateFor('a', new Set()).reaction.crowd;
+  const age = (ms) => {
+    m.reaction.at -= ms;
+    for (const s in m.reaction.sent) m.reaction.sent[s] -= ms;
+  };
+
+  react('a', '🔥');
+  assert.equal(crowd(), 1);
+  assert.equal(react('b', '🔥'), true, 'one player does not throttle another');
+  assert.equal(crowd(), 2);
+  age(1000);
+  react('a', '🔥');
+  assert.equal(crowd(), 2, 'the same player repeating does not grow it');
+  react('c', '🔥');
+  assert.equal(crowd(), 3);
+
+  age(1000);
+  react('a', '😂');
+  assert.equal(crowd(), 1, 'another emoji starts over');
+  age(4000);
+  react('b', '😂');
+  assert.equal(crowd(), 1, 'too late to join');
 });

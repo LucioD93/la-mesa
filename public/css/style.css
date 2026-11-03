@@ -327,6 +327,24 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 }
 @media (prefers-reduced-motion: reduce) { .reaction { animation-duration: 1.2s; } }
 
+.reaction-crowd {
+  position: fixed;
+  z-index: 41;
+  translate: -50% -50%;
+  font-size: calc(60px + var(--crowd, 2) * 40px); /* 2 players 140px, 3 180px, 4 220px */
+  line-height: 1;
+  pointer-events: none;
+  filter: drop-shadow(0 10px 24px rgba(0, 0, 0, 0.55));
+  animation: crowd-pop 2.2s ease-out forwards;
+}
+@keyframes crowd-pop {
+  0% { scale: 0.3; opacity: 0; }
+  12% { scale: 1.15; opacity: 1; }
+  24% { scale: 1; }
+  75% { scale: 1; opacity: 1; }
+  100% { scale: 1.1; opacity: 0; }
+}
+
 
 .hand {
   --gap: 6px;
