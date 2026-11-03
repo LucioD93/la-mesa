@@ -9,7 +9,7 @@ Created in [T3 Code](https://t3.codes).
 ## Features
 
 - **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches.
-- **Shareable matches.** A match lives at `/play/<id>`. The invite button uses the native share sheet when the browser has one.
+- **Shareable matches.** A match lives at `/play/<id>`. The invite button uses the native share sheet when the browser has one, and links unfurl with a preview image in WhatsApp and other chat apps.
 - **Bots.** Fill empty seats from the lobby. Mid-game, a spectator can take over a bot's seat and hand, and a player who disconnected can be replaced by a bot so the game keeps going.
 - **Spectators.** Anyone who opens the link after the seats are taken watches the game.
 - **Reconnects.** Reloading or briefly losing the connection puts you back in your seat with your hand. The client notices dead connections within seconds, reconnects with backoff, and retries right away when the network or the tab comes back. If you were swapped for a bot while away, rejoining gives you your seat back.
@@ -197,6 +197,7 @@ The app is deployed on Vercel with no build step:
 - `public/` is served as static files.
 - `api/ws.js` is a Vercel Function (Node.js runtime, Fluid Compute) that accepts WebSocket upgrades at `/api/ws?match=<id>`.
 - `vercel.json` rewrites `/play/:id` to `/play.html`.
+- The Open Graph tags in `public/index.html` and `public/play.html` point at the production domain, because chat apps need an absolute image URL. Update them if the domain changes.
 
 ### Steps
 

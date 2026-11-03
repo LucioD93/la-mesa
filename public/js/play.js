@@ -192,19 +192,37 @@ async function share() {
       if (e.name === 'AbortError') return;
     }
   }
-  copy(url);
+  if (await copy(url)) toast(t('linkCopied'));
 }
 
 async function copy(text) {
   try {
     await navigator.clipboard.writeText(text);
+    return true;
   } catch {
     const input = $('inviteUrl');
     input.value = text;
     input.select();
-    document.execCommand('copy');
+    if (document.execCommand('copy')) return true;
+    toast(t('copyFailed'), 3200);
+    return false;
   }
-  toast(t('linkCopied'));
+}
+
+let copiedTimer;
+async function copyInvite() {
+  if (!(await copy(inviteUrl()))) return;
+  const btn = $('copyBtn');
+  btn.dataset.i18n = 'copied';
+  btn.textContent = t('copied');
+  btn.classList.add('done');
+  buzz(15);
+  clearTimeout(copiedTimer);
+  copiedTimer = setTimeout(() => {
+    btn.dataset.i18n = 'copy';
+    btn.textContent = t('copy');
+    btn.classList.remove('done');
+  }, 1800);
 }
 
 // ---- render -----------------------------------------------------------------
@@ -950,7 +968,7 @@ $('result').addEventListener('click', (e) => {
 $('scoreBtn').onclick = () => state && state.phase !== 'lobby' && ($('scoreSheet').hidden = false);
 $('scoreSheet').addEventListener('click', (e) => e.target === $('scoreSheet') && ($('scoreSheet').hidden = true));
 $('shareBtn').onclick = share;
-$('copyBtn').onclick = () => copy(inviteUrl());
+$('copyBtn').onclick = copyInvite;
 $('botsBtn').onclick = () => send({ t: 'addBots' });
 $('startBtn').onclick = () => send({ t: 'start' });
 

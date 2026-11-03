@@ -6,6 +6,18 @@
     <meta name="theme-color" content="#0b3a2c" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>Domino</title>
+    <meta name="description" content="Partner dominoes for 4 players, 2 vs 2. No sign-up: send the link and play." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Domino" />
+    <meta property="og:title" content="Play dominoes with me" />
+    <meta property="og:description" content="Partner dominoes for 4 players, 2 vs 2. No sign-up: send the link and play." />
+    <meta property="og:image" content="https://domino-ten-theta.vercel.app/og-image.png" />
+    <meta property="og:image:secure_url" content="https://domino-ten-theta.vercel.app/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Two domino tiles on a green felt table, with the word Domino" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href="/icon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="stylesheet" href="/css/style.css" />
@@ -69,26 +81,31 @@
 
     <!-- Lobby -->
     <section class="sheet" id="lobby" hidden>
-      <div class="sheet-body">
+      <div class="sheet-body lobby-body">
         <h2><span data-i18n="match">Match</span> <span id="matchCode" class="code"></span></h2>
         <div class="invite">
           <input id="inviteUrl" readonly />
           <button id="copyBtn" class="btn" data-i18n="copy">Copy</button>
         </div>
 
-        <label class="field">
-          <span data-i18n="yourName">Your name</span>
-          <input id="nameInput" maxlength="16" autocomplete="nickname" enterkeyhint="done" />
-        </label>
+        <div class="lobby-options">
+          <label class="field">
+            <span data-i18n="yourName">Your name</span>
+            <input id="nameInput" maxlength="16" autocomplete="nickname" enterkeyhint="done" />
+          </label>
+          <div class="field">
+            <span data-i18n="playTo">Play to</span>
+            <div class="segmented" id="targetPicker">
+              <button data-target="100">100</button>
+              <button data-target="150">150</button>
+              <button data-target="200">200</button>
+            </div>
+          </div>
+        </div>
 
-        <p class="section-title"><span data-i18n="seats">Seats</span> <small data-i18n="seatsNote">— partners sit across from each other</small></p>
-        <div class="lobby-table" id="lobbySeats"></div>
-
-        <p class="section-title" data-i18n="playTo">Play to</p>
-        <div class="segmented" id="targetPicker">
-          <button data-target="100">100</button>
-          <button data-target="150">150</button>
-          <button data-target="200">200</button>
+        <div class="lobby-seats">
+          <p class="section-title"><span data-i18n="seats">Seats</span> <small data-i18n="seatsNote">— partners sit across from each other</small></p>
+          <div class="lobby-table" id="lobbySeats"></div>
         </div>
 
         <div class="lobby-actions">
