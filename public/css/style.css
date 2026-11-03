@@ -379,6 +379,48 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
   40%, 80% { translate: 4px 0; }
 }
 
+/* ---- tiles played by the others ------------------------------------------- */
+.board .tile.incoming { visibility: hidden; }
+.flier {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 45;
+  pointer-events: none;
+  box-shadow: 0 0 0 2px var(--team), 0 0 16px var(--team), 0 14px 28px rgba(0, 0, 0, 0.55);
+  will-change: transform;
+}
+.flier-back {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--team);
+  box-shadow: inset 0 0 0 2px var(--ivory);
+}
+.flier-back[hidden] { display: none; }
+.avatar.throw { animation: throw 0.4s ease-out; }
+@keyframes throw { 40% { transform: scale(1.25); } }
+.impact {
+  position: absolute;
+  z-index: 2;
+  width: calc(var(--u, 24px) * 4);
+  height: calc(var(--u, 24px) * 4);
+  border: 3px solid var(--team);
+  border-radius: 50%;
+  translate: -50% -50%;
+  pointer-events: none;
+  animation: impact 0.5s ease-out forwards;
+}
+@keyframes impact {
+  from { scale: 0.2; opacity: 0.9; }
+  to { scale: 1; opacity: 0; }
+}
+.board.thud { animation: thud 0.28s ease-out; }
+@keyframes thud {
+  25% { translate: 0 4px; }
+  60% { translate: 0 -2px; }
+}
+
 /* ---- mocking illegal moves ------------------------------------------------ */
 .drag-ghost.rejected {
   box-shadow: 0 0 0 3px var(--accent), 0 0 24px var(--accent);

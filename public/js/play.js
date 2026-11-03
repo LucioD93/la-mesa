@@ -234,7 +234,10 @@ function render(next) {
     if (la.type === 'pass') {
       toast(la.seat === me() ? t('youPass') : t('passes', { name: seatName(la.seat) }));
       sound.play('pass');
-    } else if (la.type === 'play') sound.play('place');
+    } else if (la.type === 'play') {
+      if (la.seat === me()) sound.play('place');
+      else flyTile(la);
+    }
   }
   if (prev && state.reaction && state.reaction.n !== prev.reaction?.n) showReaction(state.reaction);
   if (prev && state.blunder && state.blunder.n !== prev.blunder?.n && state.blunder.seat !== me()) {
@@ -244,8 +247,10 @@ function render(next) {
   const myTurnNow = r && r.turn === me() && state.phase === 'playing';
   const myTurnBefore = prev?.round && prev.round.turn === prev.you && prev.phase === 'playing';
   if (myTurnNow && !myTurnBefore && r.legal.length) {
-    buzz(30);
-    sound.play('turn');
+    whenLanded(() => {
+      buzz(30);
+      sound.play('turn');
+    });
   }
 
   requestWakeLock();
@@ -527,6 +532,124 @@ function dropTarget(x, y) {
   return best;
 }
 
+// ---- tiles played by the others -----------------------------------------------
+
+const FLIGHT_MS = 1200;
+const IMPACT_AT = 0.88; // fraction of the flight where the tile hits the table
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+let flights = 0;
+let afterFlights = [];
+
+const lerp = (a, b, u) => a + (b - a) * u;
+const clamp01 = (u) => Math.min(Math.max(u, 0), 1);
+const easeInOut = (u) => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
+
+/** Run `fn` right away, or once every tile in the air has landed. */
+function whenLanded(fn) {
+  if (flights) afterFlights.push(fn);
+  else fn();
+}
+
+/** Pulled from the hand, thrown spinning face down, flipped over, slammed down. */
+function flightPose(t) {
+  if (t < 0.2) {
+    const u = t / 0.2;
+    return { along: 0, scale: lerp(0.3, 0.85, 1 - (1 - u) ** 2), spin: Math.sin(u * Math.PI * 2) * 10, flip: 180 };
+  }
+  if (t < 0.8) {
+    const u = (t - 0.2) / 0.6;
+    const e = easeInOut(u);
+    return {
+      along: e,
+      scale: lerp(0.85, 1.5, e) + 0.4 * Math.sin(Math.PI * u),
+      spin: (1 - e) * 540,
+      flip: 180 * (1 - clamp01((u - 0.25) / 0.5)),
+    };
+  }
+  if (t < 0.9) {
+    const u = (t - 0.8) / 0.1;
+    return { along: 1, scale: lerp(1.5, 0.9, u * u), spin: 0, flip: 0 };
+  }
+  const u = (t - 0.9) / 0.1;
+  return { along: 1, scale: 1 + 0.08 * Math.sin(Math.PI * u) - (1 - u) * 0.1, spin: 0, flip: 0 };
+}
+
+function impact(node, team) {
+  sound.play('place');
+  const ring = document.createElement('span');
+  ring.className = 'impact';
+  ring.dataset.team = team;
+  ring.style.left = `${node.offsetLeft + node.offsetWidth / 2}px`;
+  ring.style.top = `${node.offsetTop + node.offsetHeight / 2}px`;
+  ring.addEventListener('animationend', () => ring.remove());
+  $('board').append(ring);
+  const el = $('board');
+  el.classList.remove('thud');
+  void el.offsetWidth; // restart the animation if one is still showing
+  el.classList.add('thud');
+}
+
+/** Fly a tile from the seat that played it to its spot on the board. */
+function flyTile({ seat, tile }) {
+  const node = board.nodes.get(tileKey(tile));
+  const avatar = $(['seat-me', 'seat-right', 'seat-top', 'seat-left'][posOf(seat)]).querySelector('.avatar');
+  if (!node || !avatar || reduceMotion || document.hidden) return sound.play('place');
+
+  const a = avatar.getBoundingClientRect();
+  const x0 = a.left + a.width / 2;
+  const y0 = a.top + a.height / 2;
+  avatar.classList.add('throw');
+  node.classList.remove('fresh');
+  node.classList.add('incoming'); // the real tile stays hidden until this one lands
+
+  const flier = document.createElement('div');
+  flier.className = `tile flier ${node.classList.contains('h') ? 'h' : 'v'}`;
+  flier.dataset.team = seat % 2;
+  flier.innerHTML = `${node.innerHTML}<span class="flier-back"></span>`;
+  const back = flier.lastChild;
+  document.body.append(flier);
+
+  flights++;
+  const start = performance.now();
+  let hit = false;
+
+  const finish = () => {
+    flier.remove();
+    node.classList.remove('incoming');
+    if (--flights) return;
+    const queued = afterFlights;
+    afterFlights = [];
+    queued.forEach((fn) => fn());
+  };
+
+  const frame = (now) => {
+    if (!node.isConnected) return finish(); // new round started mid-flight
+    const t = clamp01((now - start) / FLIGHT_MS);
+    // Aim at the tile's live position: the board can reflow during the flight.
+    const r = node.getBoundingClientRect();
+    const x1 = r.left + r.width / 2;
+    const y1 = r.top + r.height / 2;
+    const { along: p, scale, spin, flip } = flightPose(t);
+    // A curve bowed upward, so the tile arcs over the table instead of sliding.
+    const cx = (x0 + x1) / 2;
+    const cy = (y0 + y1) / 2 - Math.hypot(x1 - x0, y1 - y0) * 0.35;
+    const x = lerp(lerp(x0, cx, p), lerp(cx, x1, p), p);
+    const y = lerp(lerp(y0, cy, p), lerp(cy, y1, p), p);
+    flier.style.width = `${r.width}px`;
+    flier.style.height = `${r.height}px`;
+    flier.style.setProperty('--u', `${Math.min(r.width, r.height)}px`);
+    flier.style.transform = `translate(${x - r.width / 2}px, ${y - r.height / 2}px) rotate(${spin}deg) perspective(500px) rotateY(${flip}deg) scale(${scale})`;
+    back.hidden = flip < 90;
+    if (!hit && t >= IMPACT_AT) {
+      hit = true;
+      impact(node, seat % 2);
+    }
+    if (t < 1) requestAnimationFrame(frame);
+    else finish();
+  };
+  frame(start);
+}
+
 // ---- mocking illegal moves ----------------------------------------------------
 
 const MOCK_EMOJI = ['🤡', '🤦', '🙈', '🤣', '🐔'];
@@ -659,7 +782,9 @@ function renderResult(prev) {
   if (fresh && prev && prev.phase === 'playing') {
     // Give everyone a moment to see the final tile before the overlay.
     clearTimeout(resultTimer);
-    resultTimer = setTimeout(build, 1100);
+    const la = state.round.lastAction;
+    const flying = la?.type === 'play' && la.seat !== me();
+    resultTimer = setTimeout(build, flying ? FLIGHT_MS + 800 : 1100);
   } else if (!fresh && overlay.hidden && resultTimer) {
     // still waiting for the delayed build
   } else build();
