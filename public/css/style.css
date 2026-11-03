@@ -346,7 +346,7 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 }
 .hand-tile.playable { transform: translateY(-8px); box-shadow: 0 0 0 2px var(--gold), 0 8px 18px rgba(0, 0, 0, 0.45); }
 .hand-tile { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-.hand-tile.playable { cursor: grab; }
+.hand-tile { cursor: grab; }
 .hand-tile.dragging { opacity: 0.25; transform: none; box-shadow: none; }
 .drag-ghost {
   position: fixed;

@@ -223,7 +223,8 @@ document.addEventListener('visibilitychange', () => {
 // ---- helpers ----------------------------------------------------------------
 
 let state = null;
-let drag = null; // tile being dragged from the hand to the board
+let drag = null; // tile being dragged from the hand, to the board or to a new slot
+let handOrder = []; // my hand's tile keys, left to right, as I arranged them
 const board = new BoardView($('board'));
 
 const me = () => state?.you ?? -1;
@@ -450,6 +451,12 @@ const sortHand = (hand) =>
     .map((t) => (t[0] <= t[1] ? t : [t[1], t[0]]))
     .sort((a, b) => a[0] + a[1] - (b[0] + b[1]) || a[0] - b[0]);
 
+/** Keep my arrangement as tiles get played; a tile I haven't seen means a new deal. */
+function syncHandOrder(hand) {
+  const keys = sortHand(hand).map(tileKey);
+  handOrder = keys.every((k) => handOrder.includes(k)) ? handOrder.filter((k) => keys.includes(k)) : keys;
+}
+
 function renderHand() {
   const r = state.round;
   const handEl = $('hand');
@@ -461,11 +468,12 @@ function renderHand() {
     return;
   }
   const myTurn = r.turn === me() && state.phase === 'playing';
-  if (drag && !myTurn) cancelDrag();
+  if (drag && state.phase !== 'playing') cancelDrag();
+  syncHandOrder(hand);
 
-  handEl.innerHTML = sortHand(hand)
-    .map((tile) => {
-      const key = tileKey(tile);
+  handEl.innerHTML = handOrder
+    .map((key) => {
+      const tile = key.split('-').map(Number);
       const cls = [
         'tile v hand-tile',
         myTurn ? 'playable' : '',
@@ -475,6 +483,8 @@ function renderHand() {
     })
     .join('');
   handEl.style.setProperty('--n', Math.max(hand.length, 5));
+  // State can arrive mid-drag and the buttons were just rebuilt.
+  if (drag) drag.btn = handEl.querySelector(`[data-key="${drag.key}"]`);
 }
 
 function renderStatus() {
@@ -513,24 +523,12 @@ function shake(btn) {
   btn.classList.add('shake');
 }
 
-/** Can this hand tile be picked up right now? Any tile can be tried on your turn. */
-function canDrag(btn) {
-  const r = state?.round;
-  if (!r || state.phase !== 'playing') return false;
-  if (r.turn !== me()) {
-    shake(btn);
-    toast(t('waitFor', { name: seatName(r.turn) }), 1200);
-    return false;
-  }
-  return true;
-}
-
 const DRAG_START = 6; // px of movement before a press becomes a drag
 
+// Tiles can be picked up any time to rearrange them; playing one waits for your turn.
 function onHandDown(e) {
   const btn = e.target.closest('.hand-tile');
-  if (!btn || !state || drag || e.button > 0) return;
-  if (!canDrag(btn)) return;
+  if (!btn || state?.phase !== 'playing' || drag || e.button > 0) return;
   e.preventDefault();
   drag = {
     key: btn.dataset.key,
@@ -571,20 +569,49 @@ function onDragMove(e) {
   $('board').classList.toggle('drop-hover', !!drag.target && !drag.target.node);
   drag.target?.node?.classList.add('drop-hover');
   board.preview(drag.target ? drag.key.split('-').map(Number) : null, drag.target?.end);
+  if (within('hand', e.clientX, e.clientY)) moveInHand(e.clientX);
+}
+
+/** Slide the dragged tile to the hand slot under the pointer. */
+function moveInHand(x) {
+  const handEl = $('hand');
+  const tiles = [...handEl.children];
+  const gap = parseFloat(getComputedStyle(handEl).columnGap) || 0;
+  const pitch = drag.btn.offsetWidth + gap;
+  const rect = handEl.getBoundingClientRect();
+  const left = rect.left + (rect.width - tiles.length * pitch + gap) / 2; // the row is centered
+  const to = Math.min(Math.max(Math.floor((x - left) / pitch), 0), tiles.length - 1);
+  const from = tiles.indexOf(drag.btn);
+  if (to === from) return;
+
+  const before = tiles.map((el) => el.offsetLeft);
+  handEl.insertBefore(drag.btn, tiles[to > from ? to + 1 : to] ?? null);
+  handOrder.splice(to, 0, handOrder.splice(from, 1)[0]);
+  if (reduceMotion) return;
+  tiles.forEach((el, i) => {
+    const shift = before[i] - el.offsetLeft;
+    if (shift && el !== drag.btn) el.animate({ translate: [`${shift}px 0`, '0 0'] }, { duration: 120, easing: 'ease-out' });
+  });
 }
 
 function onDragEnd(e) {
   if (!drag || e.pointerId !== drag.id) return;
   const { key, ghost, btn, dx, dy } = drag;
+  const myTurn = state.round.turn === me();
+  const tapped = e.type === 'pointerup' && !ghost;
   const dropped = e.type === 'pointerup' && ghost;
   const target = dropped ? dropTarget(e.clientX, e.clientY) : null;
-  const illegal = dropped && !target && inBoard(e.clientX, e.clientY);
+  const illegal = dropped && myTurn && !target && within('board', e.clientX, e.clientY);
+  const rearranged = dropped && within('hand', e.clientX, e.clientY);
   if (illegal) drag.ghost = null; // the mock animation takes over the ghost
   cancelDrag();
   if (target) playTile(key, target.end);
   else if (illegal) mockMove(ghost, key, e.clientX - dx, e.clientY - dy);
-  else if (!ghost && e.type === 'pointerup') toast(t('dragHint'), 1400);
-  else if (ghost) shake(btn);
+  else if (tapped && myTurn) toast(t('dragHint'), 1400);
+  else if (tapped || (ghost && !rearranged)) {
+    shake(btn);
+    if (!myTurn) toast(t('waitFor', { name: seatName(state.round.turn) }), 1200);
+  }
 }
 
 function cancelDrag() {
@@ -597,18 +624,19 @@ function cancelDrag() {
   board.preview(null);
 }
 
-function inBoard(x, y) {
-  const r = $('board').getBoundingClientRect();
+function within(id, x, y) {
+  const r = $(id).getBoundingClientRect();
   return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
 }
 
 /** Which legal end ('L' / 'R') is the pointer over? */
 function dropTarget(x, y) {
+  if (within('hand', x, y)) return null; // over the hand it's rearranging, not playing
   const ends = pickEnds(drag.key);
-  if (!state.round.line.length) return inBoard(x, y) && ends.length ? { end: ends[0], node: null } : null;
+  if (!state.round.line.length) return within('board', x, y) && ends.length ? { end: ends[0], node: null } : null;
 
   const unit = parseFloat(getComputedStyle($('board')).getPropertyValue('--u')) || 24;
-  const reach = Math.max(44, unit * 2.2);
+  const reach = Math.max(52, unit * 2.6);
   let best = null;
   for (const end of ends) {
     const node = [...board.nodes.values()].find((n) => n.classList.contains(end === 'L' ? 'end-l' : 'end-r'));
