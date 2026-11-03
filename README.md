@@ -21,7 +21,8 @@ Created in [T3 Code](https://t3.codes).
 
 - Double-six set with 7 tiles per player and no boneyard. Seats 0 and 2 play against seats 1 and 3, and turns go 0 → 1 → 2 → 3.
 - In the first round, whoever holds the double six must open with it. After that, the previous round's winner opens with any tile.
-- If you have no legal move, the game passes for you automatically.
+- If you have no legal move, the game passes for you automatically after 3 seconds.
+- On your turn you can try any tile, even when none of them fit. Dropping one anywhere on the table where it can't go is not played, and the table mocks you for it: everyone else hears a laugh and sees a 🤡 over your seat.
 - **Domino:** the player who empties their hand wins for their team. The team scores the pips left in all four hands.
 - **Blocked game:** the team with fewer pips wins and scores both teams' pips. A tie scores nothing. The next round is opened by the player with the lighter hand on the winning team.
 - The match ends when a team reaches the target score, which you set in the lobby to 100, 150 or 200.
@@ -149,6 +150,7 @@ All messages are JSON with a `t` field. Messages are limited to 4 KB.
 | `next` / `rematch` / `lobby` | | After a round or match ends |
 | `botify` | `seat` | Replace a disconnected player with a bot |
 | `react` | `emoji` | Seated players (600 ms cooldown) |
+| `blunder` | | You tried an illegal move on your turn, so the others can mock you (2 s cooldown) |
 | `ping` | | Keep-alive. The server replies `pong`. |
 
 | Server → client | Payload |

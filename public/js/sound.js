@@ -64,6 +64,16 @@ const sounds = {
     note(880, { at: 0.09, dur: 0.18, gain: 0.12 });
   },
   react: () => note(520, { dur: 0.12, type: 'triangle', gain: 0.15, slide: 900 }),
+  // Sad trombone: wah, wah, wah, waaah.
+  mock: () => {
+    [311, 294, 277].forEach((f, i) => note(f, { at: i * 0.28, dur: 0.26, type: 'sawtooth', gain: 0.08 }));
+    note(262, { at: 0.84, dur: 0.8, type: 'sawtooth', gain: 0.08, slide: 196 });
+  },
+  // The rest of the table laughing: ha-ha-ha-ha-haaa.
+  laugh: () => {
+    [620, 580, 540, 500].forEach((f, i) => note(f, { at: i * 0.13, dur: 0.1, type: 'square', gain: 0.07, slide: f * 0.8 }));
+    note(460, { at: 0.52, dur: 0.32, type: 'square', gain: 0.07, slide: 280 });
+  },
   win: () => [523, 659, 784, 1047].forEach((f, i) => note(f, { at: i * 0.11, dur: 0.3, type: 'triangle', gain: 0.18 })),
   lose: () => [392, 330, 262, 196].forEach((f, i) => note(f, { at: i * 0.18, dur: 0.35, type: 'sawtooth', gain: 0.07 })),
   roundEnd: () => [440, 554].forEach((f, i) => note(f, { at: i * 0.12, dur: 0.25, type: 'triangle', gain: 0.15 })),
