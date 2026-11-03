@@ -4,7 +4,7 @@
 import * as G from './game.js';
 
 const BOT_NAMES = ['Bot Ana', 'Bot Beto', 'Bot Coco', 'Bot Dani'];
-export const BOT_DELAY_MS = 900;
+export const BOT_DELAY_MS = 1600; // the client's flight animation (1.2s) plus a beat
 export const AUTO_PASS_DELAY_MS = 1300;
 export const STUCK_PLAYER_DELAY_MS = 3000; // long enough to try an illegal tile before the forced pass
 const TARGETS = [100, 150, 200];
