@@ -9,11 +9,13 @@ function context() {
     if (!AC) return null;
     ctx = new AC();
   }
-  if (ctx.state === 'suspended') ctx.resume();
+  if (ctx.state !== 'running') ctx.resume(); // iOS also has 'interrupted', after backgrounding
   return ctx;
 }
 
-addEventListener('pointerdown', context, { once: true });
+// A touch only counts as permission when it ends, and iOS can suspend audio again
+// later, so every gesture tries to unlock it.
+for (const type of ['pointerup', 'touchend', 'click', 'keydown']) addEventListener(type, context, { capture: true, passive: true });
 
 /** One enveloped oscillator note. `slide` glides the pitch to that frequency. */
 function note(freq, { at = 0, dur = 0.15, type = 'sine', gain = 0.2, slide } = {}) {
