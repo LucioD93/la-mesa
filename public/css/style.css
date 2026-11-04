@@ -6,6 +6,7 @@
   --ink: #f3f1ea;
   --muted: #9fb5aa;
   --accent: #e11d48;
+  --accent-glow: rgba(225, 29, 72, 0.35);
   --gold: #fcd34d;
   --t0: #60a5fa;
   --t1: #fb923c;
@@ -33,6 +34,10 @@ input { font: inherit; }
 .muted { color: var(--muted); }
 .center { text-align: center; }
 
+/* Each game keeps its own colors and table. The domino table's rules are scoped with
+   body[data-game='domino'] and truco's with body[data-game='truco'] where they share a name. */
+body[data-game='truco'] { --accent: #0e7490; --accent-glow: rgba(14, 116, 144, 0.4); }
+
 [data-team='0'] { --team: var(--t0); }
 [data-team='1'] { --team: var(--t1); }
 
@@ -49,7 +54,7 @@ input { font: inherit; }
 }
 .btn:active { transform: scale(0.97); }
 .btn:disabled { opacity: 0.45; pointer-events: none; }
-.btn.primary { background: var(--accent); box-shadow: 0 6px 18px rgba(225, 29, 72, 0.35); }
+.btn.primary { background: var(--accent); box-shadow: 0 6px 18px var(--accent-glow); }
 .btn.ghost { background: transparent; box-shadow: none; color: var(--muted); }
 .btn.block { display: block; width: 100%; }
 .icon-btn {
@@ -107,9 +112,9 @@ input { font: inherit; }
 /* ---- landing ------------------------------------------------------------ */
 body.landing { display: grid; place-items: center; min-height: 100dvh; padding: 24px; }
 .landing-card { width: 100%; max-width: 360px; text-align: center; }
-.logo { display: flex; justify-content: center; gap: 10px; margin-bottom: 12px; }
-.tile.big { width: 56px; height: 112px; --u: 56px; }
-.tile.big.tilt { transform: rotate(14deg) translateY(6px); }
+.logo { display: flex; justify-content: center; align-items: center; gap: 14px; margin-bottom: 12px; }
+.tile.big { width: 56px; height: 112px; --u: 56px; transform: rotate(-8deg); }
+.card.big { --cw: 80px; transform: rotate(8deg) translateY(4px); }
 .landing h1 { font-size: 40px; margin: 8px 0 2px; letter-spacing: -0.02em; }
 .sub { color: var(--muted); margin: 0 0 28px; }
 .join { display: flex; gap: 8px; margin-top: 12px; }
@@ -225,9 +230,10 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
   min-height: 0;
   padding: 0 4px;
 }
-.board { grid-area: board; position: relative; min-height: 0; overflow: hidden; margin: 6px 0; }
+.board { grid-area: board; position: relative; min-height: 0; margin: 6px 0; }
+body[data-game='domino'] .board { overflow: hidden; }
 .board .tile { position: absolute; transition: left 0.35s, top 0.35s, width 0.35s, height 0.35s, box-shadow 0.3s; }
-.board .tile.fresh { animation: drop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1); }
+.board .tile.fresh { animation: tile-drop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1); }
 .board .tile.last { box-shadow: 0 0 0 2px var(--team), 0 0 14px var(--team); }
 .board-empty {
   position: absolute;
@@ -239,7 +245,7 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
   text-align: center;
   color: var(--muted);
 }
-@keyframes drop { from { transform: scale(1.35); opacity: 0; } }
+@keyframes tile-drop { from { transform: scale(1.35); opacity: 0; } }
 
 /* ---- seats -------------------------------------------------------------- */
 .seat { position: relative; display: flex; align-items: center; gap: 8px; }
@@ -300,7 +306,7 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
   font-variant-numeric: tabular-nums;
 }
 .backs { display: flex; gap: 2px; }
-.backs i { display: block; width: 7px; height: 14px; border-radius: 2px; background: linear-gradient(var(--ivory), var(--ivory-2)); opacity: 0.85; }
+body[data-game='domino'] .backs i { display: block; width: 7px; height: 14px; border-radius: 2px; background: linear-gradient(var(--ivory), var(--ivory-2)); opacity: 0.85; }
 .bubble {
   position: absolute;
   z-index: 3;
@@ -410,7 +416,7 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 }
 
 
-.hand {
+body[data-game='domino'] .hand {
   --gap: 6px;
   --tw: min(calc((100vw - 20px - (var(--n, 7) - 1) * var(--gap)) / var(--n, 7)), 58px);
   display: flex;
@@ -463,7 +469,7 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 
 /* ---- tiles played by the others ------------------------------------------- */
 .board .tile.incoming { visibility: hidden; }
-.flier {
+.flier, .card.flier {
   position: fixed;
   left: 0;
   top: 0;
@@ -479,6 +485,10 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
   background: var(--team);
   box-shadow: inset 0 0 0 2px var(--ivory);
 }
+body[data-game='truco'] .flier-back {
+  background: repeating-linear-gradient(45deg, #155e75, #155e75 4px, #0e7490 4px, #0e7490 8px);
+  box-shadow: inset 0 0 0 3px #fffdf6;
+}
 .flier-back[hidden] { display: none; }
 .avatar.throw { animation: throw 0.4s ease-out; }
 @keyframes throw { 40% { transform: scale(1.25); } }
@@ -493,6 +503,7 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
   pointer-events: none;
   animation: impact 0.5s ease-out forwards;
 }
+body[data-game='truco'] .impact { width: calc(var(--cw) * 2); height: calc(var(--cw) * 2); }
 @keyframes impact {
   from { scale: 0.2; opacity: 0.9; }
   to { scale: 1; opacity: 0; }
@@ -630,7 +641,8 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 .lobby-body .btn, .lobby-body input { min-height: 44px; }
 .lobby-body .field { margin-top: 0; gap: 4px; }
 .lobby-body .section-title { margin: 0 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lobby-options { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+.lobby-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; margin-top: 10px; }
+.lobby-options .identity { grid-column: 1 / -1; }
 .lobby-options .field { min-width: 0; }
 .lobby-options .segmented { padding: 2px; gap: 2px; }
 .lobby-options .segmented button { min-height: 40px; min-width: 0; }
@@ -776,6 +788,7 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 .tile.mini { --u: 15px; width: 30px; height: 15px; border-radius: 3px; }
 .tile.mini .half { padding: 10%; }
 .tile.mini .bar { width: 1px; }
+.result-awards:empty { display: none; }
 
 .result-actions { display: grid; gap: 8px; }
 .peek-btn { display: none; }
@@ -784,6 +797,163 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 .overlay.peek .peek-btn { display: block; pointer-events: auto; }
 
 #fx { position: fixed; inset: 0; z-index: 50; width: 100%; height: 100%; pointer-events: none; }
+
+/* ---- cards -------------------------------------------------------------- */
+.card {
+  position: relative;
+  display: block;
+  flex: none;
+  width: var(--cw, 80px);
+  aspect-ratio: 2 / 3;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--cw, 80px) * 0.09);
+  background: linear-gradient(160deg, #fffdf6, #efe8d6);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset, 0 2px 6px rgba(0, 0, 0, 0.45);
+  font-family: ui-serif, Georgia, 'Times New Roman', serif;
+}
+.card svg { display: block; width: 100%; height: 100%; }
+.card.perico, .card.perica { box-shadow: 0 0 0 2px var(--gold), 0 0 12px rgba(252, 211, 77, 0.6), 0 2px 6px rgba(0, 0, 0, 0.45); }
+.badge {
+  position: absolute;
+  left: 50%;
+  bottom: -2px;
+  translate: -50% 0;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: #2a2000;
+  font: 800 10px/1.4 ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-style: normal;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.card.mini { --cw: 34px; border-radius: 3px; }
+
+/* ---- table -------------------------------------------------------------- */
+body[data-game='truco'] .board { --cw: min(15.5vw, 11.5dvh, 92px); }
+.trick { position: absolute; inset: 0; pointer-events: none; }
+.slot.incoming { visibility: hidden; }
+.slot { position: absolute; left: 50%; top: 52%; margin: calc(var(--cw) * -0.75) 0 0 calc(var(--cw) * -0.5); }
+.slot.p0 { transform: translateY(calc(var(--cw) * 0.85)); }
+.slot.p2 { transform: translateY(calc(var(--cw) * -0.85)); }
+.slot.p1 { transform: translateX(calc(var(--cw) * 1.05)) rotate(4deg); }
+.slot.p3 { transform: translateX(calc(var(--cw) * -1.05)) rotate(-4deg); }
+.slot.fresh .card { animation: card-drop 0.3s cubic-bezier(0.2, 1.4, 0.4, 1); }
+.slot.won { z-index: 2; }
+.slot.won .card { box-shadow: 0 0 0 3px var(--team), 0 0 18px var(--team); }
+@keyframes card-drop { from { transform: scale(1.4) rotate(6deg); opacity: 0; } }
+/* Another player's card leaves their seat face down and turns over on the way. */
+
+.vira-box { position: absolute; left: 2px; top: 4px; z-index: 1; display: flex; gap: 6px; align-items: flex-start; }
+.card.vira { --cw: min(11vw, 8dvh, 58px); rotate: -6deg; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35), 0 2px 6px rgba(0, 0, 0, 0.45); }
+.vira-text { display: flex; flex-direction: column; font-size: 11px; line-height: 1.25; color: var(--muted); white-space: nowrap; }
+.vira-text b { color: var(--gold); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+.hand-info { position: absolute; right: 2px; top: 6px; z-index: 1; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.pips { display: flex; gap: 4px; }
+.pip { width: 12px; height: 12px; border-radius: 50%; background: rgba(0, 0, 0, 0.3); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.15); }
+.pip.won { background: var(--team); }
+.pip.tie { background: var(--muted); }
+.worth { font-size: 12px; font-weight: 700; color: var(--muted); }
+.worth.hot { color: var(--gold); }
+
+body[data-game='truco'] .backs i { display: block; width: 9px; height: 14px; border-radius: 2px; background: repeating-linear-gradient(45deg, #155e75, #155e75 2px, #0e7490 2px, #0e7490 4px); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5); }
+.seat.left .backs, .seat.right .backs { margin-top: 2px; }
+.mano-tag {
+  position: absolute;
+  left: -3px;
+  top: -3px;
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--gold);
+  color: #2a2000;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+/* ---- calls -------------------------------------------------------------- */
+body:not([data-game='truco']) .actions { display: none; }
+.actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; min-height: 40px; margin: 2px 0 6px; }
+.call {
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 800;
+  background: var(--panel-2);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+}
+.call:active { transform: scale(0.96); }
+.call.yes { background: #15803d; }
+.call.no { background: #b91c1c; }
+.call.truco { background: var(--accent); }
+.call.envido { background: #6d28d9; }
+.call.flor { background: var(--gold); color: #2a2000; animation: flor-pulse 1s ease-in-out infinite; }
+.call.mazo { background: transparent; color: var(--muted); }
+@keyframes flor-pulse { 50% { box-shadow: 0 0 0 6px rgba(252, 211, 77, 0.25); } }
+
+.shout {
+  position: fixed;
+  z-index: 40;
+  max-width: 90vw;
+  padding: 6px 16px;
+  border-radius: 16px;
+  background: var(--ink);
+  color: #111;
+  font-size: 22px;
+  font-weight: 900;
+  white-space: nowrap;
+  translate: -50% -50%;
+  pointer-events: none;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+  animation: shout 2s cubic-bezier(0.2, 1.2, 0.4, 1) forwards;
+}
+.shout.truco { background: var(--accent); color: #fff; font-size: 28px; }
+.shout.flor { background: var(--gold); color: #2a2000; }
+.shout.envido, .shout.cinco, .shout.falta { background: #6d28d9; color: #fff; }
+.shout.noquiero { background: #b91c1c; color: #fff; }
+.shout.quiero { background: #15803d; color: #fff; }
+@keyframes shout {
+  0% { scale: 0.3; opacity: 0; }
+  12% { scale: 1.2; opacity: 1; }
+  22% { scale: 1; }
+  85% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ---- hand --------------------------------------------------------------- */
+body[data-game='truco'] .hand {
+  --cw: min(27vw, 17dvh, 112px);
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  min-height: calc(var(--cw) * 1.5 + 8px);
+  padding-top: 8px;
+}
+.hand-card {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  transition: transform 0.18s, opacity 0.2s, box-shadow 0.2s;
+}
+.hand-card { cursor: grab; }
+.hand-card.playable { transform: translateY(-6px); box-shadow: 0 0 0 2px var(--gold), 0 8px 18px rgba(0, 0, 0, 0.5); }
+.hand-card.dragging { opacity: 0.25; transform: none; box-shadow: none; }
+
+/* ---- result details ------------------------------------------------------- */
+.result-awards { display: grid; gap: 4px; margin: 4px 0 10px; }
+.ra { display: flex; justify-content: space-between; gap: 10px; padding: 6px 10px; border-radius: 10px; background: rgba(0, 0, 0, 0.2); font-size: 14px; text-align: left; }
+.ra b { flex: none; color: var(--team); }
+.rh-cards { display: flex; gap: 4px; }
+
+@media (max-width: 360px) {
+  .call { padding: 6px 9px; font-size: 13px; }
+}
 
 /* ---- larger screens ------------------------------------------------------ */
 @media (min-width: 700px) {

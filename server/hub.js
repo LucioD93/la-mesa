@@ -2,7 +2,7 @@
 // only its own sockets; match state and change notifications go through the
 // store, so players on different instances still share a match.
 import { createHash, randomBytes } from 'node:crypto';
-import { MoveError } from './game.js';
+import { MoveError } from './games/common.js';
 import { publicId } from './match.js';
 import { PRESENCE_REFRESH_MS, LEAVE_GRACE_MS } from './store.js';
 import { createUsage } from './usage.js';
@@ -61,7 +61,12 @@ export function createHub(store) {
     const r = rooms.get(id);
     if (!r) return;
     r.onlineKey = onlineKey(online);
-    for (const c of r.conns) if (c.token) send(c.ws, match.stateFor(c.token, online));
+    for (const c of r.conns) {
+      if (!c.token) continue;
+      // A tab opened before there was a choice of game can only draw dominoes. It shows `error` as a toast.
+      if (c.dominoOnly && match.game !== 'domino') send(c.ws, { t: 'error', message: 'Reload the page to keep playing' });
+      else send(c.ws, match.stateFor(c.token, online));
+    }
     scheduleAuto(id, match);
   }
 
@@ -158,6 +163,7 @@ export function createHub(store) {
       if (!conn.token) {
         if (msg.t !== 'hello' || !msg.token) return;
         conn.token = String(msg.token).slice(0, 64);
+        conn.dominoOnly = !msg.games;
         // A client handing over to a new socket keeps its voice id by sending the
         // same session. Hashing in the token means nobody else can claim that id.
         if (typeof msg.session === 'string') {
@@ -165,7 +171,7 @@ export function createHub(store) {
         }
         if (msg.inVoice) setInVoice(true); // a handover doesn't join voice again
         await store.setPresence(id, conn.token);
-        await store.update(id, (m) => m.join(conn.token, msg.name));
+        await store.update(id, (m) => m.join(conn.token, msg.name, msg.game));
         send(ws, { t: 'voiceConfig', peer: conn.peer, iceServers: iceServers() });
         return;
       }

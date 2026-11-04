@@ -1,5 +1,8 @@
-import { BoardView } from './board.js';
-import { tileHTML, tileKey } from './tiles.js';
+// The game page: connection, lobby, seats, voice, photos, reactions and the frame of
+// the result. What's on the table belongs to the game's view (domino.js, truco.js).
+import { createView as createDominoView } from './domino.js';
+import { createView as createTrucoView } from './truco.js';
+import { reduceMotion, whenLanded } from './flight.js';
 import * as fx from './fx.js';
 import * as sound from './sound.js';
 import * as i18n from './i18n.js';
@@ -10,6 +13,10 @@ import * as avatar from './avatar.js';
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const matchId = decodeURIComponent(location.pathname.split('/')[2] || '').toLowerCase();
+
+// A link can ask for a game (old Trucazo links). A match that exists already ignores it.
+const gameHint = new URLSearchParams(location.search).get('game');
+if (gameHint) history.replaceState(null, '', location.pathname);
 
 // ---- identity (no login: a random token kept on this device) ----------------
 
@@ -53,7 +60,8 @@ let deadline = 0; // drop the socket if nothing arrives before this time
 let bannerTimer;
 
 const dial = () => new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/ws?match=${encodeURIComponent(matchId)}`);
-const hello = () => ({ t: 'hello', token, name: myName, session: voiceSession, inVoice: voice.joined });
+// `games` tells the server this page can draw every game, unlike a tab left open from before.
+const hello = () => ({ t: 'hello', token, name: myName, session: voiceSession, inVoice: voice.joined, games: true, game: gameHint });
 const scheduleRotation = () => (rotateAt = Date.now() + ROTATE_MS + Math.random() * ROTATE_JITTER_MS);
 
 function connect() {
@@ -231,9 +239,10 @@ document.addEventListener('visibilitychange', () => {
 // ---- helpers ----------------------------------------------------------------
 
 let state = null;
-let drag = null; // tile being dragged from the hand, to the board or to a new slot
-let handOrder = []; // my hand's tile keys, left to right, as I arranged them
-const board = new BoardView($('board'));
+let view = null; // the table of the game being played
+let drag = null; // piece being dragged from the hand, to the table or to a new slot
+let handOrder = []; // my hand's piece keys, left to right, as I arranged them
+const SEAT_IDS = ['seat-me', 'seat-right', 'seat-top', 'seat-left'];
 
 const me = () => state?.you ?? -1;
 const myTeam = () => (me() === -1 ? 0 : me() % 2);
@@ -253,6 +262,8 @@ function toast(text, ms = 1800) {
 }
 
 const buzz = (pattern) => navigator.vibrate?.(pattern);
+
+const seatEl = (seat) => $(SEAT_IDS[posOf(seat)]);
 
 let wakeLock = null;
 async function requestWakeLock() {
@@ -310,11 +321,26 @@ async function copyInvite() {
 
 // ---- render -----------------------------------------------------------------
 
+function useGame(id) {
+  const next = views[id] ?? views.domino;
+  if (next === view) return;
+  cancelDrag();
+  view?.unmount();
+  view = next;
+  handOrder = [];
+  document.body.dataset.game = id;
+  document.title = `${t(`game.${id}`)} · La Mesa`;
+  i18n.setGame(id);
+  view.mount();
+}
+
 const hasManguangua = (st) => st.seats.some((s) => s?.bot && s.name === 'El Manguangua');
 
 function render(next) {
-  const prev = state;
+  // The round of another game means nothing to this game's view.
+  const prev = state && state.game !== next.game ? { ...state, round: null, roundNo: 0 } : state;
   state = next;
+  useGame(state.game);
   const r = state.round;
 
   renderScores();
@@ -322,7 +348,7 @@ function render(next) {
   renderSeats();
   voice.updateMeta({ seat: me(), name: myName });
   paintVoice();
-  renderBoard();
+  view.renderBoard(prev);
   renderHand();
   renderStatus();
   renderResult(prev);
@@ -331,27 +357,15 @@ function render(next) {
   if ($('reactBtn').hidden) $('reactBar').hidden = true;
 
   // Feedback for what just happened.
-  const la = r?.lastAction;
-  const pla = prev?.round?.lastAction;
-  if (la && JSON.stringify(la) !== JSON.stringify(pla) && prev?.roundNo === state.roundNo) {
-    if (la.type === 'pass') {
-      toast(la.seat === me() ? t('youPass') : t('passes', { name: seatName(la.seat) }));
-      sound.play('pass');
-    } else if (la.type === 'play') {
-      if (la.seat === me()) sound.play('place');
-      else flyTile(la);
-    }
-    if (la.phrase) whenLanded(() => sound.playClip('manguangua'));
-  }
+  view.feedback(prev);
+  if (prev && prev.game !== state.game) toast(t('gameChanged', { game: t(`game.${state.game}`) }), 2400);
   if (prev && hasManguangua(state) && !hasManguangua(prev)) toast(t('manguangua'), 3200);
   if (prev && state.reaction && state.reaction.n !== prev.reaction?.n) showReaction(state.reaction);
   if (prev && state.blunder && state.blunder.n !== prev.blunder?.n && state.blunder.seat !== me()) {
     floatEmoji(state.blunder.seat, '🤡');
     sound.play('laugh');
   }
-  const myTurnNow = r && r.turn === me() && state.phase === 'playing';
-  const myTurnBefore = prev?.round && prev.round.turn === prev.you && prev.phase === 'playing';
-  if (myTurnNow && !myTurnBefore && r.legal.length) {
+  if (view.canAct(state) && !view.canAct(prev) && view.turnAlert(r)) {
     whenLanded(() => {
       buzz(30);
       sound.play('turn');
@@ -402,7 +416,10 @@ function renderLobby() {
       })
       .join('') + `<div class="lobby-felt"></div>`;
 
-  for (const b of $('targetPicker').children) b.classList.toggle('on', Number(b.dataset.target) === state.target);
+  for (const b of $('gamePicker').children) b.classList.toggle('on', b.dataset.pick === state.game);
+  $('targetPicker').innerHTML = state.targets
+    .map((n) => `<button data-target="${n}" class="${n === state.target ? 'on' : ''}">${n}</button>`)
+    .join('');
   const full = !state.seats.includes(null);
   $('botsBtn').disabled = full;
   $('startBtn').disabled = !full || me() === -1;
@@ -418,61 +435,35 @@ const botName = (name) => esc(name).replace('Manguangua', 'Manguan&shy;gua').rep
 function seatHTML(seat, pos) {
   const s = state.seats[seat];
   if (!s) return '';
-  const r = state.round;
-  const turn = r && r.turn === seat && state.phase === 'playing';
-  const passed = r?.lastAction?.type === 'pass' && r.lastAction.seat === seat;
+  const turn = state.phase === 'playing' && view.isTurn(seat);
+  const parts = view.seatParts(seat, pos);
   const photo = photoOf(seat);
   const initial = s.bot ? s.emoji ?? '🤖' : photo ? photoImg(photo, 'avatar-photo') : esc([...s.name][0]?.toUpperCase() ?? '?');
   const canBotify = !s.bot && !s.online && me() !== -1 && state.phase !== 'lobby';
   const canTake = s.bot && me() === -1 && state.phase !== 'lobby';
-  const backs = pos === 2 ? `<span class="backs">${'<i></i>'.repeat(s.count)}</span>` : '';
   return `
-    <div class="avatar ${turn ? 'turn' : ''}" data-team="${s.team}">${initial}${s.bot ? '<b class="bot-tag">🤖</b>' : ''}${s.online ? '' : '<b class="off"></b>'}</div>
+    <div class="avatar ${turn ? 'turn' : ''}" data-team="${s.team}">${initial}${s.bot ? '<b class="bot-tag">🤖</b>' : ''}${s.online ? '' : '<b class="off"></b>'}${parts.badge}</div>
     <div class="seat-info">
       ${s.bot ? `<span class="name bot-name">${botName(s.name)}</span>` : `<span class="name">${esc(seat === me() ? t('you') : s.name)}</span>`}
-      ${pos === 0 ? '' : `<span class="count" title="${t('tilesLeft')}">${s.count}</span>`}
-      ${backs}
+      ${parts.info}
     </div>
-    ${passed ? `<span class="bubble">${t('pass')}</span>` : ''}
+    ${parts.bubble}
     ${canBotify ? `<button class="mini-btn" data-botify="${seat}">${t('useBot')}</button>` : ''}
     ${canTake ? `<button class="mini-btn" data-sit="${seat}">${t('takeSeat')}</button>` : ''}`;
 }
 
 function renderSeats() {
-  const ids = ['seat-me', 'seat-right', 'seat-top', 'seat-left'];
   for (let pos = 0; pos < 4; pos++) {
     const seat = seatAt(pos);
-    const el = $(ids[pos]);
+    const el = $(SEAT_IDS[pos]);
     el.innerHTML = state.phase === 'lobby' && pos !== 0 ? '' : seatHTML(seat, pos);
     el.dataset.team = seat % 2;
   }
 }
 
-function renderBoard() {
-  const r = state.round;
-  board.set(r ? r.line : [], r ? r.center : 0);
-  const last = r?.lastAction?.type === 'play' ? tileKey(r.lastAction.tile) : null;
-  for (const [key, node] of board.nodes) {
-    node.classList.toggle('last', key === last);
-    if (key === last) node.dataset.team = r.lastAction.seat % 2;
-  }
-
-  let hint = '';
-  if (r && !r.line.length && state.phase === 'playing') {
-    if (r.turn === me()) hint = r.mustPlay ? t('openDoubleSix') : t('youOpen');
-    else hint = t(r.mustPlay ? 'opensDoubleSix' : 'opens', { name: seatName(r.turn) });
-  }
-  $('boardEmpty').textContent = hint;
-}
-
-const sortHand = (hand) =>
-  hand
-    .map((t) => (t[0] <= t[1] ? t : [t[1], t[0]]))
-    .sort((a, b) => a[0] + a[1] - (b[0] + b[1]) || a[0] - b[0]);
-
-/** Keep my arrangement as tiles get played; a tile I haven't seen means a new deal. */
+/** Keep my arrangement as pieces get played; one I haven't seen means a new deal. */
 function syncHandOrder(hand) {
-  const keys = sortHand(hand).map(tileKey);
+  const keys = view.handKeys(hand);
   handOrder = keys.every((k) => handOrder.includes(k)) ? handOrder.filter((k) => keys.includes(k)) : keys;
 }
 
@@ -486,22 +477,11 @@ function renderHand() {
     cancelDrag();
     return;
   }
-  const myTurn = r.turn === me() && state.phase === 'playing';
   if (drag && state.phase !== 'playing') cancelDrag();
   syncHandOrder(hand);
 
-  handEl.innerHTML = handOrder
-    .map((key) => {
-      const tile = key.split('-').map(Number);
-      const cls = [
-        'tile v hand-tile',
-        myTurn ? 'playable' : '',
-        drag?.key === key ? 'dragging' : '',
-      ].join(' ');
-      return `<button class="${cls}" data-key="${key}" aria-label="${t('aria.tile', { a: tile[0], b: tile[1] })}">${tileHTML(tile[0], tile[1], false)}</button>`;
-    })
-    .join('');
-  handEl.style.setProperty('--n', Math.max(hand.length, 5));
+  handEl.innerHTML = handOrder.map((key) => view.handPieceHTML(key, drag?.key === key)).join('');
+  view.afterHand?.(hand);
   // State can arrive mid-drag and the buttons were just rebuilt.
   if (drag) drag.btn = handEl.querySelector(`[data-key="${drag.key}"]`);
 }
@@ -512,9 +492,11 @@ function renderStatus() {
   let cls = '';
   if (state.phase === 'lobby') text = t('waitingPlayers');
   else if (state.phase === 'playing' && r) {
-    if (r.turn === me()) {
+    const special = view.status(r);
+    if (special) ({ text, cls } = special);
+    else if (r.turn === me()) {
       cls = 'mine';
-      text = r.legal.length ? t('yourTurn') : t('autoPass');
+      text = t('yourTurn');
     } else if (me() === -1) text = t('watchingTurn', { name: seatName(r.turn) });
     else text = t('turnOf', { name: seatName(r.turn) });
   } else if (state.phase === 'roundEnd') text = t('roundOver');
@@ -523,18 +505,7 @@ function renderStatus() {
   $('status').className = `status ${cls}`;
 }
 
-// ---- playing a tile ---------------------------------------------------------
-
-/** Board ends the selected tile can go to ('L' / 'R'). */
-function pickEnds(key) {
-  return [...new Set(state.round.legal.filter((m) => tileKey(m.tile) === key).map((m) => m.end))];
-}
-
-function playTile(key, end) {
-  const [a, b] = key.split('-').map(Number);
-  send({ t: 'play', tile: [a, b], end });
-  buzz(15);
-}
+// ---- dragging from the hand -----------------------------------------------------
 
 function shake(btn) {
   btn.classList.remove('shake');
@@ -544,9 +515,9 @@ function shake(btn) {
 
 const DRAG_START = 6; // px of movement before a press becomes a drag
 
-// Tiles can be picked up any time to rearrange them; playing one waits for your turn.
+// Pieces can be picked up any time to rearrange them; playing one waits for your turn.
 function onHandDown(e) {
-  const btn = e.target.closest('.hand-tile');
+  const btn = e.target.closest(view?.handPiece);
   if (!btn || state?.phase !== 'playing' || drag || e.button > 0) return;
   e.preventDefault();
   drag = {
@@ -556,17 +527,15 @@ function onHandDown(e) {
     x0: e.clientX,
     y0: e.clientY,
     ghost: null,
-    target: null,
   };
 }
 
 function startGhost() {
   const rect = drag.btn.getBoundingClientRect();
   const ghost = drag.btn.cloneNode(true);
-  ghost.className = 'tile v drag-ghost';
+  view.dressGhost(ghost, rect);
   ghost.style.width = `${rect.width}px`;
   ghost.style.height = `${rect.height}px`;
-  ghost.style.setProperty('--u', `${rect.width}px`);
   drag.dx = drag.x0 - rect.left;
   drag.dy = drag.y0 - rect.top;
   drag.ghost = ghost;
@@ -582,32 +551,28 @@ function onDragMove(e) {
     startGhost();
   }
   e.preventDefault();
-  drag.ghost.style.transform = `translate(${e.clientX - drag.dx}px, ${e.clientY - drag.dy}px) rotate(-4deg) scale(1.08)`;
-  drag.target = dropTarget(e.clientX, e.clientY);
-  for (const node of board.nodes.values()) node.classList.remove('drop-hover');
-  $('board').classList.toggle('drop-hover', !!drag.target && !drag.target.node);
-  drag.target?.node?.classList.add('drop-hover');
-  board.preview(drag.target ? drag.key.split('-').map(Number) : null, drag.target?.end);
+  drag.ghost.style.transform = `translate(${e.clientX - drag.dx}px, ${e.clientY - drag.dy}px) rotate(-4deg) scale(${view.ghostScale})`;
+  view.dragOver(drag.key, e.clientX, e.clientY);
   if (within('hand', e.clientX, e.clientY)) moveInHand(e.clientX);
 }
 
-/** Slide the dragged tile to the hand slot under the pointer. */
+/** Slide the dragged piece to the hand slot under the pointer. */
 function moveInHand(x) {
   const handEl = $('hand');
-  const tiles = [...handEl.children];
+  const pieces = [...handEl.children];
   const gap = parseFloat(getComputedStyle(handEl).columnGap) || 0;
   const pitch = drag.btn.offsetWidth + gap;
   const rect = handEl.getBoundingClientRect();
-  const left = rect.left + (rect.width - tiles.length * pitch + gap) / 2; // the row is centered
-  const to = Math.min(Math.max(Math.floor((x - left) / pitch), 0), tiles.length - 1);
-  const from = tiles.indexOf(drag.btn);
+  const left = rect.left + (rect.width - pieces.length * pitch + gap) / 2; // the row is centered
+  const to = Math.min(Math.max(Math.floor((x - left) / pitch), 0), pieces.length - 1);
+  const from = pieces.indexOf(drag.btn);
   if (to === from) return;
 
-  const before = tiles.map((el) => el.offsetLeft);
-  handEl.insertBefore(drag.btn, tiles[to > from ? to + 1 : to] ?? null);
+  const before = pieces.map((el) => el.offsetLeft);
+  handEl.insertBefore(drag.btn, pieces[to > from ? to + 1 : to] ?? null);
   handOrder.splice(to, 0, handOrder.splice(from, 1)[0]);
   if (reduceMotion) return;
-  tiles.forEach((el, i) => {
+  pieces.forEach((el, i) => {
     const shift = before[i] - el.offsetLeft;
     if (shift && el !== drag.btn) el.animate({ translate: [`${shift}px 0`, '0 0'] }, { duration: 120, easing: 'ease-out' });
   });
@@ -616,31 +581,31 @@ function moveInHand(x) {
 function onDragEnd(e) {
   if (!drag || e.pointerId !== drag.id) return;
   const { key, ghost, btn, dx, dy } = drag;
-  const myTurn = state.round.turn === me();
-  const tapped = e.type === 'pointerup' && !ghost;
-  const dropped = e.type === 'pointerup' && ghost;
-  const target = dropped ? dropTarget(e.clientX, e.clientY) : null;
-  const illegal = dropped && myTurn && !target && within('board', e.clientX, e.clientY);
-  const rearranged = dropped && within('hand', e.clientX, e.clientY);
-  if (illegal) drag.ghost = null; // the mock animation takes over the ghost
+  const up = e.type === 'pointerup';
+  const dropped = up && !!ghost;
+  const after = view.drop({
+    key,
+    ghost,
+    btn,
+    dx,
+    dy,
+    x: e.clientX,
+    y: e.clientY,
+    tapped: up && !ghost,
+    dropped,
+    rearranged: dropped && within('hand', e.clientX, e.clientY),
+    keepGhost: () => (drag.ghost = null),
+  });
   cancelDrag();
-  if (target) playTile(key, target.end);
-  else if (illegal) mockMove(ghost, key, e.clientX - dx, e.clientY - dy);
-  else if (tapped && myTurn) toast(t('dragHint'), 1400);
-  else if (tapped || (ghost && !rearranged)) {
-    shake(btn);
-    if (!myTurn) toast(t('waitFor', { name: seatName(state.round.turn) }), 1200);
-  }
+  after();
 }
 
 function cancelDrag() {
   if (!drag) return;
   drag.ghost?.remove();
-  drag.btn.classList.remove('dragging');
+  drag.btn?.classList.remove('dragging');
   drag = null;
-  for (const node of board.nodes.values()) node.classList.remove('drop-hover');
-  $('board').classList.remove('drop-hover');
-  board.preview(null);
+  view.dragClear();
 }
 
 function within(id, x, y) {
@@ -648,169 +613,14 @@ function within(id, x, y) {
   return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
 }
 
-/** Which legal end ('L' / 'R') is the pointer over? */
-function dropTarget(x, y) {
-  if (within('hand', x, y)) return null; // over the hand it's rearranging, not playing
-  const ends = pickEnds(drag.key);
-  if (!state.round.line.length) return within('board', x, y) && ends.length ? { end: ends[0], node: null } : null;
-
-  const unit = parseFloat(getComputedStyle($('board')).getPropertyValue('--u')) || 24;
-  const reach = Math.max(52, unit * 2.6);
-  let best = null;
-  for (const end of ends) {
-    const node = [...board.nodes.values()].find((n) => n.classList.contains(end === 'L' ? 'end-l' : 'end-r'));
-    if (!node) continue;
-    const r = node.getBoundingClientRect();
-    const dist = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
-    if (dist > reach) continue;
-    // A lone opening tile is both ends: pick the side the tile is dropped on.
-    const side = x < r.left + r.width / 2 ? 'L' : 'R';
-    const score = dist + (ends.length > 1 && end !== side ? 0.5 : 0);
-    if (!best || score < best.score) best = { end, node, score };
-  }
-  return best;
-}
-
-// ---- tiles played by the others -----------------------------------------------
-
-const FLIGHT_MS = 1200;
-const IMPACT_AT = 0.88; // fraction of the flight where the tile hits the table
-const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-let flights = 0;
-let afterFlights = [];
-
-const lerp = (a, b, u) => a + (b - a) * u;
-const clamp01 = (u) => Math.min(Math.max(u, 0), 1);
-const easeInOut = (u) => (u < 0.5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2);
-
-/** Run `fn` right away, or once every tile in the air has landed. */
-function whenLanded(fn) {
-  if (flights) afterFlights.push(fn);
-  else fn();
-}
-
-/** Pulled from the hand, thrown spinning face down, flipped over, slammed down. */
-function flightPose(t) {
-  if (t < 0.2) {
-    const u = t / 0.2;
-    return { along: 0, scale: lerp(0.3, 0.85, 1 - (1 - u) ** 2), spin: Math.sin(u * Math.PI * 2) * 10, flip: 180 };
-  }
-  if (t < 0.8) {
-    const u = (t - 0.2) / 0.6;
-    const e = easeInOut(u);
-    return {
-      along: e,
-      scale: lerp(0.85, 1.5, e) + 0.4 * Math.sin(Math.PI * u),
-      spin: (1 - e) * 540,
-      flip: 180 * (1 - clamp01((u - 0.25) / 0.5)),
-    };
-  }
-  if (t < 0.9) {
-    const u = (t - 0.8) / 0.1;
-    return { along: 1, scale: lerp(1.5, 0.9, u * u), spin: 0, flip: 0 };
-  }
-  const u = (t - 0.9) / 0.1;
-  return { along: 1, scale: 1 + 0.08 * Math.sin(Math.PI * u) - (1 - u) * 0.1, spin: 0, flip: 0 };
-}
-
-function impact(node, team) {
-  sound.play('place');
-  const ring = document.createElement('span');
-  ring.className = 'impact';
-  ring.dataset.team = team;
-  ring.style.left = `${node.offsetLeft + node.offsetWidth / 2}px`;
-  ring.style.top = `${node.offsetTop + node.offsetHeight / 2}px`;
-  ring.addEventListener('animationend', () => ring.remove());
-  $('board').append(ring);
-  const el = $('board');
-  el.classList.remove('thud');
-  void el.offsetWidth; // restart the animation if one is still showing
-  el.classList.add('thud');
-}
-
-/** Fly a tile from the seat that played it to its spot on the board. */
-function flyTile({ seat, tile }) {
-  const node = board.nodes.get(tileKey(tile));
-  const avatar = $(['seat-me', 'seat-right', 'seat-top', 'seat-left'][posOf(seat)]).querySelector('.avatar');
-  if (!node || !avatar || reduceMotion || document.hidden) return sound.play('place');
-
-  const a = avatar.getBoundingClientRect();
-  const x0 = a.left + a.width / 2;
-  const y0 = a.top + a.height / 2;
-  avatar.classList.add('throw');
-  node.classList.remove('fresh');
-  node.classList.add('incoming'); // the real tile stays hidden until this one lands
-
-  const flier = document.createElement('div');
-  flier.className = `tile flier ${node.classList.contains('h') ? 'h' : 'v'}`;
-  flier.dataset.team = seat % 2;
-  flier.innerHTML = `${node.innerHTML}<span class="flier-back"></span>`;
-  const back = flier.lastChild;
-  document.body.append(flier);
-
-  flights++;
-  const start = performance.now();
-  let hit = false;
-
-  const finish = () => {
-    flier.remove();
-    node.classList.remove('incoming');
-    if (--flights) return;
-    const queued = afterFlights;
-    afterFlights = [];
-    queued.forEach((fn) => fn());
-  };
-
-  const frame = (now) => {
-    if (!node.isConnected) return finish(); // new round started mid-flight
-    const t = clamp01((now - start) / FLIGHT_MS);
-    // Aim at the tile's live position: the board can reflow during the flight.
-    const r = node.getBoundingClientRect();
-    const x1 = r.left + r.width / 2;
-    const y1 = r.top + r.height / 2;
-    const { along: p, scale, spin, flip } = flightPose(t);
-    // A curve bowed upward, so the tile arcs over the table instead of sliding.
-    const cx = (x0 + x1) / 2;
-    const cy = (y0 + y1) / 2 - Math.hypot(x1 - x0, y1 - y0) * 0.35;
-    const x = lerp(lerp(x0, cx, p), lerp(cx, x1, p), p);
-    const y = lerp(lerp(y0, cy, p), lerp(cy, y1, p), p);
-    flier.style.width = `${r.width}px`;
-    flier.style.height = `${r.height}px`;
-    flier.style.setProperty('--u', `${Math.min(r.width, r.height)}px`);
-    flier.style.transform = `translate(${x - r.width / 2}px, ${y - r.height / 2}px) rotate(${spin}deg) perspective(500px) rotateY(${flip}deg) scale(${scale})`;
-    back.hidden = flip < 90;
-    if (!hit && t >= IMPACT_AT) {
-      hit = true;
-      impact(node, seat % 2);
-    }
-    if (t < 1) requestAnimationFrame(frame);
-    else finish();
-  };
-  frame(start);
-}
-
-// ---- mocking illegal moves ----------------------------------------------------
+// ---- mocking blunders -----------------------------------------------------------
 
 const MOCK_EMOJI = ['🤡', '🤦', '🙈', '🤣', '🐔'];
 const LAUGHS = ['😂', '🤣', '😆'];
 let lastMockLine = -1;
 
-/** Spit the ghost tile back into the hand while the whole table laughs. */
-function mockMove(ghost, key, x, y) {
-  const slot = $('hand').querySelector(`[data-key="${key}"]`);
-  const home = slot.getBoundingClientRect();
-  slot.classList.add('dragging');
-  ghost.style.setProperty('--x0', `${x}px`);
-  ghost.style.setProperty('--y0', `${y}px`);
-  ghost.style.setProperty('--x1', `${home.left}px`);
-  ghost.style.setProperty('--y1', `${home.top}px`);
-  ghost.addEventListener('animationend', () => {
-    ghost.remove();
-    slot.classList.remove('dragging');
-    shake(slot);
-  });
-  ghost.classList.add('rejected');
-
+/** An illegal move or a forgotten flor: the whole table laughs at me. */
+function laughAtMe() {
   // Never the same line twice in a row.
   const lines = t('mock.lines');
   lastMockLine = (lastMockLine + 1 + Math.floor(Math.random() * (lines.length - 1))) % lines.length;
@@ -832,7 +642,7 @@ function mockMove(ghost, key, x, y) {
 // ---- reactions ----------------------------------------------------------------
 
 function floatEmoji(seat, emoji) {
-  const anchor = $(['seat-me', 'seat-right', 'seat-top', 'seat-left'][posOf(seat)]);
+  const anchor = seatEl(seat);
   const rect = anchor.getBoundingClientRect();
   const el = document.createElement('span');
   el.className = 'reaction';
@@ -915,14 +725,13 @@ function paintVoice() {
   if (!state) return;
   // Mic badge on the avatars of seated players in voice; a ring while they talk.
   const inVoice = voice.bySeat();
-  const ids = ['seat-me', 'seat-right', 'seat-top', 'seat-left'];
   for (let pos = 0; pos < 4; pos++) {
-    const avatar = $(ids[pos]).querySelector('.avatar');
-    if (!avatar) continue;
+    const seatAvatarEl = $(SEAT_IDS[pos]).querySelector('.avatar');
+    if (!seatAvatarEl) continue;
     const v = inVoice.get(seatAt(pos));
-    avatar.classList.toggle('speaking', !!v?.speaking);
-    if (v) avatar.dataset.voice = v.muted ? 'muted' : 'on';
-    else delete avatar.dataset.voice;
+    seatAvatarEl.classList.toggle('speaking', !!v?.speaking);
+    if (v) seatAvatarEl.dataset.voice = v.muted ? 'muted' : 'on';
+    else delete seatAvatarEl.dataset.voice;
   }
   for (const el of $('lobbySeats').querySelectorAll('.lobby-seat')) {
     const v = inVoice.get(Number(el.dataset.sit));
@@ -973,11 +782,9 @@ function renderResult(prev) {
   resultKey = key;
   const build = () => buildResult(fresh);
   if (fresh && prev && prev.phase === 'playing') {
-    // Give everyone a moment to see the final tile before the overlay.
+    // Give everyone a moment to see the final move before the overlay.
     clearTimeout(resultTimer);
-    const la = state.round.lastAction;
-    const flying = la?.type === 'play' && la.seat !== me();
-    resultTimer = setTimeout(build, flying ? FLIGHT_MS + 800 : 1100);
+    resultTimer = setTimeout(build, view.resultDelay(prev));
   } else if (!fresh && overlay.hidden && resultTimer) {
     // still waiting for the delayed build
   } else build();
@@ -985,50 +792,46 @@ function renderResult(prev) {
 
 function buildResult(fresh) {
   const r = state.round;
-  const o = r.over;
   const isMatch = state.phase === 'matchEnd';
   const mine = me() !== -1;
   const card = $('resultCard');
   const overlay = $('result');
   resultTimer = null;
 
-  let emoji, title, sub;
-  const winTeam = isMatch ? (state.scores[0] > state.scores[1] ? 0 : 1) : o.winnerTeam;
+  const res = view.result(isMatch);
+  const winTeam = isMatch ? (state.scores[0] > state.scores[1] ? 0 : 1) : res.winTeam;
   const weWon = mine && winTeam === myTeam();
-  const how =
-    o.reason === 'domino'
-      ? o.winnerSeat === me()
-        ? t('youGoOut')
-        : t('goesOut', { name: seatName(o.winnerSeat) })
-      : t('blockedPips', { a: teamLabel(0), pa: o.teamPips[0], b: teamLabel(1), pb: o.teamPips[1] });
 
+  let emoji, title, sub;
   if (isMatch) {
     emoji = !mine ? '🏆' : weWon ? '🏆' : '😭';
     title = !mine ? t('teamWinsMatch', { team: teamLabel(winTeam) }) : weWon ? t('youWinMatch') : t('youLoseMatch');
     sub = t('matchSub', { a: state.scores[winTeam], b: state.scores[1 - winTeam], n: state.roundNo });
-  } else if (winTeam == null) {
+    if (res.lastRound) sub = t('lastRound', { sub, how: res.lastRound });
+  } else if (res.tie) {
     emoji = '🤝';
-    title = t('tieTitle');
-    sub = t('tieSub', { n: o.teamPips[0] });
+    ({ title, sub } = res.tie);
   } else {
-    emoji = !mine ? '🁢' : weWon ? '🎉' : '😬';
-    title = `${teamLabel(winTeam)} +${o.points}`;
-    sub = how;
+    emoji = !mine ? res.emoji : weWon ? '🎉' : '😬';
+    title = `${teamLabel(winTeam)} +${res.gained[winTeam]}`;
+    sub = res.sub;
   }
 
   card.className = `result-card ${isMatch ? 'match' : ''} ${isMatch && mine ? (weWon ? 'won' : 'lost') : ''}`;
   $('resultEmoji').textContent = emoji;
   $('resultTitle').textContent = title;
-  $('resultSub').textContent = isMatch ? t('lastRound', { sub, how }) : sub;
+  $('resultSub').textContent = sub;
 
-  const gained = (team) => (!isMatch && o.winnerTeam === team && o.points ? `<em>+${o.points}</em>` : '');
+  const plus = (team) => (res.gained[team] ? `<em>+${res.gained[team]}</em>` : '');
   const order = [myTeam(), 1 - myTeam()];
   $('resultScores').innerHTML = order
     .map(
       (team) =>
-        `<div class="rs" data-team="${team}"><span>${teamLabel(team)}</span><b>${state.scores[team]}</b>${gained(team)}</div>`,
+        `<div class="rs" data-team="${team}"><span>${teamLabel(team)}</span><b>${state.scores[team]}</b>${plus(team)}</div>`,
     )
     .join(`<div class="rs-target">${t('to', { n: state.target })}</div>`);
+
+  $('resultAwards').innerHTML = res.details;
 
   $('resultHands').innerHTML = r.hands
     ? [0, 1, 2, 3]
@@ -1036,11 +839,7 @@ function buildResult(fresh) {
         .map(
           (s) => `<div class="rh" data-team="${s % 2}">
             <span class="rh-name">${esc(seatName(s))}</span>
-            <span class="rh-tiles">${
-              r.hands[s].length
-                ? r.hands[s].map((tile) => `<span class="tile h mini">${tileHTML(tile[0], tile[1], true)}</span>`).join('')
-                : `<span class="muted">${t('outCheck')}</span>`
-            }</span></div>`,
+            ${view.resultHand(r.hands[s])}</div>`,
         )
         .join('')
     : '';
@@ -1087,13 +886,7 @@ function renderScoreSheet() {
   $('historyBody').innerHTML = state.history.length
     ? state.history
         .map((h) => {
-          const cell = (team) => (h.winnerTeam === team ? `+${h.points}` : '·');
-          const how =
-            h.reason === 'domino'
-              ? esc(t('histOut', { name: seatName(h.winnerSeat) }))
-              : h.winnerTeam == null
-                ? t('histTie')
-                : t('histBlocked');
+          const { cell, how } = view.historyRow(h);
           return `<tr><td>${h.round}</td><td class="c0">${cell(left)}</td><td class="c1">${cell(right)}</td><td class="how">${how}</td></tr>`;
         })
         .join('')
@@ -1103,6 +896,7 @@ function renderScoreSheet() {
 // ---- events -----------------------------------------------------------------
 
 $('hand').addEventListener('pointerdown', onHandDown);
+$('hand').addEventListener('click', (e) => view?.handClick?.(e));
 $('mock').addEventListener('animationend', (e) => {
   if (e.animationName === 'mock-out') $('mock').hidden = true;
 });
@@ -1111,7 +905,7 @@ window.addEventListener('pointerup', onDragEnd);
 window.addEventListener('pointercancel', onDragEnd);
 
 document.body.addEventListener('click', (e) => {
-  const el = e.target.closest('[data-botify],[data-sit],[data-remove],[data-stand],[data-act],[data-close],[data-target]');
+  const el = e.target.closest('[data-botify],[data-sit],[data-remove],[data-stand],[data-act],[data-close],[data-target],[data-pick]');
   if (!el) return;
   if (el.dataset.botify) return send({ t: 'botify', seat: Number(el.dataset.botify) });
   if (el.dataset.remove) {
@@ -1125,6 +919,7 @@ document.body.addEventListener('click', (e) => {
     return send({ t: 'sit', seat: Number(el.dataset.sit) });
   }
   if (el.dataset.target) return send({ t: 'target', target: Number(el.dataset.target) });
+  if (el.dataset.pick) return send({ t: 'game', game: el.dataset.pick });
   if ('close' in el.dataset) return (el.closest('.sheet').hidden = true);
   const act = el.dataset.act;
   if (act === 'peek') return $('result').classList.add('peek');
@@ -1183,5 +978,26 @@ $('nameInput').addEventListener('input', (e) => {
   }, 300);
 });
 $('nameInput').addEventListener('keydown', (e) => e.key === 'Enter' && e.target.blur());
+
+const ctx = {
+  get state() {
+    return state;
+  },
+  $,
+  esc,
+  me,
+  posOf,
+  seatName,
+  seatEl,
+  seatAvatar: (seat) => seatEl(seat).querySelector('.avatar'),
+  teamLabel,
+  toast,
+  buzz,
+  shake,
+  send,
+  laughAtMe,
+  within,
+};
+const views = { domino: createDominoView(ctx), truco: createTrucoView(ctx) };
 
 connect();

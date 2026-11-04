@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import * as G from '../server/game.js';
-import { AUTO_PASS_DELAY_MS, Match, STUCK_PLAYER_DELAY_MS } from '../server/match.js';
+import * as G from '../server/games/domino.js';
+import { AUTO_PASS_DELAY_MS, STUCK_PLAYER_DELAY_MS } from '../server/games/domino.js';
+import { Match } from '../server/match.js';
 
 // Deterministic RNG so failures are reproducible.
 function mulberry32(seed) {

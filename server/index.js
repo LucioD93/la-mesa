@@ -8,6 +8,6 @@ server.listen(PORT, () => {
   const lan = Object.values(os.networkInterfaces())
     .flat()
     .find((i) => i && i.family === 'IPv4' && !i.internal);
-  console.log(`Domino running on http://localhost:${PORT}`);
+  console.log(`La Mesa running on http://localhost:${PORT}`);
   if (lan) console.log(`On your phone (same Wi-Fi): http://${lan.address}:${PORT}`);
 });
