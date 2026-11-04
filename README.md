@@ -91,7 +91,7 @@ Caída changes from table to table, and we found no authoritative rulebook. This
 - **Cantos.** Sung on your turn, before your first card of each deal. Ronda (a pair) pays 1 for 1 to 7, 2 for 10s, 3 for 11s, 4 for 12s. Patrulla (three in a row) pays 2. Tolete (three of a kind) pays 3. Once everyone has played from the deal, the best kind pays, and if both teams sang the same kind both score.
 - **Captures.** A card takes the same number from the table and any cards that follow it in sequence, automatically. With no match it stays on the table.
 - **Caída.** Taking the card the player before you just played pays 1 for 1 to 7, 2 for a 10, 3 for an 11, 4 for a 12.
-- **Mesa limpia.** Taking every card on the table pays 1, on top of any caída.
+- **Mesa limpia.** Taking every card on the table pays 4, on top of any caída.
 - **End of the round.** The last team to capture takes what's left, and the team with more cards scores 1 for each card above 20.
 - **Winning.** Points land as they happen, and the first team to the target (12 or 24) wins on the spot.
 
@@ -99,11 +99,12 @@ Caída changes from table to table, and we found no authoritative rulebook. This
 
 ### Parchís rules
 
-Classic Spanish parchís in pairs, one die and 68 squares, based on [Wikipedia ES](https://es.wikipedia.org/wiki/Parch%C3%ADs). Tables differ on several details, and the values that vary most are constants at the top of `server/games/parchis.js`.
+Parchís in pairs on 68 squares, with one die or two, picked in the lobby. One die follows the classic Spanish rules in [Wikipedia ES](https://es.wikipedia.org/wiki/Parch%C3%ADs). Two dice follows the Superparchís rules at [Mundijuegos Venezuela](https://www.mundijuegos.com.ve/multijugador/parchis/reglas/) and is the default. We found no rulebook specific to Venezuela. Tables differ on several details, and the values that vary most are constants at the top of `server/games/parchis.js`.
 
 - 2 vs 2, partners across: yellow with red, blue with green. Your nest is always drawn at the bottom left.
 - **The route.** 63 squares from your start to your entry, then 7 of your own corridor, then the goal, which needs the exact count.
 - **The die.** A 5 has to bring a piece out if one can come out. A 6 rolls again, and moves 7 with nothing in your nest. A third 6 in a row ends the turn and sends the last piece moved to its nest, unless it's in its corridor.
+- **Two dice.** Each die is used separately, on one piece or two, in the order you pick. Dice adding up to 5 bring a piece out between them, and a double 5 brings out two. A double rolls again, a third double in a row is punished like a third 6, and a 6 is just a 6. A double has to open your barrier if it can, which we carried over from the 6.
 - **Captures.** Landing on a lone rival sends it home and pays 20, counted with one piece. Safe squares and start squares protect, and partners never take each other. Coming out onto a full start square takes the rival that got there last.
 - **Barriers.** Two pieces of one color stop everyone, their owner included, and a 6 has to open yours if it can. A square holds two pieces at most.
 - **The goal.** Reaching it pays 10. A bonus no piece can use is lost. With your four pieces home, your rolls move your partner's.
@@ -265,6 +266,7 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `addBots` / `removeBot` | `seat` | Lobby |
 | `game` | `game: "domino" \| "truco" \| "caida" \| "parchis"` | Lobby. Resets the target to the game's default. |
 | `target` | `50 \| 75 \| 100`, `12 \| 24 \| 32`, `12 \| 24` or `1 \| 2 \| 3` | Lobby, from the current game's list |
+| `variant` | `1 \| 2` | Lobby, a game that offers a choice: parchís's dice |
 | `start` | | Lobby, once all 4 seats are filled |
 | `play` | Domino: `tile: [a, b]`, `end: "L" \| "R"`. Truco and caída: `card: [number, suit]` | On your turn |
 | `call` | `what: "flor" \| "envido" \| "cinco" \| "falta" \| "truco" \| "mazo"` | Truco, when the `options` in your state allow it |
@@ -272,7 +274,7 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `call` | `what: "canto"` | Caída, when `options.canto` is set |
 | `order` | `dir: 1 \| -1` | Caída, you are dealing and the table is not laid yet |
 | `roll` | | Parchís, when `options.roll` is set |
-| `move` | `color`, `piece` | Parchís, one of `options.moves` |
+| `move` | `color`, `piece`, `steps?` | Parchís, one of `options.moves`. `steps` picks which die or bonus to use. |
 | `next` / `rematch` / `lobby` | | After a round or match ends |
 | `botify` | `seat` | Replace a disconnected player with a bot |
 | `react` | `emoji` | Seated players (600 ms cooldown) |

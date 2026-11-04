@@ -645,6 +645,8 @@ body:is([data-game='truco'], [data-game='caida']) .impact { width: calc(var(--cw
 .lobby-options { display: grid; grid-template-columns: 2.2fr 1fr; gap: 8px 10px; margin-top: 10px; } /* four game names beside the target */
 .lobby-options .identity { grid-column: 1 / -1; }
 .lobby-options .field { min-width: 0; }
+.lobby-options .variant-field { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 10px; }
+.lobby-options .variant-field .segmented { flex: 1; }
 .lobby-options .segmented { padding: 2px; gap: 2px; }
 .lobby-options .segmented button { min-height: 40px; min-width: 0; padding: 0; font-size: 13px; }
 .lobby-seats { margin-top: 10px; }
@@ -946,7 +948,7 @@ body[data-game='parchis'] .board { margin: 2px 0; container-type: size; display:
 .pdests { position: absolute; inset: 0; pointer-events: none; }
 .ptally { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
 .pswatch { display: block; width: 10px; height: 10px; border-radius: 50%; background: var(--piece); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5); }
-body[data-game='parchis'] .actions { align-items: center; min-height: 56px; gap: 12px; }
+body[data-game='parchis'] .actions { align-items: center; min-height: 56px; gap: 10px; }
 .pdie {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -966,7 +968,9 @@ body[data-game='parchis'] .actions { align-items: center; min-height: 56px; gap:
 .pdie.tumble { animation: die-tumble 0.25s linear infinite; }
 @keyframes die-ready { 50% { scale: 1.08; } }
 @keyframes die-tumble { to { rotate: 360deg; } }
-.psteps { font-size: 20px; font-weight: 800; color: var(--gold); font-variant-numeric: tabular-nums; }
+.pstep { min-width: 44px; min-height: 40px; padding: 0 8px; border: 0; border-radius: 10px; background: rgba(0, 0, 0, 0.3); font-size: 18px; font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pstep.on { background: var(--gold); color: #2a2000; }
+.pstep:disabled { opacity: 0.45; cursor: default; }
 
 /* ---- calls -------------------------------------------------------------- */
 body[data-game='domino'] .actions { display: none; }

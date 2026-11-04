@@ -1,4 +1,4 @@
-// Pure round logic for 4-player parchís in pairs (one die, 68 squares). Seats are colors:
+// Pure round logic for 4-player parchís in pairs (one die or two, 68 squares). Seats are colors:
 // 0 yellow, 1 blue, 2 red, 3 green, so partners sit across. A piece's position is how far
 // it has come from its own start, which makes every color's route the same numbers.
 
@@ -17,7 +17,7 @@ const FIRST_START = 4; // square 5, counting from 0
 const LEAVE_ON = 5;
 const SIX = 6;
 const SIX_WHEN_ALL_OUT = 7;
-const SIXES_LIMIT = 3;
+const REPEATS_LIMIT = 3; // sixes with one die, doubles with two
 const CAPTURE_BONUS = 20;
 const GOAL_BONUS = 10;
 
@@ -87,23 +87,30 @@ function target(round, color, piece, steps) {
 /** Whose pieces this seat moves: their own, or their partner's once theirs are all home. */
 const colorFor = (round, seat) => (allHome(round, seat) ? partnerOf(seat) : seat);
 
-/** Every move the steps at the front of the queue allow. */
+const isDie = (steps) => steps <= SIX_WHEN_ALL_OUT; // anything more is a bonus
+
+/** Every move the steps still pending allow. `uses` says which of them a move spends. */
 export function legalMoves(round, seat) {
   if (round.over || !round.pending.length) return [];
   const color = colorFor(round, seat);
-  const steps = round.pending[0];
   const moves = [];
-  round.pieces[color].forEach((from, piece) => {
-    const t = target(round, color, piece, steps);
-    if (t) moves.push({ color, piece, from, to: t.to, captures: !!t.victim });
-  });
+  const addMoves = (steps, uses, fits = () => true) =>
+    round.pieces[color].forEach((from, piece) => {
+      const t = fits(from) && target(round, color, piece, steps);
+      if (t) moves.push({ color, piece, from, to: t.to, captures: !!t.victim, uses });
+    });
+  for (const steps of new Set(round.pending)) addMoves(steps, [steps]);
+  // Two dice adding up to 5 bring a piece out between them.
+  const dice = round.pending.filter(isDie);
+  if (dice.length === 2 && dice[0] + dice[1] === LEAVE_ON) addMoves(LEAVE_ON, dice, (from) => from === NEST);
   // A 5 has to bring a piece out if one can come out.
-  if (steps === LEAVE_ON && moves.some((m) => m.from === NEST)) return moves.filter((m) => m.from === NEST);
-  // A 6 has to open a barrier if one can open.
-  if (steps === SIX || steps === SIX_WHEN_ALL_OUT) {
+  const leaving = moves.filter((m) => m.from === NEST);
+  if (leaving.length) return leaving;
+  // The roll that goes again (a 6, or a double) has to open a barrier if one can open.
+  if (round.again) {
     const opening = moves.filter((m) => {
       const cell = cellOf(color, m.from);
-      return cell && isBarrier(occupants(round, cell));
+      return isDie(m.uses[0]) && cell && isBarrier(occupants(round, cell));
     });
     if (opening.length) return opening;
   }
@@ -112,17 +119,18 @@ export function legalMoves(round, seat) {
 
 // ---- dealing ------------------------------------------------------------------
 
-export function newRound({ starter = 0 } = {}) {
+export function newRound({ starter = 0, dice = 1 } = {}) {
   return {
     starter,
+    dice,
     turn: starter,
     stage: 'roll', // roll | move
     pieces: Array.from({ length: SEATS }, () => Array(PIECES).fill(NEST)),
     arrived: Array.from({ length: SEATS }, () => Array(PIECES).fill(0)), // when each piece reached its square
-    pending: [], // steps still to be moved this turn: the die, then any bonuses
-    again: false, // the die was a 6
-    sixes: 0,
-    lastMoved: null, // the piece a third 6 sends home: { color, piece }
+    pending: [], // steps still to be moved this turn: the dice, then any bonuses
+    again: false, // this roll goes again: a 6, or a double
+    repeats: 0, // rolls in a row that went again
+    lastMoved: null, // the piece the third one sends home: { color, piece }
     captures: [0, 0],
     seq: 0, // bumps on every action, identifies the moment for automatic moves
     lastRoll: null,
@@ -148,13 +156,13 @@ function endTurn(round) {
   round.stage = 'roll';
   round.pending = [];
   round.again = false;
-  round.sixes = 0;
+  round.repeats = 0;
   round.lastMoved = null;
 }
 
-/** Drop steps nobody can use, then wait for a move, another roll, or the next player. */
+/** Steps no piece can use are lost, then wait for a move, another roll, or the next player. */
 function advance(round) {
-  while (round.pending.length && !legalMoves(round, round.turn).length) round.pending.shift();
+  if (!legalMoves(round, round.turn).length) round.pending = [];
   if (round.pending.length) round.stage = 'move';
   else if (round.again) {
     round.again = false;
@@ -165,12 +173,13 @@ function advance(round) {
 export function roll(round, seat, rng = Math.random) {
   if (round.over) throw new MoveError('Round is over');
   if (round.turn !== seat || round.stage !== 'roll') throw new MoveError('Not your turn');
-  const value = 1 + Math.floor(rng() * 6);
+  const values = Array.from({ length: round.dice }, () => 1 + Math.floor(rng() * 6));
+  const again = round.dice === 1 ? values[0] === SIX : values[0] === values[1];
   round.seq += 1;
-  round.sixes = value === SIX ? round.sixes + 1 : 0;
-  round.lastRoll = { n: round.seq, seat, value, passed: false, penalty: false };
+  round.repeats = again ? round.repeats + 1 : 0;
+  round.lastRoll = { n: round.seq, seat, values, passed: false, penalty: false };
 
-  if (round.sixes === SIXES_LIMIT) {
+  if (round.repeats === REPEATS_LIMIT) {
     round.lastRoll.penalty = true;
     const last = round.lastMoved;
     // A piece already in its corridor is out of danger.
@@ -183,25 +192,26 @@ export function roll(round, seat, rng = Math.random) {
     return round;
   }
 
-  const color = colorFor(round, seat);
-  const allOut = !round.pieces[color].includes(NEST);
-  round.again = value === SIX;
-  round.pending = [value === SIX && allOut ? SIX_WHEN_ALL_OUT : value];
+  const allOut = !round.pieces[colorFor(round, seat)].includes(NEST);
+  round.again = again;
+  // A 6 only counts 7 with one die: with two, doubles take over from sixes.
+  round.pending = round.dice === 1 && again && allOut ? [SIX_WHEN_ALL_OUT] : values;
   advance(round);
   round.lastRoll.passed = round.turn !== seat || round.stage === 'roll';
   return round;
 }
 
-export function move(round, seat, color, piece) {
+/** `steps` picks which pending steps to use; without it, the first that fits. */
+export function move(round, seat, color, piece, steps) {
   if (round.over) throw new MoveError('Round is over');
   if (round.turn !== seat || round.stage !== 'move') throw new MoveError('Not your turn');
-  const found = legalMoves(round, seat).find((m) => m.color === color && m.piece === piece);
+  const found = legalMoves(round, seat).find((m) => m.color === color && m.piece === piece && (steps === undefined || m.uses.includes(steps)));
   if (!found) throw new MoveError('That piece cannot move');
-  const { to, victim } = target(round, color, piece, round.pending[0]);
+  const { to, victim } = target(round, color, piece, found.uses.reduce((sum, n) => sum + n, 0));
   const from = round.pieces[color][piece];
 
   round.seq += 1;
-  round.pending.shift();
+  for (const n of found.uses) round.pending.splice(round.pending.indexOf(n), 1);
   round.pieces[color][piece] = to;
   round.arrived[color][piece] = round.seq;
   round.lastMoved = { color, piece };
@@ -264,12 +274,12 @@ export function botMove(round, seat) {
   if (round.stage === 'roll') return { type: 'roll' };
   const moves = legalMoves(round, seat);
   const best = moves.reduce((a, b) => (moveWorth(round, b) > moveWorth(round, a) ? b : a), moves[0]);
-  return { type: 'move', color: best.color, piece: best.piece };
+  return { type: 'move', color: best.color, piece: best.piece, steps: best.uses[0] };
 }
 
 export function applyMove(round, seat, m, rng = Math.random) {
   if (m.type === 'roll') return roll(round, seat, rng);
-  return move(round, seat, m.color, m.piece);
+  return move(round, seat, m.color, m.piece, m.steps);
 }
 
 export const hopTime = (from, to) => Math.min((from === NEST || to === NEST ? 1 : to - from) * HOP_MS, MAX_HOP_MS);
@@ -278,16 +288,18 @@ export const game = {
   id: 'parchis',
   targets: [1, 2, 3], // games won: one takes a while
   defaultTarget: 1,
+  variants: [1, 2], // how many dice
+  defaultVariant: 2,
 
   newRound(match, rng) {
     const starter = match.nextStarter ?? Math.floor(rng() * SEATS);
     match.nextStarter = nextSeat(starter);
-    return newRound({ starter });
+    return newRound({ starter, dice: match.variant });
   },
 
   handle(round, seat, msg) {
     if (msg.t === 'roll') roll(round, seat);
-    else if (msg.t === 'move') move(round, seat, msg.color, msg.piece);
+    else if (msg.t === 'move') move(round, seat, msg.color, msg.piece, msg.steps);
     else return false;
     return true;
   },
@@ -321,6 +333,7 @@ export const game = {
   roundView(r, seat) {
     return {
       starter: r.starter,
+      dice: r.dice,
       turn: r.over ? null : r.turn,
       stage: r.stage,
       pieces: r.pieces,

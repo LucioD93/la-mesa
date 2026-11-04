@@ -117,7 +117,7 @@ test('clearing the table is mesa limpia, and it adds to a caída', () => {
   G.play(r, 1, [6, 'o']);
   G.play(r, 2, [6, 'b']);
   assert.deepEqual(kinds(r), ['caida', 'mesa']);
-  assert.deepEqual(r.points, [2, 0]);
+  assert.deepEqual(r.points, [5, 0]);
 });
 
 // ---- cantos --------------------------------------------------------------------

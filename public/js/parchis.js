@@ -1,5 +1,5 @@
 // The parchís table: the board, turned so your nest is at the bottom left, the pieces
-// hopping along it, and the die. Coordinates are grid cells, 0 to 18 across.
+// hopping along it, and the dice. Coordinates are grid cells, 0 to 18 across.
 import { canFly } from './flight.js';
 import * as sound from './sound.js';
 import * as i18n from './i18n.js';
@@ -55,7 +55,8 @@ const dieFace = (n) => Array.from({ length: 9 }, (_, i) => `<i class="${PIPS[n].
 export function createView(ctx) {
   const { $, esc, me, seatName, seatEl, toast, buzz, send, teamLabel } = ctx;
   let boardKey = null; // the point of view and language the board is drawn in
-  let face = 1;
+  let faces = [1];
+  let chosen = null; // the steps picked to move with, when there's a choice
   let rolling = false;
   let tumbleTimer;
   let sent = null; // the moment we last answered: { seq, at }
@@ -127,8 +128,16 @@ export function createView(ctx) {
     return places;
   }
 
-  function paintTokens(r) {
+  /** The moves for the steps picked: the player's choice, or the first that can be used. */
+  function activeMoves(r) {
     const moves = !rolling && ctx.state.phase === 'playing' ? r?.options.moves ?? [] : [];
+    if (!moves.length) return moves;
+    const steps = moves.some((m) => m.uses.includes(chosen)) ? chosen : moves[0].uses[0];
+    return moves.filter((m) => m.uses.includes(steps));
+  }
+
+  function paintTokens(r) {
+    const moves = activeMoves(r);
     const pieces = r?.pieces ?? COLORS.map(() => [NEST, NEST, NEST, NEST]);
     for (const p of placesOf(pieces)) {
       const el = tokenEl(p.color, p.piece);
@@ -186,7 +195,7 @@ export function createView(ctx) {
     document.body.append(el);
   }
 
-  // ---- the die ------------------------------------------------------------------
+  // ---- the dice -----------------------------------------------------------------
 
   function renderActions() {
     const el = $('actions');
@@ -194,16 +203,30 @@ export function createView(ctx) {
     if (!r || ctx.state.phase === 'lobby') return void (el.innerHTML = '');
     const canRoll = r.options.roll && !rolling && ctx.state.phase === 'playing';
     const color = r.lastRoll && !r.options.roll ? r.lastRoll.seat : r.turn ?? r.lastRoll?.seat ?? 0;
-    const steps = !rolling && r.pending.length ? `<span class="psteps">${r.pending.map((n) => `+${n}`).join(' ')}</span>` : '';
-    el.innerHTML = `
-      <button class="pdie ${rolling ? 'tumble' : ''} ${canRoll ? 'rollable' : ''}" data-roll data-color="${color}" aria-label="${t('aria.die', { n: face })}" ${canRoll ? '' : 'disabled'}>${dieFace(face)}</button>
-      ${canRoll ? `<button class="call count" data-roll>${t('roll')}</button>` : ''}${steps}`;
+    const shown = Array.from({ length: r.dice }, (_, i) => faces[i] ?? 1);
+    const dice = shown.map(
+      (n) =>
+        `<button class="pdie ${rolling ? 'tumble' : ''} ${canRoll ? 'rollable' : ''}" data-roll data-color="${color}" aria-label="${t('aria.die', { n })}" ${canRoll ? '' : 'disabled'}>${dieFace(n)}</button>`,
+    );
+    // With moves to pick from, each step is a button that picks it.
+    const moves = rolling ? [] : r.options.moves;
+    const active = activeMoves(r)[0]?.uses ?? [];
+    const steps = rolling
+      ? ''
+      : r.pending
+          .map((n) => {
+            const usable = moves.some((m) => m.uses.includes(n));
+            return `<button class="pstep ${active.includes(n) ? 'on' : ''}" data-steps="${n}" ${usable ? '' : 'disabled'}>+${n}</button>`;
+          })
+          .join('');
+    el.innerHTML = `${dice.join('')}${canRoll ? `<button class="call count" data-roll>${t('roll')}</button>` : ''}${steps}`;
   }
 
-  function tumble(value, done) {
+  function tumble(values, done) {
     clearInterval(tumbleTimer);
+    chosen = null;
     if (!canFly()) {
-      face = value;
+      faces = values;
       return done();
     }
     rolling = true;
@@ -212,12 +235,10 @@ export function createView(ctx) {
       if (Date.now() - started >= TUMBLE_MS) {
         clearInterval(tumbleTimer);
         rolling = false;
-        face = value;
+        faces = values;
         return done();
       }
-      face = 1 + Math.floor(Math.random() * 6);
-      const die = $('actions').querySelector('.pdie');
-      if (die) die.innerHTML = dieFace(face);
+      for (const die of $('actions').querySelectorAll('.pdie')) die.innerHTML = dieFace(1 + Math.floor(Math.random() * 6));
     }, TUMBLE_FRAME_MS);
   }
 
@@ -269,14 +290,24 @@ export function createView(ctx) {
     if (r.options.roll) return toast(t('rollFirst'), 1200);
     if (!r.options.moves.length) return r.turn !== me() && me() !== -1 && e.target.closest('.token') ? toast(t('waitFor', { name: seatName(r.turn) }), 1200) : undefined;
     const el = pieceAt(e);
-    if (el) answer(r, { t: 'move', color: Number(el.dataset.color), piece: Number(el.dataset.piece) });
+    if (el) {
+      const color = Number(el.dataset.color);
+      const piece = Number(el.dataset.piece);
+      const { uses } = activeMoves(r).find((m) => m.color === color && m.piece === piece);
+      answer(r, { t: 'move', color, piece, steps: uses[0] });
+    }
     else toast(t('pickPiece'), 1200);
   });
 
   $('actions').addEventListener('click', (e) => {
     const r = ctx.state?.round;
-    if (ctx.state?.game !== 'parchis' || !e.target.closest('[data-roll]') || !r?.options.roll || rolling) return;
-    answer(r, { t: 'roll' });
+    if (ctx.state?.game !== 'parchis' || !r || rolling) return;
+    const step = e.target.closest('[data-steps]');
+    if (step) {
+      chosen = Number(step.dataset.steps);
+      return repaint();
+    }
+    if (e.target.closest('[data-roll]') && r.options.roll) answer(r, { t: 'roll' });
   });
 
   return {
@@ -284,7 +315,8 @@ export function createView(ctx) {
     ghostScale: 1,
 
     mount() {
-      face = 1;
+      faces = [1];
+      chosen = null;
       drawBoard();
     },
 
@@ -301,8 +333,8 @@ export function createView(ctx) {
       if (!sameRound) stopTumble();
       const newRoll = r?.lastRoll && sameRound && r.lastRoll.n !== prev.round.lastRoll?.n;
       if (newRoll) {
-        tumble(r.lastRoll.value, repaint);
-      } else if (!rolling) face = r?.lastRoll?.value ?? face;
+        tumble(r.lastRoll.values, repaint);
+      } else if (!rolling) faces = r?.lastRoll?.values ?? faces;
       renderActions();
       paintTokens(r);
       const la = r?.lastAction;
@@ -317,7 +349,7 @@ export function createView(ctx) {
         sound.play('dice');
         if (roll.penalty) {
           setTimeout(() => {
-            shout(roll.seat, t('threeSixes'), 'noquiero');
+            shout(roll.seat, t(roll.values.length === 2 ? 'threeDoubles' : 'threeSixes'), 'noquiero');
             sound.play('mock');
           }, TUMBLE_MS);
         } else if (roll.passed && roll.seat === me()) setTimeout(() => toast(t('noMove'), 1400), TUMBLE_MS);
@@ -365,7 +397,7 @@ export function createView(ctx) {
     drop: () => () => {},
 
     status(r) {
-      if (r.options.roll) return { cls: 'mine', text: t('rollDie') };
+      if (r.options.roll) return { cls: 'mine', text: t(r.dice === 2 ? 'rollDice' : 'rollDie') };
       const moves = r.options.moves;
       if (moves.length) return { cls: 'mine', text: moves[0].color === me() ? t('pickPiece') : t('pickPartner') };
       return null;

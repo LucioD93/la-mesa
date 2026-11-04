@@ -425,6 +425,10 @@ function renderLobby() {
   $('targetPicker').innerHTML = state.targets
     .map((n) => `<button data-target="${n}" class="${n === state.target ? 'on' : ''}">${n}</button>`)
     .join('');
+  $('variantField').hidden = !state.variants;
+  $('variantPicker').innerHTML = (state.variants ?? [])
+    .map((n) => `<button data-variant="${n}" class="${n === state.variant ? 'on' : ''}">${n}</button>`)
+    .join('');
   const full = !state.seats.includes(null);
   $('botsBtn').disabled = full;
   $('startBtn').disabled = !full || me() === -1;
@@ -919,7 +923,7 @@ window.addEventListener('pointerup', onDragEnd);
 window.addEventListener('pointercancel', onDragEnd);
 
 document.body.addEventListener('click', (e) => {
-  const el = e.target.closest('[data-botify],[data-sit],[data-remove],[data-stand],[data-act],[data-close],[data-target],[data-pick],[data-rules]');
+  const el = e.target.closest('[data-botify],[data-sit],[data-remove],[data-stand],[data-act],[data-close],[data-target],[data-variant],[data-pick],[data-rules]');
   if (!el) return;
   if (el.dataset.botify) return send({ t: 'botify', seat: Number(el.dataset.botify) });
   if (el.dataset.remove) {
@@ -933,6 +937,7 @@ document.body.addEventListener('click', (e) => {
     return send({ t: 'sit', seat: Number(el.dataset.sit) });
   }
   if (el.dataset.target) return send({ t: 'target', target: Number(el.dataset.target) });
+  if (el.dataset.variant) return send({ t: 'variant', variant: Number(el.dataset.variant) });
   if (el.dataset.pick) return send({ t: 'game', game: el.dataset.pick });
   if ('close' in el.dataset) return (el.closest('.sheet').hidden = true);
   if ('rules' in el.dataset) {

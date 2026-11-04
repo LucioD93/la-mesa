@@ -91,11 +91,11 @@ test('a third 6 sends the last piece moved home and ends the turn', () => {
   assert.equal(r.turn, 1);
   assert.equal(r.lastRoll.penalty, true);
   assert.equal(r.lastAction.type, 'penalty');
-  assert.equal(r.sixes, 0);
+  assert.equal(r.repeats, 0);
 });
 
 test('a third 6 cannot touch a piece in its corridor', () => {
-  const r = board({ 0: [ENTRY - 2, 10] }, { sixes: 2, lastMoved: { color: 0, piece: 0 } });
+  const r = board({ 0: [ENTRY - 2, 10] }, { repeats: 2, lastMoved: { color: 0, piece: 0 } });
   r.pieces[0][0] = ENTRY + 3;
   G.roll(r, 0, dice(6));
   assert.equal(r.pieces[0][0], ENTRY + 3);
@@ -214,10 +214,10 @@ test('moves out of turn or out of order are refused', () => {
 test('bots prefer a capture, and a whole game of bots ends with the rules intact', () => {
   const p = sameSquare(0, 20, 1);
   const r = board({ 0: [17, 30, 40, 50], 1: [p] }, { stage: 'move', pending: [3] });
-  assert.deepEqual(G.botMove(r, 0), { type: 'move', color: 0, piece: 0 });
+  assert.deepEqual(G.botMove(r, 0), { type: 'move', color: 0, piece: 0, steps: 3 });
 
   for (let g = 0; g < 20; g++) {
-    const game = G.newRound({ starter: g % 4 });
+    const game = G.newRound({ starter: g % 4, dice: 1 + (g % 2) });
     let guard = 0;
     while (!game.over) {
       assert.ok(++guard < 50000, 'the game has to end');
@@ -277,8 +277,138 @@ test('automatic moves only run for bots, and only for the same moment', () => {
   assert.equal(p.delay, G.ROLL_DELAY_MS);
   assert.equal(m.runAuto('stale'), false);
   assert.equal(m.runAuto(p.key, dice(5, 1)), true);
-  assert.equal(m.round.lastRoll.value, 5);
+  assert.deepEqual(m.round.lastRoll.values, [5, 1]);
   assert.equal(m.pendingAuto().delay, G.MOVE_DELAY_MS);
+});
+
+// ---- two dice --------------------------------------------------------------------
+
+const twoDice = (pieces, rest) => board(pieces, { dice: 2, ...rest });
+
+test('each die is used on its own, in the order you pick, on one piece or two', () => {
+  const r = twoDice({ 0: [10, 30, GOAL, GOAL] });
+  G.roll(r, 0, dice(2, 4));
+  assert.deepEqual(r.pending, [2, 4]);
+  assert.deepEqual(G.legalMoves(r, 0).map((m) => [m.piece, m.to, m.uses]), [[0, 12, [2]], [1, 32, [2]], [0, 14, [4]], [1, 34, [4]]]);
+  G.move(r, 0, 0, 1, 4);
+  assert.equal(r.pieces[0][1], 34);
+  assert.deepEqual(r.pending, [2]);
+  assert.equal(r.turn, 0);
+  assert.throws(() => G.move(r, 0, 0, 0, 4), /cannot move/, 'that die is spent');
+  G.move(r, 0, 0, 1, 2);
+  assert.equal(r.pieces[0][1], 36);
+  assert.equal(r.turn, 1, 'no double, no second roll');
+});
+
+test('dice adding up to 5 bring a piece out between them, and that comes first', () => {
+  const r = twoDice({ 0: [10] });
+  G.roll(r, 0, dice(2, 3));
+  const moves = G.legalMoves(r, 0);
+  assert.ok(moves.every((m) => m.from === NEST && m.to === START));
+  assert.deepEqual(moves[0].uses, [2, 3]);
+  G.move(r, 0, 0, 1, 3);
+  assert.equal(r.pieces[0][1], START);
+  assert.deepEqual(r.pending, []);
+  assert.equal(r.turn, 1);
+
+  const none = twoDice({ 0: [10, 20, 30, 40] });
+  G.roll(none, 0, dice(2, 3));
+  assert.deepEqual(none.pending, [2, 3], 'with nobody to bring out they are two plain dice');
+  assert.equal(G.legalMoves(none, 0).length, 8);
+});
+
+test('a single 5 brings a piece out and a double 5 brings out two', () => {
+  const one = twoDice({ 0: [10] });
+  G.roll(one, 0, dice(5, 1));
+  assert.ok(G.legalMoves(one, 0).every((m) => m.from === NEST && m.uses[0] === 5));
+  G.move(one, 0, 0, 1);
+  assert.deepEqual(one.pending, [1]);
+
+  const two = twoDice();
+  G.roll(two, 0, dice(5, 5));
+  G.move(two, 0, 0, 0);
+  G.move(two, 0, 0, 1);
+  assert.deepEqual(two.pieces[0], [START, START, NEST, NEST]);
+  assert.equal(two.turn, 0, 'a double goes again');
+  assert.equal(two.stage, 'roll');
+});
+
+test('with two dice a double rolls again and a 6 is just a 6', () => {
+  const six = twoDice({ 0: [10, 20, 30, 40] });
+  G.roll(six, 0, dice(6, 2));
+  assert.deepEqual(six.pending, [6, 2], 'no 7 with two dice');
+  G.move(six, 0, 0, 0, 6);
+  G.move(six, 0, 0, 0, 2);
+  assert.equal(six.turn, 1, 'no second roll for a 6');
+
+  const double = twoDice({ 0: [10, 20, 30, 40] });
+  G.roll(double, 0, dice(6, 6));
+  assert.equal(double.again, true);
+});
+
+test('a third double sends the last piece home, and a double has to open a barrier', () => {
+  const r = twoDice({ 0: [10, 20] }, { repeats: 2, lastMoved: { color: 0, piece: 1 } });
+  G.roll(r, 0, dice(3, 3));
+  assert.equal(r.pieces[0][1], NEST);
+  assert.equal(r.lastRoll.penalty, true);
+  assert.equal(r.turn, 1);
+
+  const barrier = twoDice({ 0: [10, 10, 30, 40] });
+  G.roll(barrier, 0, dice(2, 2));
+  assert.ok(G.legalMoves(barrier, 0).every((m) => m.from === 10));
+});
+
+test('a die blocked now can still be used after the other one moves', () => {
+  // A rival barrier 3 ahead stops the 4 for now.
+  const r = twoDice({ 0: [10, 11, GOAL, GOAL] });
+  const p = sameSquare(0, 13, 3);
+  r.pieces[3][0] = p;
+  r.pieces[3][1] = p;
+  G.roll(r, 0, dice(1, 4));
+  assert.deepEqual(G.legalMoves(r, 0).map((m) => [m.piece, m.uses[0]]), [[0, 1], [1, 1]]);
+  r.pieces[3][1] = NEST; // the barrier opens while the 4 is still pending
+  assert.ok(G.legalMoves(r, 0).some((m) => m.uses[0] === 4));
+});
+
+test('a bonus can be picked ahead of the die that is left', () => {
+  const p = sameSquare(0, 20, 1);
+  const r = twoDice({ 0: [17, 30, GOAL, GOAL], 1: [p] });
+  G.roll(r, 0, dice(3, 1));
+  G.move(r, 0, 0, 0, 3);
+  assert.deepEqual(r.pending, [1, 20]);
+  G.move(r, 0, 0, 1, 20);
+  assert.equal(r.pieces[0][1], 50);
+  assert.deepEqual(r.pending, [1]);
+});
+
+test('the dice are picked in the lobby only, and belong to parchís', () => {
+  const m = new Match('d');
+  m.join('a', 'A');
+  assert.equal(m.variant, null);
+  assert.equal(m.handle('a', { t: 'variant', variant: 1 }, new Set()), false, 'dominoes have no choice');
+  assert.equal(m.stateFor('a', new Set()).variants, null);
+
+  m.handle('a', { t: 'game', game: 'parchis' }, new Set());
+  assert.equal(m.variant, 2);
+  for (const variant of [0, 3, 'x', null]) assert.equal(m.handle('a', { t: 'variant', variant }, new Set()), false);
+  assert.equal(m.handle('a', { t: 'variant', variant: 1 }, new Set()), true);
+  const view = m.stateFor('a', new Set());
+  assert.deepEqual(view.variants, [1, 2]);
+  assert.equal(view.variant, 1);
+
+  const loaded = new Match('d', JSON.parse(JSON.stringify(m)));
+  assert.equal(loaded.variant, 1);
+  loaded.handle('a', { t: 'addBots' }, new Set());
+  loaded.handle('a', { t: 'start' }, new Set());
+  assert.equal(loaded.round.dice, 1);
+  assert.equal(loaded.handle('a', { t: 'variant', variant: 2 }, new Set()), false);
+
+  loaded.phase = 'matchEnd';
+  loaded.handle('a', { t: 'lobby' }, new Set());
+  loaded.handle('a', { t: 'game', game: 'truco' }, new Set());
+  assert.equal(loaded.variant, null);
+  loaded.handle('a', { t: 'game', game: 'parchis' }, new Set());
+  assert.equal(loaded.variant, 2, 'switching back starts from the default');
 });
 
 test('dice and moves are ignored from anyone not seated', () => {

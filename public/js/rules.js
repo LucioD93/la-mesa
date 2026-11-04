@@ -124,7 +124,7 @@ export const RULES = {
         'Play one card. If its number is on the table you take it, plus any cards that follow in sequence: a 5 takes the 5, then the 6, the 7, the 10 and so on until there is a gap.',
         'Capturing is automatic. With no match, your card stays on the table.',
         'Caída: taking the card the player before you just played. 1 for 1 to 7, 2 for a 10, 3 for an 11, 4 for a 12.',
-        'Mesa limpia: taking every card on the table. +1, on top of any caída.',
+        'Mesa limpia: taking every card on the table. +4, on top of any caída.',
       ] },
       { h: 'End of the round', items: [
         'Whoever captured last takes whatever is left on the table.',
@@ -155,7 +155,7 @@ export const RULES = {
         'Juega una carta. Si su número está en la mesa te lo llevas, y también las que le siguen: un 5 se lleva el 5, luego el 6, el 7, el 10 y así hasta que falte uno.',
         'Se recoge solo. Si no pega con nada, tu carta se queda en la mesa.',
         'Caída: llevarte la carta que acaba de jugar el anterior. 1 del 1 al 7, 2 con un 10, 3 con un 11, 4 con un 12.',
-        'Mesa limpia: llevarte todas las cartas de la mesa. +1, además de la caída si la hay.',
+        'Mesa limpia: llevarte todas las cartas de la mesa. +4, además de la caída si la hay.',
       ] },
       { h: 'Fin de la mano', items: [
         'Quien recogió de último se lleva lo que quede en la mesa.',
@@ -170,15 +170,23 @@ export const RULES = {
   parchis: {
     en: [
       { h: 'The game', items: [
-        'One die, 68 shared squares, 2 vs 2. Partners sit across: yellow with red, blue with green.',
+        'One die or two, picked in the lobby. 68 shared squares, 2 vs 2. Partners sit across: yellow with red, blue with green.',
         'A game ends when one pair has all eight pieces in the goal. You pick how many games to win (1, 2 or 3) in the lobby.',
         'Pieces go around counterclockwise, then up their own colored corridor. The goal needs the exact count.',
       ] },
       { h: 'Your turn', items: [
         'A 5 has to bring a piece out of the nest if one can come out.',
+        'With no possible move, the turn passes by itself.',
+      ] },
+      { h: 'With one die', items: [
         'A 6 rolls again. With no pieces in your nest, it moves 7.',
         'A third 6 in a row ends your turn and sends the last piece you moved back to the nest, unless it is already in its corridor.',
-        'With no possible move, the turn passes by itself.',
+      ] },
+      { h: 'With two dice', items: [
+        'Use each die separately, on one piece or on two, in the order you like. Pick which one with the buttons by the dice.',
+        'Dice adding up to 5 bring a piece out between them, and a double 5 brings out two.',
+        'A double rolls again, and a 6 is just a 6.',
+        'A third double in a row ends your turn and sends the last piece you moved back to the nest, unless it is already in its corridor.',
       ] },
       { h: 'Taking pieces', items: [
         'Landing on a lone rival sends it back to its nest, and you count 20 with one piece.',
@@ -188,7 +196,7 @@ export const RULES = {
       ] },
       { h: 'Barriers', items: [
         'Two pieces of one color on a square are a barrier. Nobody can land on it or pass it, not even its owner.',
-        'A 6 has to open your barrier if it can.',
+        'A 6, or a double with two dice, has to open your barrier if it can.',
         'A square holds two pieces at most.',
       ] },
       { h: 'Bonuses and partners', items: [
@@ -201,15 +209,23 @@ export const RULES = {
     ],
     es: [
       { h: 'El juego', items: [
-        'Un dado, 68 casillas compartidas, 2 contra 2. Los compañeros van enfrente: amarillo con rojo, azul con verde.',
+        'Uno o dos dados, se elige en la sala. 68 casillas compartidas, 2 contra 2. Los compañeros van enfrente: amarillo con rojo, azul con verde.',
         'La partida termina cuando una pareja tiene sus ocho fichas en la meta. Se elige en la sala a cuántas partidas se juega (1, 2 o 3).',
         'Las fichas dan la vuelta en sentido contrario a las agujas del reloj y luego suben por su pasillo de color. Para entrar a la meta hay que sacar el número exacto.',
       ] },
       { h: 'Tu turno', items: [
         'Con un 5 tienes que sacar una ficha de la casa si puede salir.',
+        'Si no tienes jugada, el turno pasa solo.',
+      ] },
+      { h: 'Con un dado', items: [
         'Con un 6 tiras otra vez. Si no tienes fichas en casa, mueves 7.',
         'El tercer 6 seguido termina tu turno y manda a casa la última ficha que moviste, salvo que ya esté en su pasillo.',
-        'Si no tienes jugada, el turno pasa solo.',
+      ] },
+      { h: 'Con dos dados', items: [
+        'Cada dado se usa por separado, con una ficha o con dos, en el orden que quieras. Elige cuál con los botones junto a los dados.',
+        'Si los dados suman 5 sale una ficha entre los dos, y con un doble 5 salen dos.',
+        'Un doble tira otra vez, y un 6 es solo un 6.',
+        'El tercer doble seguido termina tu turno y manda a casa la última ficha que moviste, salvo que ya esté en su pasillo.',
       ] },
       { h: 'Comer fichas', items: [
         'Si caes sobre una ficha rival sola, vuelve a su casa y cuentas 20 con una ficha.',
@@ -219,7 +235,7 @@ export const RULES = {
       ] },
       { h: 'Barreras', items: [
         'Dos fichas del mismo color en una casilla son una barrera. Nadie puede caer ahí ni pasarla, ni siquiera su dueño.',
-        'Con un 6 tienes que abrir tu barrera si puedes.',
+        'Con un 6, o un doble con dos dados, tienes que abrir tu barrera si puedes.',
         'En una casilla caben dos fichas como máximo.',
       ] },
       { h: 'Premios y compañeros', items: [
