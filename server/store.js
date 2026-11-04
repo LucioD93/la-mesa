@@ -145,7 +145,7 @@ export class RedisStore {
   }
 
   // Hash tags keep a match's keys in one slot (cluster-safe). The `domino:` prefix
-  // predates truco and covers both games: renaming it would lose live matches and
+  // predates truco and covers every game: renaming it would lose live matches and
   // the admin page's usage counters.
   keys(id) {
     return {

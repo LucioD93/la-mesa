@@ -188,6 +188,32 @@ test('a tab from before the deploy plays dominoes as before, and is told to relo
   await old.next((m) => m.t === 'state' && old.messages.filter((x) => x.t === 'state').length > count);
 });
 
+test('a tab from before caída gets told to reload, and keeps playing what it knows', async (t) => {
+  const { url } = await listen(t);
+  const old = await client(t, url, { token: 'old', name: 'Old', games: true });
+  const current = await client(t, url, { token: 'new', name: 'New', games: ['domino', 'truco', 'caida'] });
+  await old.next((m) => m.t === 'state' && m.seats[1]);
+  current.say({ t: 'game', game: 'truco' });
+  await old.next((m) => m.t === 'state' && m.game === 'truco');
+  current.say({ t: 'game', game: 'caida' });
+  const told = await old.next((m) => m.t === 'error');
+  assert.equal(told.message, 'Reload the page to keep playing');
+  await current.next((m) => m.t === 'state' && m.game === 'caida');
+  assert.ok(!old.messages.some((m) => m.t === 'state' && m.game === 'caida'));
+});
+
+test('a caída game runs through the hub with bots, over sockets', async (t) => {
+  const { url } = await listen(t);
+  const p = await client(t, url, { token: 'p', name: 'P', games: ['domino', 'truco', 'caida'], game: 'caida' });
+  await p.next((m) => m.t === 'state' && m.game === 'caida');
+  p.say({ t: 'addBots' });
+  await p.next((m) => m.t === 'state' && m.seats.every(Boolean));
+  p.say({ t: 'start' });
+  const started = await p.next((m) => m.t === 'state' && m.phase === 'playing');
+  assert.equal(started.round.deal, 0);
+  assert.deepEqual(started.targets, [12, 24]);
+});
+
 test('a truco game runs through the hub with bots, over sockets', async (t) => {
   const { url } = await listen(t);
   const p = await client(t, url, { token: 'p', name: 'P', games: true, game: 'truco' });

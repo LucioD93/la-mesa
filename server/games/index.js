@@ -8,8 +8,9 @@
 //   roundView(round, seat, revealed)   what one player may see of the round
 import { game as domino } from './domino.js';
 import { game as truco } from './truco.js';
+import { game as caida } from './caida.js';
 
-const GAMES = { domino, truco };
+const GAMES = { domino, truco, caida };
 
 // Matches saved before there was a choice have no `game` field: those are dominoes.
 export const DEFAULT_GAME = 'domino';
