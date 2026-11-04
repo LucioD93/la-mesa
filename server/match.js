@@ -295,7 +295,7 @@ export class Match {
               emoji: s.emoji,
               online: s.bot || online.has(s.token),
               team: teamOf(i),
-              count: r ? r.hands[i].length : 0,
+              count: r?.hands ? r.hands[i].length : 0, // parchís has no hands
             }
           : null,
       ),

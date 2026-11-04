@@ -166,4 +166,69 @@ export const RULES = {
       ] },
     ],
   },
+
+  parchis: {
+    en: [
+      { h: 'The game', items: [
+        'One die, 68 shared squares, 2 vs 2. Partners sit across: yellow with red, blue with green.',
+        'A game ends when one pair has all eight pieces in the goal. You pick how many games to win (1, 2 or 3) in the lobby.',
+        'Pieces go around counterclockwise, then up their own colored corridor. The goal needs the exact count.',
+      ] },
+      { h: 'Your turn', items: [
+        'A 5 has to bring a piece out of the nest if one can come out.',
+        'A 6 rolls again. With no pieces in your nest, it moves 7.',
+        'A third 6 in a row ends your turn and sends the last piece you moved back to the nest, unless it is already in its corridor.',
+        'With no possible move, the turn passes by itself.',
+      ] },
+      { h: 'Taking pieces', items: [
+        'Landing on a lone rival sends it back to its nest, and you count 20 with one piece.',
+        'Nobody can be taken on a gray safe square or a colored start square, and two different colors can share one.',
+        'Coming out onto a start square holding two pieces takes the rival that got there last. If both are your pair, you stay in.',
+        'Partners never take each other.',
+      ] },
+      { h: 'Barriers', items: [
+        'Two pieces of one color on a square are a barrier. Nobody can land on it or pass it, not even its owner.',
+        'A 6 has to open your barrier if it can.',
+        'A square holds two pieces at most.',
+      ] },
+      { h: 'Bonuses and partners', items: [
+        'Reaching the goal pays 10, counted with one piece. A bonus no piece can use is lost.',
+        'Once your four pieces are home, your rolls and bonuses move your partner\'s pieces.',
+      ] },
+      { h: 'House rules', items: [
+        'Parchís varies by table. Here barriers stop everyone everywhere, a 5 always has to come out, and taking a piece as you come out also pays 20.',
+      ] },
+    ],
+    es: [
+      { h: 'El juego', items: [
+        'Un dado, 68 casillas compartidas, 2 contra 2. Los compañeros van enfrente: amarillo con rojo, azul con verde.',
+        'La partida termina cuando una pareja tiene sus ocho fichas en la meta. Se elige en la sala a cuántas partidas se juega (1, 2 o 3).',
+        'Las fichas dan la vuelta en sentido contrario a las agujas del reloj y luego suben por su pasillo de color. Para entrar a la meta hay que sacar el número exacto.',
+      ] },
+      { h: 'Tu turno', items: [
+        'Con un 5 tienes que sacar una ficha de la casa si puede salir.',
+        'Con un 6 tiras otra vez. Si no tienes fichas en casa, mueves 7.',
+        'El tercer 6 seguido termina tu turno y manda a casa la última ficha que moviste, salvo que ya esté en su pasillo.',
+        'Si no tienes jugada, el turno pasa solo.',
+      ] },
+      { h: 'Comer fichas', items: [
+        'Si caes sobre una ficha rival sola, vuelve a su casa y cuentas 20 con una ficha.',
+        'En una casilla gris segura o en una salida de color no se come, y pueden compartirla dos colores.',
+        'Si sales a una salida con dos fichas, te comes la rival que llegó de última. Si las dos son de tu pareja, no puedes salir.',
+        'Los compañeros no se comen entre sí.',
+      ] },
+      { h: 'Barreras', items: [
+        'Dos fichas del mismo color en una casilla son una barrera. Nadie puede caer ahí ni pasarla, ni siquiera su dueño.',
+        'Con un 6 tienes que abrir tu barrera si puedes.',
+        'En una casilla caben dos fichas como máximo.',
+      ] },
+      { h: 'Premios y compañeros', items: [
+        'Llegar a la meta da 10, contados con una ficha. Un premio que ninguna ficha pueda usar se pierde.',
+        'Cuando tus cuatro fichas llegan, tus tiradas y premios mueven las fichas de tu compañero.',
+      ] },
+      { h: 'Reglas de la casa', items: [
+        'El parchís cambia de mesa en mesa. Aquí las barreras detienen a todos en cualquier casilla, con un 5 siempre hay que salir, y comer al salir también da 20.',
+      ] },
+    ],
+  },
 };
