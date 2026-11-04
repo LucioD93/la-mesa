@@ -237,14 +237,14 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `next` / `rematch` / `lobby` | | After a round or match ends |
 | `botify` | `seat` | Replace a disconnected player with a bot |
 | `react` | `emoji` | Seated players (600 ms cooldown) |
-| `blunder` | | You tried an illegal move on your turn, so the others can mock you (2 s cooldown) |
+| `blunder` | | You tried an illegal move or forgot your flor, so the others can mock you (2 s cooldown) |
 | `voice` | `to?` (peer id), `data` | Voice chat signaling, relayed to one peer or everyone else in the match (rate limited) |
 | `avatar` | `image` (JPEG data URL or `null`), `to?` (peer id), `ask?` | Your photo, relayed to one peer or everyone else in the match and never stored (rate limited). `ask` means "send me yours". |
 | `ping` | | Keep-alive. The server replies `pong`. |
 
 | Server → client | Payload |
 | --- | --- |
-| `state` | Full personalized view: phase, seats, scores, history, board line, your hand and legal moves |
+| `state` | Full personalized view: game, targets, phase, seats, scores, history, the round (board line and legal moves, or vira, tricks, open bets and `options`) and your hand |
 | `error` | `message` (illegal move) |
 | `voiceConfig` | `peer` (this connection's public voice id), `iceServers`. Sent after `hello`. |
 | `voice` | `from` (peer id), `data`: relayed voice signaling. `data.kind: "bye"` means that connection closed. |
