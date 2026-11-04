@@ -2,7 +2,8 @@
 // Connections, timers and storage live elsewhere (see hub.js / store.js) so a
 // match can be loaded and saved by any server instance.
 import { createHash } from 'node:crypto';
-import * as G from './game.js';
+import { MoveError, teamOf } from './games/common.js';
+import { DEFAULT_GAME, gameRules, isGame } from './games/index.js';
 
 // Venezuelan memes.
 const BOTS = [
@@ -15,13 +16,6 @@ const BOTS = [
   { name: 'Exprópiese', emoji: '🏢' },
   { name: 'El Bachaquero', emoji: '🐜' },
 ];
-// How often El Manguangua says it.
-const PLAY_PHRASE_CHANCE = 0.1;
-const PASS_PHRASE_CHANCE = 0.3;
-export const BOT_DELAY_MS = 1600; // the client's flight animation (1.2s) plus a beat
-export const AUTO_PASS_DELAY_MS = 1300;
-export const STUCK_PLAYER_DELAY_MS = 3000; // long enough to try an illegal tile before the forced pass
-const TARGETS = [50, 75, 100];
 const MAX_NAME = 16;
 export const REACTIONS = ['👏', '😂', '😮', '😡', '🔥', '👋'];
 const REACTION_COOLDOWN_MS = 600; // per player, so a pile-on is not throttled
@@ -46,25 +40,39 @@ export const publicId = (token) => createHash('sha256').update(token).digest('he
 export class Match {
   constructor(id, data = null) {
     this.id = id;
+    this.game = isGame(data?.game) ? data.game : DEFAULT_GAME;
     /** @type {({token: string|null, name: string, bot: boolean, emoji?: string, replaced?: string} | null)[]} */
     this.seats = [null, null, null, null];
     this.names = {}; // token -> display name (spectators included)
     this.phase = 'lobby'; // lobby | playing | roundEnd | matchEnd
-    this.target = 100;
+    this.target = this.rules.defaultTarget;
     this.scores = [0, 0];
     this.history = [];
     this.round = null;
     this.roundNo = 0;
-    this.nextStarter = null;
+    this.nextStarter = null; // who starts the next round, null to let the game pick
     this.reaction = null; // latest emoji thrown at the table: { n, seat, emoji, at, sent, crowd }
-    this.blunder = null; // latest illegal move attempt, for the table to mock: { n, seat, at }
+    this.blunder = null; // latest illegal move or forgotten flor, for the table to mock: { n, seat, at }
     this.v = 0;
-    if (data) Object.assign(this, data, { id });
+    if (data) Object.assign(this, data, { id, game: this.game });
   }
 
   toJSON() {
-    const { id, seats, names, phase, target, scores, history, round, roundNo, nextStarter, reaction, blunder, v } = this;
-    return { id, seats, names, phase, target, scores, history, round, roundNo, nextStarter, reaction, blunder, v };
+    const { id, game, seats, names, phase, target, scores, history, round, roundNo, nextStarter, reaction, blunder, v } = this;
+    return { id, game, seats, names, phase, target, scores, history, round, roundNo, nextStarter, reaction, blunder, v };
+  }
+
+  /** The rules of the game this match is playing. */
+  get rules() {
+    return gameRules(this.game);
+  }
+
+  /** Switch game (lobby only). Each game has its own targets, so the target resets. */
+  setGame(id) {
+    if (this.phase !== 'lobby' || !isGame(id) || id === this.game) return false;
+    this.game = id;
+    this.target = this.rules.defaultTarget;
+    return true;
   }
 
   seatOf(token) {
@@ -73,7 +81,9 @@ export class Match {
 
   // ---- changes (each returns true if the match changed) ---------------------
 
-  join(token, name) {
+  join(token, name, gameHint) {
+    // A link can ask for a game (old Trucazo links), but only a match nobody has joined yet takes it.
+    if (this.v === 0) this.setGame(gameHint);
     name = cleanName(name) || 'Player';
     this.names[token] = name;
     const seat = this.seatOf(token);
@@ -102,7 +112,7 @@ export class Match {
     return changed;
   }
 
-  /** Apply a player's message. Throws G.MoveError for illegal moves. */
+  /** Apply a player's message. Throws MoveError for illegal moves. */
   handle(token, msg, online) {
     const seat = this.seatOf(token);
     switch (msg?.t) {
@@ -155,25 +165,22 @@ export class Match {
         return true;
       }
       case 'blunder': {
-        // The client caught an illegal move on its own turn; the tile is never revealed.
+        // The client caught its own illegal move or forgotten flor; what it holds is never revealed.
         if (this.phase !== 'playing' || seat === -1 || this.round.turn !== seat) return false;
         const now = Date.now();
         if (this.blunder && now - this.blunder.at < BLUNDER_COOLDOWN_MS) return false;
         this.blunder = { n: (this.blunder?.n ?? 0) + 1, seat, at: now };
         return true;
       }
+      case 'game':
+        return this.setGame(msg.game);
       case 'target':
-        if (this.phase !== 'lobby' || !TARGETS.includes(Number(msg.target))) return false;
+        if (this.phase !== 'lobby' || !this.rules.targets.includes(Number(msg.target))) return false;
         this.target = Number(msg.target);
         return true;
       case 'start':
         if (this.phase !== 'lobby' || seat === -1 || this.seats.includes(null)) return false;
         this.startRound();
-        return true;
-      case 'play':
-        if (this.phase !== 'playing' || seat === -1) return false;
-        G.play(this.round, seat, msg.tile, msg.end === 'L' ? 'L' : 'R');
-        this.afterMove();
         return true;
       case 'next':
         if (this.phase !== 'roundEnd' || seat === -1) return false;
@@ -192,7 +199,9 @@ export class Match {
         this.round = null;
         return true;
       default:
-        return false;
+        if (this.phase !== 'playing' || seat === -1 || !this.rules.handle(this.round, seat, msg)) return false;
+        this.afterMove();
+        return true;
     }
   }
 
@@ -223,49 +232,29 @@ export class Match {
   }
 
   startRound(rng = Math.random) {
-    this.round = G.newRound({ starter: this.nextStarter, rng });
+    this.round = this.rules.newRound(this, rng);
     this.roundNo += 1;
     this.phase = 'playing';
   }
 
   afterMove() {
-    const r = this.round;
-    if (!r.over) return;
-    const { winnerTeam, points, reason, winnerSeat, teamPips } = r.over;
-    if (winnerTeam != null) this.scores[winnerTeam] += points;
-    this.history.push({ round: this.roundNo, reason, winnerTeam, winnerSeat, points, teamPips });
-    // The opener rotates to the right every round, whoever won.
-    this.nextStarter = G.nextSeat(r.starter);
+    if (!this.round.over) return;
+    this.rules.settle(this);
     this.phase = this.scores.some((s) => s >= this.target) ? 'matchEnd' : 'roundEnd';
   }
 
   // ---- automatic moves (bots, forced passes) -------------------------------
 
-  /** If the current turn should play itself, how long to wait and a key identifying the turn. */
+  /** If the table should play itself, how long to wait and a key identifying the moment. */
   pendingAuto() {
-    if (this.phase !== 'playing') return null;
-    const r = this.round;
-    const isBot = this.seats[r.turn]?.bot;
-    const stuck = !G.legalMoves(r, r.turn).length;
-    if (!isBot && !stuck) return null;
-    return {
-      delay: !isBot ? STUCK_PLAYER_DELAY_MS : stuck ? AUTO_PASS_DELAY_MS : BOT_DELAY_MS,
-      key: `${this.roundNo}:${r.line.length}:${r.turn}:${r.lastAction?.type ?? ''}`,
-    };
+    return this.phase === 'playing' ? this.rules.pendingAuto(this) : null;
   }
 
-  /** Run the pending automatic move, but only if it is still the same turn. */
+  /** Run the pending automatic move, but only if it is still the same moment. */
   runAuto(key, rng = Math.random) {
     const p = this.pendingAuto();
     if (!p || p.key !== key) return false;
-    const r = this.round;
-    const move = G.botMove(r, r.turn);
-    // Rolled here so the whole table hears it together.
-    const seated = this.seats[r.turn];
-    const phrase = seated?.bot && seated.name === 'El Manguangua' && rng() < (move ? PLAY_PHRASE_CHANCE : PASS_PHRASE_CHANCE);
-    if (move) G.play(r, r.turn, move.tile, move.end);
-    else G.pass(r, r.turn);
-    if (phrase) r.lastAction.phrase = true;
+    this.rules.runAuto(this, rng);
     this.afterMove();
     return true;
   }
@@ -281,6 +270,8 @@ export class Match {
     return {
       t: 'state',
       matchId: this.id,
+      game: this.game,
+      targets: this.rules.targets,
       you: seat,
       phase: this.phase,
       target: this.target,
@@ -303,22 +294,12 @@ export class Match {
               bot: s.bot,
               emoji: s.emoji,
               online: s.bot || online.has(s.token),
-              team: G.teamOf(i),
+              team: teamOf(i),
               count: r ? r.hands[i].length : 0,
             }
           : null,
       ),
-      round: r && {
-        line: r.line,
-        center: r.center,
-        turn: r.over ? null : r.turn,
-        mustPlay: r.mustPlay,
-        lastAction: r.lastAction,
-        over: r.over,
-        hand: seat !== -1 ? r.hands[seat] : null,
-        legal: seat !== -1 && !r.over && r.turn === seat ? G.legalMoves(r, seat) : [],
-        hands: revealed ? r.hands : null,
-      },
+      round: r && this.rules.roundView(r, seat, revealed),
     };
   }
 }

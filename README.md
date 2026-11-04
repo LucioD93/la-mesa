@@ -1,26 +1,29 @@
 <img src="assets/icon.svg" width="64" height="64" alt="">
 
-# Domino
+# La Mesa
 
-Mobile-first, four-player partner dominoes (2 vs 2) you play in the browser. There's no login: create a match, share the `/play/<match-id>` link, and fill any empty seats with bots.
+Mobile-first, four-player games (2 vs 2) you play in the browser: partner dominoes and Venezuelan truco with vira, perico and perica. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
 
 Created in [T3 Code](https://t3.codes).
 
 ## Features
 
+- **Two games, one link.** Anyone in the lobby can switch between dominoes and truco, and everyone there sees the change. The target options follow the game. Once the game starts it stays until you go back to the lobby.
 - **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches.
 - **Player photos.** Take a picture or choose a file on the home page or in the lobby and it becomes your avatar. A picture taken here never reaches the device's gallery. It is saved only in your browser's `localStorage`; the server passes it to the others in the match and never stores it.
-- **Shareable matches.** A match lives at `/play/<id>`. The invite button uses the native share sheet when the browser has one, and links unfurl with a preview image in WhatsApp and other chat apps.
-- **Bots.** Fill empty seats from the lobby with Venezuelan memes, drawn at random each time. Mid-game, a spectator can take over a bot's seat and hand, and a player who disconnected can be replaced by a bot so the game keeps going.
+- **Shareable matches.** A match lives at `/play/<id>`. The invite button uses the native share sheet when the browser has one, and links unfurl with a preview image in WhatsApp and other chat apps. The preview is the same for both games: chat apps only see the static page, and the game can still change until the match starts. The share sheet's text names the current game.
+- **Bots.** Fill empty seats from the lobby with Venezuelan memes, drawn at random each time. Mid-game, a spectator can take over a bot's seat and hand, and a player who disconnected can be replaced by a bot so the game keeps going. Bots only see their own tiles or cards and the table.
 - **Spectators.** Anyone who opens the link after the seats are taken watches the game.
 - **Reconnects.** Reloading or briefly losing the connection puts you back in your seat with your hand. Sockets are replaced before the host's time limit ends them, so games and voice calls carry on without a drop. The client notices dead connections within seconds, reconnects with backoff, and retries right away when the network or the tab comes back. If you were swapped for a bot while away, rejoining gives you your seat back.
 - **Voice chat.** Everyone in a match (players and spectators) can join the room's voice chat with the mic button, from the lobby or the table, mute themselves, or hang up. Audio goes peer to peer over WebRTC; the server only relays the connection setup. Seated players in voice get a mic badge on their avatar and a green ring while they talk. Without a microphone (blocked, missing, or a plain-`http` LAN page) you join as a listener.
-- **Reactions and sound.** Emoji reactions shown at the table (👏 😂 😮 😡 🔥 👋), sound effects, and a pass animation.
-- **English and Spanish.** The language follows the browser, and the EN/ES button switches it (saved in `localStorage`).
+- **Reactions and sound.** Emoji reactions shown at the table (👏 😂 😮 😡 🔥 👋), sound effects, and a pass animation. When players send the same emoji within 3 seconds, a big one pops over the table.
+- **Your hand, your order.** Drag a tile or card to a new slot in your hand at any point.
+- **English and Spanish.** The language follows the browser, and the EN/ES button switches it (saved in `localStorage`). Truco's calls (¡Truco!, Quiero…) stay in Spanish in both.
+- **Traditional suits.** Truco's oros, copas, espadas and bastos use public-domain drawings of the Spanish deck by [Florixc on Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Seme_denari_carte_spagnole.svg), lightly cleaned up in `public/suits/`.
 - **Installable.** Ships a web app manifest, so it can be added to the home screen.
 - **Admin page.** `/admin`, behind one shared password, shows who is in voice, TURN usage as reported by Metered, voice joins, game socket traffic, and the state of Redis and TURN.
 
-### Rules
+### Domino rules
 
 - Double-six set with 7 tiles per player and no boneyard. Seats 0 and 2 play against seats 1 and 3, and turns go 0 → 1 → 2 → 3.
 - In the first round, whoever holds the double six must open with it. After that, the opener rotates: the player to the right of the last round's opener opens with any tile, whoever won.
@@ -30,11 +33,59 @@ Created in [T3 Code](https://t3.codes).
 - **Blocked game:** the team with fewer pips wins and scores the losing team's pips. A tie scores nothing.
 - The match ends when a team reaches the target score, which you set in the lobby to 50, 75 or 100.
 
+### Truco rules
+
+Truco has many house rules, and written sources disagree on some details. This is what the game implements.
+
+**Deal.** A 40-card Spanish deck (no 8s or 9s). Everyone gets 3 cards and one more is turned up as the **vira**. Seats 0 and 2 play against seats 1 and 3, and turns go 0 → 1 → 2 → 3 (counter-clockwise). The **mano** leads the first trick, wins ties, and moves one seat each hand.
+
+**Cards, best to worst:**
+
+1. **Perico:** the 11 of the vira's suit
+2. **Perica:** the 10 of the vira's suit
+3. 1 of espadas, 1 of bastos, 7 of espadas, 7 of oros
+4. The 3s, the 2s, then the 1s of copas and oros
+5. The 12s, 11s and 10s, then the 7s of copas and bastos
+6. The 6s, 5s and 4s
+
+If the vira is itself the 11 or the 10, the **12 of that suit** takes its place as perico or perica.
+
+**Tricks.** The team that takes two of three tricks wins the hand. A tied trick (*parda*) is led again by whoever led it:
+
+- First trick tied: the second trick decides.
+- One team won the first trick and a later trick ties: that team wins.
+- All three tied: the mano's team wins.
+
+**Truco.** A hand is worth 1. On your turn you can raise it, and the other team answers *quiero*, *no quiero*, or raises straight back. After a raise is accepted, only the team that accepted it can raise next.
+
+| Call | If accepted | If refused |
+| --- | --- | --- |
+| Truco | 3 | 1 |
+| Retruco | 6 | 3 |
+| Vale nueve | 9 | 6 |
+| Vale juego | the match | 9 |
+
+On your turn you can also go **al mazo**: your team folds and the other team scores the hand's current value.
+
+**Envido.** Called before your first card, on your turn or in reply to a truco (the truco then waits for the envido to be settled). It's worth 2. The other team can accept, refuse, or raise with *y envido* (+2), *cinco más* (+5) or *falta envido* (what the leading team needs to reach the target). A first envido refused pays 1, and a refused raise pays what had been bet before it.
+
+Hand values: perico 30 and perica 29, plus the best other card. Otherwise, two cards of a suit are 20 plus their numbers (10, 11 and 12 count 0), or the highest single card if no suit repeats. The highest value on either team wins, and ties go to the seat closest to the mano.
+
+**Flor.** Three cards of a suit, or the perico or perica with two cards of a suit. You sing it before your first card, on your turn or when answering a bet, and it's worth 3. Singing a flor cancels the envido. If you play your first card without singing it, the flor is lost and the table laughs at you. If both teams sing, the higher flor scores (20 plus the numbers, or the piece plus the numbers).
+
+**Flor reservada.** Perico and perica in the same hand is worth 5 and doesn't need to be sung.
+
+**Scoring.** Points are added when the hand ends: flor, then envido, then truco. Nothing more is added once a team reaches the target, which you set in the lobby to 12, 24 or 32.
+
+**Not implemented:** *con flor envido* and *contraflor* (the bets between two flores), *a ley*, *privar*, burning a card face-down, and partner signals (*señas*). A team scores one flor per hand even if both partners hold one.
+
+Rules are based on [Wikipedia ES](https://es.wikipedia.org/wiki/Truco_venezolano), [Ludoteka](https://www.ludoteka.com/games/truco-venezolano/rules) and [Conecta Games](https://conectagamesblog.wordpress.com/2015/12/18/reglas-del-truco-venezolano/).
+
 ## Stack
 
 | Layer    | Tech |
 | -------- | ---- |
-| Client   | Plain HTML, CSS and ES modules in `public/`, with no framework or build step. Tiles are drawn with DOM and CSS, and sound uses the Web Audio API. |
+| Client   | Plain HTML, CSS and ES modules in `public/`, with no framework or build step. Tiles are drawn with DOM and CSS, cards are SVG built in the browser from the suit drawings, and sound uses the Web Audio API. |
 | Server   | Node.js (≥ 18, ESM) using `node:http` and [`ws`](https://github.com/websockets/ws) for WebSockets |
 | State    | In-memory store for local dev. [Redis](https://redis.io) (`redis` v5 client) when several instances need to share matches. |
 | Hosting  | [Vercel](https://vercel.com): static files from `public/` plus one Vercel Function (`api/ws.js`) that accepts WebSocket upgrades |
@@ -50,30 +101,50 @@ api/admin.js       Vercel Function: admin data (/api/admin)
 server/
   index.js         Local entry point (HTTP + static files + WebSocket on one port)
   app.js           Shared HTTP/WebSocket server: upgrade handling, heartbeats
-  hub.js           Connects sockets to matches, fans out state, schedules bots/auto-passes
+  hub.js           Connects sockets to matches, fans out state, schedules automatic moves, relays voice signaling and photos
   store.js         MemoryStore (local) and RedisStore (shared): storage, presence, pub/sub
   usage.js         Buffers usage counters and writes them in batches
   admin.js         Password check and the report behind the admin page
-  match.js         A match as serializable state: seats, lobby, scoring, per-player views
-  game.js          Pure round logic: dealing, legal moves, playing, passing, scoring, bot AI
+  metered.js       TURN usage from Metered's API
+  match.js         A match as serializable state: game, seats, lobby, reactions, per-player views
+  games/
+    index.js       The list of games, and what a game has to provide
+    common.js      Seats and teams, shuffling, MoveError, bot pacing, the catchphrase odds
+    domino.js      Pure domino rules and bot AI, plus the `game` object
+    truco.js       Pure truco rules and bot AI, plus the `game` object
 public/
   index.html       Landing page (new match / join by code)
   play.html        Game table
   admin.html       Admin page
-  js/play.js       Client: WebSocket connection, rendering, input
+  js/play.js       Client shell: connection, lobby, seats, voice, photos, reactions, drag, result frame
+  js/domino.js     Domino table: board, hand, drop targets, how a round reads
+  js/truco.js      Truco table: vira, trick, call buttons, how a hand reads
+  js/flight.js     Throwing a tile or card from a seat to the table
   js/board.js      Lays out the line of tiles on the table
   js/tiles.js      Tile markup
-  js/fx.js         Animations and reactions
+  js/cards.js      Card markup (SVG, placing the suit drawings)
+  suits/           Traditional suit drawings (public domain)
+  sounds/          El Manguangua's catchphrase
+  js/fx.js         Win and lose animations
   js/sound.js      Sound effects
   js/voice.js      Voice chat (WebRTC mesh, signaling over the game socket)
-  js/i18n.js       UI strings (English, Spanish) and language switching
+  js/avatar.js     Player photos: camera, file picker, local storage
+  js/i18n.js       UI strings (English, Spanish), shared and per game, and language switching
   js/admin.js      Admin page: sign-in and usage
   css/style.css    Styles
-test/              Game and board layout tests
+test/              Rules of both games, match, board layout, game choice, voice relay and admin tests
 vercel.json        Rewrites /play/:id → /play.html and /admin → /admin.html
 ```
 
 ## Architecture
+
+### How a game plugs in
+
+A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto` and `roundView`.
+
+On the client, `play.js` keeps one view per game (`domino.js`, `truco.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
+
+The `domino:` prefix on Redis keys and the `domino.*` browser storage keys predate truco and cover both games. Renaming them would lose live matches, the usage counters, and players' names, seats and photos. Matches saved without a `game` load as dominoes.
 
 ### Connection diagram
 
@@ -123,7 +194,7 @@ sequenceDiagram
 
   C->>H: {t: "hello", token, name}
   H->>S: setPresence + update(join)
-  C->>H: {t: "play", tile, end}
+  C->>H: {t: "play", tile, end} (or card, call, answer)
   H->>S: load match + version
   H->>H: Match.handle() applies rules
   H->>S: compare-and-set write (retry if version changed)
@@ -152,25 +223,28 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 
 | Client → server | Payload | When |
 | --- | --- | --- |
-| `hello` | `token`, `name`, `session?`, `inVoice?` | First message. Joins the match and takes a free seat if in the lobby. `session` determines the voice peer id. `inVoice` says a handover or reconnect is already in voice. |
+| `hello` | `token`, `name`, `session?`, `inVoice?`, `games?`, `game?` | First message. Joins the match and takes a free seat if in the lobby. `session` determines the voice peer id. `inVoice` says a handover or reconnect is already in voice. `games` says this page can draw every game; a tab from before there was a choice doesn't send it, and is asked to reload instead of receiving a truco state. `game` picks the game if the match is brand new, from a `?game=` link. |
 | `handoff` | | The client is moving to another socket and is about to close this one |
 | `rename` | `name` | Any time |
 | `sit` / `stand` | `seat` | Lobby. `sit` also lets a spectator take over a bot mid-game. |
 | `addBots` / `removeBot` | `seat` | Lobby |
-| `target` | `50 \| 75 \| 100` | Lobby |
+| `game` | `game: "domino" \| "truco"` | Lobby. Resets the target to the game's default. |
+| `target` | `50 \| 75 \| 100` or `12 \| 24 \| 32` | Lobby, from the current game's list |
 | `start` | | Lobby, once all 4 seats are filled |
-| `play` | `tile: [a, b]`, `end: "L" \| "R"` | On your turn |
+| `play` | Domino: `tile: [a, b]`, `end: "L" \| "R"`. Truco: `card: [number, suit]` | On your turn |
+| `call` | `what: "flor" \| "envido" \| "cinco" \| "falta" \| "truco" \| "mazo"` | Truco, when the `options` in your state allow it |
+| `answer` | `yes: boolean` | Truco, a bet is open against your team |
 | `next` / `rematch` / `lobby` | | After a round or match ends |
 | `botify` | `seat` | Replace a disconnected player with a bot |
 | `react` | `emoji` | Seated players (600 ms cooldown) |
-| `blunder` | | You tried an illegal move on your turn, so the others can mock you (2 s cooldown) |
+| `blunder` | | You tried an illegal move or forgot your flor, so the others can mock you (2 s cooldown) |
 | `voice` | `to?` (peer id), `data` | Voice chat signaling, relayed to one peer or everyone else in the match (rate limited) |
 | `avatar` | `image` (JPEG data URL or `null`), `to?` (peer id), `ask?` | Your photo, relayed to one peer or everyone else in the match and never stored (rate limited). `ask` means "send me yours". |
 | `ping` | | Keep-alive. The server replies `pong`. |
 
 | Server → client | Payload |
 | --- | --- |
-| `state` | Full personalized view: phase, seats, scores, history, board line, your hand and legal moves |
+| `state` | Full personalized view: game, targets, phase, seats, scores, history, the round (board line and legal moves, or vira, tricks, open bets and `options`) and your hand |
 | `error` | `message` (illegal move) |
 | `voiceConfig` | `peer` (this connection's public voice id), `iceServers`. Sent after `hello`. |
 | `voice` | `from` (peer id), `data`: relayed voice signaling. `data.kind: "bye"` means that connection closed. |

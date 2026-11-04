@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import * as G from '../server/game.js';
+import * as G from '../server/games/domino.js';
 import { layoutLine } from '../public/js/board.js';
 
 const overlap = (a, b) =>

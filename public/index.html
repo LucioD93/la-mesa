@@ -4,19 +4,19 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#0b3a2c" />
-    <title>Domino</title>
-    <meta name="description" content="Partner dominoes for 4 players, 2 vs 2. No sign-up: send the link and play." />
+    <title>La Mesa</title>
+    <meta name="description" content="Dominoes or Venezuelan truco for 4 players, 2 vs 2. No sign-up: send the link and play." />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Domino" />
-    <meta property="og:title" content="Domino" />
-    <meta property="og:description" content="Partner dominoes for 4 players, 2 vs 2. No sign-up: send the link and play." />
+    <meta property="og:site_name" content="La Mesa" />
+    <meta property="og:title" content="La Mesa" />
+    <meta property="og:description" content="Dominoes or Venezuelan truco for 4 players, 2 vs 2. No sign-up: send the link and play." />
     <meta property="og:url" content="https://domino-ten-theta.vercel.app/" />
     <meta property="og:image" content="https://domino-ten-theta.vercel.app/og-image.png" />
     <meta property="og:image:secure_url" content="https://domino-ten-theta.vercel.app/og-image.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Two domino tiles on a green felt table, with the word Domino" />
+    <meta property="og:image:alt" content="A domino tile and a Spanish playing card on a green felt table, with the words La Mesa" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href="/icon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -26,10 +26,10 @@
     <main class="landing-card">
       <button id="langBtn" class="icon-btn small lang-btn" data-lang-btn data-i18n-aria="aria.lang">EN</button>
       <div class="logo" aria-hidden="true">
-        <div class="tile v big"><span class="half p6"></span><span class="bar"></span><span class="half p6"></span></div>
-        <div class="tile v big tilt"><span class="half p3"></span><span class="bar"></span><span class="half p5"></span></div>
+        <div class="tile v big"><span class="half p6"></span><span class="bar"></span><span class="half p3"></span></div>
+        <span class="card big" data-card="1-e"></span>
       </div>
-      <h1>Domino</h1>
+      <h1>La Mesa</h1>
       <p class="sub" data-i18n="landing.sub">4 players · 2 vs 2 · no sign-up</p>
 
       <div class="identity name-field">
@@ -51,17 +51,21 @@
         <button class="btn" data-i18n="landing.join">Join</button>
       </form>
 
-      <p class="hint" data-i18n="landing.hint">Create a match and send the link to your friends. Empty seats can be filled with bots.</p>
+      <p class="hint" data-i18n="landing.hint">Dominoes or Venezuelan truco: you pick in the lobby. Create a match and send the link to your friends. Empty seats can be filled with bots.</p>
     </main>
 
     <script type="module">
       import { halfHTML } from '/js/tiles.js';
+      import { cardSVG, parseKey } from '/js/cards.js';
       import * as i18n from '/js/i18n.js';
       import * as avatar from '/js/avatar.js';
       i18n.apply();
       document.getElementById('langBtn').onclick = () => i18n.cycle();
       document.querySelectorAll('.logo .half').forEach((h) => {
         h.outerHTML = halfHTML(Number(h.className.match(/p(\d)/)[1]), false);
+      });
+      document.querySelectorAll('.logo .card').forEach((c) => {
+        c.innerHTML = cardSVG(parseKey(c.dataset.card));
       });
 
       // Venezuelan food. Plain ASCII so the codes survive the join form's [a-z0-9-] filter.

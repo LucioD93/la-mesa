@@ -34,7 +34,7 @@ function note(freq, { at = 0, dur = 0.15, type = 'sine', gain = 0.2, slide } = {
   osc.stop(t + dur + 0.02);
 }
 
-/** A short burst of noise, for the clack of a tile on the table. */
+/** A short burst of noise, for a tile or card hitting the table. */
 function clack(gain = 0.3) {
   const c = ctx;
   const len = Math.floor(c.sampleRate * 0.05);
@@ -57,7 +57,15 @@ const sounds = {
     clack();
     note(180, { dur: 0.09, type: 'triangle', gain: 0.25, slide: 90 });
   },
-  pass: () => {
+  call: () => note(440, { dur: 0.16, type: 'triangle', gain: 0.16, slide: 620 }),
+  // A shout: two rising blasts.
+  truco: () => {
+    note(330, { dur: 0.14, type: 'sawtooth', gain: 0.12, slide: 500 });
+    note(440, { at: 0.14, dur: 0.3, type: 'sawtooth', gain: 0.12, slide: 880 });
+  },
+  flor: () => [784, 988, 1175, 1568].forEach((f, i) => note(f, { at: i * 0.08, dur: 0.22, gain: 0.12 })),
+  pass: () => sounds.no(),
+  no: () => {
     note(220, { dur: 0.14, type: 'square', gain: 0.07, slide: 150 });
     note(160, { at: 0.16, dur: 0.2, type: 'square', gain: 0.07, slide: 100 });
   },

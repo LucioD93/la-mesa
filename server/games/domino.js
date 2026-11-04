@@ -2,11 +2,24 @@
 // no boneyard). Seats 0 & 2 are team 0, seats 1 & 3 are team 1. Play goes
 // seat 0 -> 1 -> 2 -> 3.
 
-export const SEATS = 4;
-export const HAND_SIZE = 7;
+import {
+  BOT_DELAY_MS,
+  MoveError,
+  PLAY_PHRASE_CHANCE,
+  SEATS,
+  TALK_PHRASE_CHANCE,
+  isManguangua,
+  nextSeat,
+  shuffle,
+  teamOf,
+} from './common.js';
 
-export const teamOf = (seat) => seat % 2;
-export const nextSeat = (seat) => (seat + 1) % SEATS;
+export { MoveError, SEATS, nextSeat, shuffle, teamOf };
+
+export const HAND_SIZE = 7;
+export const AUTO_PASS_DELAY_MS = 1300;
+export const STUCK_PLAYER_DELAY_MS = 3000; // long enough to try an illegal tile before the forced pass
+
 export const pips = (tile) => tile[0] + tile[1];
 export const sameTile = (a, b) =>
   (a[0] === b[0] && a[1] === b[1]) || (a[0] === b[1] && a[1] === b[0]);
@@ -16,15 +29,6 @@ export function fullSet() {
   const tiles = [];
   for (let a = 0; a <= 6; a++) for (let b = a; b <= 6; b++) tiles.push([a, b]);
   return tiles;
-}
-
-export function shuffle(arr, rng = Math.random) {
-  const out = arr.slice();
-  for (let i = out.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [out[i], out[j]] = [out[j], out[i]];
-  }
-  return out;
 }
 
 /**
@@ -119,8 +123,6 @@ export function teamPips(round) {
   return tp;
 }
 
-export class MoveError extends Error {}
-
 export function play(round, seat, tile, end) {
   if (round.over) throw new MoveError('Round is over');
   if (round.turn !== seat) throw new MoveError('Not your turn');
@@ -176,3 +178,60 @@ export function botMove(round, seat) {
   }
   return best;
 }
+
+export const game = {
+  id: 'domino',
+  targets: [50, 75, 100],
+  defaultTarget: 100,
+
+  newRound: (match, rng) => newRound({ starter: match.nextStarter, rng }),
+
+  handle(round, seat, msg) {
+    if (msg.t !== 'play') return false;
+    play(round, seat, msg.tile, msg.end === 'L' ? 'L' : 'R');
+    return true;
+  },
+
+  settle(match) {
+    const { winnerTeam, points, reason, winnerSeat, teamPips } = match.round.over;
+    if (winnerTeam != null) match.scores[winnerTeam] += points;
+    match.history.push({ round: match.roundNo, reason, winnerTeam, winnerSeat, points, teamPips });
+    // The opener rotates to the right every round, whoever won.
+    match.nextStarter = nextSeat(match.round.starter);
+  },
+
+  // Bots, and humans with no legal move (the forced pass).
+  pendingAuto(match) {
+    const r = match.round;
+    const isBot = match.seats[r.turn]?.bot;
+    const stuck = !legalMoves(r, r.turn).length;
+    if (!isBot && !stuck) return null;
+    return {
+      delay: !isBot ? STUCK_PLAYER_DELAY_MS : stuck ? AUTO_PASS_DELAY_MS : BOT_DELAY_MS,
+      key: `${match.roundNo}:${r.line.length}:${r.turn}:${r.lastAction?.type ?? ''}`,
+    };
+  },
+
+  runAuto(match, rng) {
+    const r = match.round;
+    const move = botMove(r, r.turn);
+    const phrase = isManguangua(match.seats[r.turn]) && rng() < (move ? PLAY_PHRASE_CHANCE : TALK_PHRASE_CHANCE);
+    if (move) play(r, r.turn, move.tile, move.end);
+    else pass(r, r.turn);
+    if (phrase) r.lastAction.phrase = true;
+  },
+
+  roundView(r, seat, revealed) {
+    return {
+      line: r.line,
+      center: r.center,
+      turn: r.over ? null : r.turn,
+      mustPlay: r.mustPlay,
+      lastAction: r.lastAction,
+      over: r.over,
+      hand: seat !== -1 ? r.hands[seat] : null,
+      legal: seat !== -1 && !r.over && r.turn === seat ? legalMoves(r, seat) : [],
+      hands: revealed ? r.hands : null,
+    };
+  },
+};

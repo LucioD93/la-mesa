@@ -5,18 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
     <meta name="theme-color" content="#0b3a2c" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <title>Domino</title>
-    <meta name="description" content="Partner dominoes for 4 players, 2 vs 2. No sign-up: send the link and play." />
+    <title>La Mesa</title>
+    <meta name="description" content="Dominoes or Venezuelan truco for 4 players, 2 vs 2. No sign-up: send the link and play." />
     <meta property="og:type" content="website" />
-    <meta property="og:site_name" content="Domino" />
-    <meta property="og:title" content="Play dominoes with me" />
-    <meta property="og:description" content="Partner dominoes for 4 players, 2 vs 2. No sign-up: send the link and play." />
+    <meta property="og:site_name" content="La Mesa" />
+    <meta property="og:title" content="Come play with me at La Mesa" />
+    <meta property="og:description" content="Dominoes or Venezuelan truco for 4 players, 2 vs 2. No sign-up: send the link and play." />
     <meta property="og:image" content="https://domino-ten-theta.vercel.app/og-image.png" />
     <meta property="og:image:secure_url" content="https://domino-ten-theta.vercel.app/og-image.png" />
     <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Two domino tiles on a green felt table, with the word Domino" />
+    <meta property="og:image:alt" content="A domino tile and a Spanish playing card on a green felt table, with the words La Mesa" />
     <meta name="twitter:card" content="summary_large_image" />
     <link rel="icon" href="/icon.svg" />
     <link rel="manifest" href="/manifest.webmanifest" />
@@ -30,7 +30,7 @@
         </a>
         <button id="scoreBtn" class="scoreboard" aria-label="Show score history" data-i18n-aria="aria.score">
           <span class="team t0"><span class="label" id="label0">Us</span><span class="pts" id="score0">0</span></span>
-          <span class="meta"><span><span data-i18n="toWord">to</span> <b id="target">100</b></span><small id="roundNo">Lobby</small></span>
+          <span class="meta"><span><span data-i18n="toWord">to</span> <b id="target"></b></span><small id="roundNo">Lobby</small></span>
           <span class="team t1"><span class="pts" id="score1">0</span><span class="label" id="label1">Them</span></span>
         </button>
         <button id="shareBtn" class="icon-btn" aria-label="Invite" data-i18n-aria="aria.invite">
@@ -42,7 +42,7 @@
         <div class="seat top" id="seat-top"></div>
         <div class="seat left" id="seat-left"></div>
         <div class="seat right" id="seat-right"></div>
-        <div class="board" id="board"><p class="board-empty" id="boardEmpty"></p></div>
+        <div class="board" id="board"></div>
         <div class="toast" id="toast" role="status" aria-live="polite"></div>
         <div class="mock" id="mock" role="status" aria-live="polite" hidden>
           <span class="mock-emoji" id="mockEmoji" aria-hidden="true"></span>
@@ -75,6 +75,7 @@
           <button data-emoji="🔥">🔥</button>
           <button data-emoji="👋">👋</button>
         </div>
+        <div class="actions" id="actions"></div>
         <div class="hand" id="hand"></div>
       </footer>
     </div>
@@ -112,12 +113,15 @@
             </label>
           </div>
           <div class="field">
-            <span data-i18n="playTo">Play to</span>
-            <div class="segmented" id="targetPicker">
-              <button data-target="50">50</button>
-              <button data-target="75">75</button>
-              <button data-target="100">100</button>
+            <span data-i18n="game">Game</span>
+            <div class="segmented" id="gamePicker">
+              <button data-pick="domino" data-i18n="game.domino">Domino</button>
+              <button data-pick="truco" data-i18n="game.truco">Truco</button>
             </div>
+          </div>
+          <div class="field">
+            <span data-i18n="playTo">Play to</span>
+            <div class="segmented" id="targetPicker"></div>
           </div>
         </div>
 
@@ -149,21 +153,18 @@
             <tr><th data-i18n="total">Total</th><th class="c0" id="total0">0</th><th class="c1" id="total1">0</th><th id="totalTarget"></th></tr>
           </tfoot>
         </table>
-        <p class="rules" data-i18n="rules">
-          Partners sit across. Whoever has the double six opens the first round; after that, the round
-          winner opens. Going out ("domino") scores the pips left in the losing team's hands. If the game is blocked,
-          the team with fewer pips wins and scores the losing team's pips.
-        </p>
+        <p class="rules" data-i18n="rules"></p>
       </div>
     </section>
 
-    <!-- Round / match result -->
+    <!-- Round or hand / match result -->
     <section class="overlay" id="result" hidden>
       <div class="result-card" id="resultCard">
         <div class="result-emoji" id="resultEmoji"></div>
         <h2 id="resultTitle"></h2>
         <p id="resultSub"></p>
         <div class="result-scores" id="resultScores"></div>
+        <div class="result-awards" id="resultAwards"></div>
         <div class="result-hands" id="resultHands"></div>
         <div class="result-actions" id="resultActions"></div>
       </div>
