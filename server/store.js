@@ -9,14 +9,70 @@ const PRESENCE_MS = 40_000; // a connection refreshes its presence every 15s
 export const PRESENCE_REFRESH_MS = 15_000;
 export const LEAVE_GRACE_MS = 20_000; // keep "online" briefly so a reload or network blip doesn't free the seat
 
+const USAGE_TTL_S = 60 * 60 * 24 * 100; // daily usage counters outlive the 30 days the admin page shows
+
 const onlineFrom = (entries, now = Date.now()) =>
   new Set(Object.entries(entries || {}).filter(([, exp]) => Number(exp) > now).map(([t]) => t));
+
+/** Who is in voice now, from "<match>:<peer>" entries, plus how many matches have people online. */
+function overview(voiceMembers, onlineCounts) {
+  const rooms = new Map();
+  for (const member of voiceMembers) {
+    const match = member.split(':')[0];
+    rooms.set(match, (rooms.get(match) || 0) + 1);
+  }
+  const voice = [...rooms].map(([match, people]) => ({ match, people })).sort((a, b) => b.people - a.people);
+  const active = onlineCounts.filter((n) => n > 0);
+  return { voice, matches: active.length, online: active.reduce((a, b) => a + b, 0) };
+}
 
 export class MemoryStore {
   constructor() {
     this.matches = new Map(); // id -> JSON string (serialized like Redis, so no shared mutation)
     this.presence = new Map(); // id -> { token: expiresAt }
     this.events = new EventEmitter().setMaxListeners(0);
+    this.usage = new Map(); // day or 'total' -> { field: n }
+    this.voiceLive = new Map(); // "<match>:<peer>" -> expiresAt
+    this.fails = new Map(); // address -> { n, until }
+  }
+
+  async saveUsage(counts, live) {
+    for (const [day, fields] of Object.entries(counts)) {
+      for (const key of [day, 'total']) {
+        if (!this.usage.has(key)) this.usage.set(key, {});
+        const row = this.usage.get(key);
+        for (const [field, n] of Object.entries(fields)) row[field] = (row[field] || 0) + n;
+      }
+    }
+    for (const [member, until] of live) {
+      if (until) this.voiceLive.set(member, until);
+      else this.voiceLive.delete(member);
+    }
+  }
+
+  async readUsage(days) {
+    return {
+      days: Object.fromEntries(days.map((d) => [d, this.usage.get(d) || {}])),
+      total: this.usage.get('total') || {},
+    };
+  }
+
+  async liveOverview(now = Date.now()) {
+    const members = [...this.voiceLive].filter(([, until]) => until > now).map(([m]) => m);
+    return overview(members, [...this.presence.values()].map((p) => onlineFrom(p, now).size));
+  }
+
+  async info() {
+    return { type: 'memory', ok: true };
+  }
+
+  async failedLogins(address) {
+    const f = this.fails.get(address);
+    return f && f.until > Date.now() ? f.n : 0;
+  }
+
+  async addFailedLogin(address, ttlS) {
+    this.fails.set(address, { n: (await this.failedLogins(address)) + 1, until: Date.now() + ttlS * 1000 });
   }
 
   online(id) {
@@ -185,6 +241,64 @@ export class RedisStore {
   async setPresence(id, token, ms = PRESENCE_MS) {
     const { p } = this.keys(id);
     await this.client.multi().hSet(p, token, String(Date.now() + ms)).expire(p, MATCH_TTL_S).exec();
+  }
+
+  // ---- admin page -------------------------------------------------------------
+
+  async saveUsage(counts, live) {
+    const tx = this.client.multi();
+    for (const [day, fields] of Object.entries(counts)) {
+      const key = `domino:usage:${day}`;
+      for (const [field, n] of Object.entries(fields)) {
+        tx.hIncrBy(key, field, n);
+        tx.hIncrBy('domino:usage:total', field, n);
+      }
+      tx.expire(key, USAGE_TTL_S);
+    }
+    for (const [member, until] of live) {
+      if (until) tx.zAdd('domino:voice:live', { score: until, value: member });
+      else tx.zRem('domino:voice:live', member);
+    }
+    await tx.exec();
+  }
+
+  async readUsage(days) {
+    const numbers = (row) => Object.fromEntries(Object.entries(row).map(([k, v]) => [k, Number(v)]));
+    const [total, ...rows] = await Promise.all([
+      this.client.hGetAll('domino:usage:total'),
+      ...days.map((d) => this.client.hGetAll(`domino:usage:${d}`)),
+    ]);
+    return {
+      days: Object.fromEntries(days.map((d, i) => [d, numbers(rows[i])])),
+      total: numbers(total),
+    };
+  }
+
+  async liveOverview(now = Date.now()) {
+    await this.client.zRemRangeByScore('domino:voice:live', '-inf', now);
+    const members = await this.client.zRange('domino:voice:live', 0, -1);
+    const keys = [];
+    for await (const batch of this.client.scanIterator({ MATCH: 'domino:{*}:p', COUNT: 200 })) keys.push(...batch);
+    const presence = await Promise.all(keys.map((k) => this.client.hGetAll(k)));
+    return overview(members, presence.map((p) => onlineFrom(p, now).size));
+  }
+
+  async info() {
+    const started = performance.now();
+    await this.client.ping();
+    const latencyMs = Math.round(performance.now() - started);
+    const [keys, memory] = await Promise.all([this.client.dbSize(), this.client.info('memory').catch(() => '')]);
+    const field = (name) => Number(memory.match(new RegExp(`^${name}:(\\d+)`, 'm'))?.[1]) || null;
+    return { type: 'redis', ok: true, latencyMs, keys, usedMemory: field('used_memory'), maxMemory: field('maxmemory') };
+  }
+
+  async failedLogins(address) {
+    return Number(await this.client.get(`domino:admin:fail:${address}`)) || 0;
+  }
+
+  async addFailedLogin(address, ttlS) {
+    const key = `domino:admin:fail:${address}`;
+    await this.client.multi().incr(key).expire(key, ttlS).exec();
   }
 }
 

@@ -8,6 +8,7 @@
 
 const SPEAK_LEVEL = 0.04; // RMS above this counts as talking
 const SPEAK_HOLD_MS = 350; // keep the indicator on through short pauses
+const STATS_MS = 20_000; // how often to report voice usage for the admin page
 
 /**
  * @param {{ send: (msg: object) => void, onChange: () => void, onJoin: (name: string) => void }} hooks
@@ -24,6 +25,8 @@ export function createVoice({ send, onChange, onJoin }) {
   let meter = null; // { analyser, buf, lastLoud } for my mic
   let selfSpeaking = false;
   let meterTimer = null;
+  let statsTimer = null;
+  let statsAt = 0; // when usage was last reported
 
   const signal = (to, data) => send({ t: 'voice', to, data });
   const myMeta = () => ({ seat: meta.seat, name: meta.name, muted });
@@ -185,6 +188,49 @@ export function createVoice({ send, onChange, onJoin }) {
     if (changed) onChange();
   }
 
+  // ---- usage reports --------------------------------------------------------------
+
+  // Bytes a connection has moved so far, summed over every candidate pair because
+  // an ICE restart moves to a new pair. Either end being a relay means TURN traffic.
+  async function linkBytes(pc) {
+    const stats = await pc.getStats();
+    const out = { sent: 0, received: 0, relayed: 0 };
+    stats.forEach((r) => {
+      if (r.type !== 'candidate-pair') return;
+      const sent = r.bytesSent || 0;
+      const received = r.bytesReceived || 0;
+      out.sent += sent;
+      out.received += received;
+      const ends = [stats.get(r.localCandidateId), stats.get(r.remoteCandidateId)];
+      if (ends.some((c) => c?.candidateType === 'relay')) out.relayed += sent + received;
+    });
+    return out;
+  }
+
+  // Seconds since the last report, if I was connected to anyone.
+  function voiceSeconds() {
+    const now = performance.now();
+    const connected = [...peers.values()].some((p) => p.pc?.connectionState === 'connected');
+    const seconds = connected ? Math.round((now - statsAt) / 1000) : 0;
+    statsAt = now;
+    return seconds;
+  }
+
+  async function reportStats() {
+    const seconds = voiceSeconds();
+    const total = { sent: 0, received: 0, relayed: 0 };
+    await Promise.all(
+      [...peers.values()].filter((p) => p.pc).map(async (p) => {
+        const now = await linkBytes(p.pc).catch(() => null);
+        if (!now) return;
+        // Counters can fall when an ICE restart drops old pairs.
+        for (const k of Object.keys(total)) total[k] += Math.max(0, now[k] - (p.bytes?.[k] || 0));
+        p.bytes = now;
+      }),
+    );
+    if (joined) send({ t: 'voiceStats', seconds, ...total });
+  }
+
   // ---- public ---------------------------------------------------------------------
 
   /** The server gave this socket a peer id (first connect or after a reconnect). */
@@ -225,6 +271,9 @@ export function createVoice({ send, onChange, onJoin }) {
     meter = stream && makeMeter(stream);
     meterTimer = setInterval(tick, 120);
     if (me) signal(null, { kind: 'join', ...myMeta() });
+    statsAt = performance.now();
+    statsTimer = setInterval(reportStats, STATS_MS);
+    reportStats();
     onChange();
     return result;
   }
@@ -232,6 +281,8 @@ export function createVoice({ send, onChange, onJoin }) {
   function leave() {
     if (!joined) return;
     signal(null, { kind: 'leave' });
+    clearInterval(statsTimer);
+    send({ t: 'voiceStats', seconds: voiceSeconds(), left: true });
     joined = false;
     for (const id of [...peers.keys()]) closePeer(id);
     stream?.getTracks().forEach((t) => t.stop());

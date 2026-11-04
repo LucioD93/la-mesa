@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b3a2c" />
+    <meta name="robots" content="noindex" />
+    <title>Domino admin</title>
+    <link rel="icon" href="/icon.svg" />
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body class="admin">
+    <form id="login" class="admin-login" hidden>
+      <h1>Domino admin</h1>
+      <input id="password" class="input" type="password" placeholder="Password" aria-label="Password" autocomplete="current-password" required />
+      <button class="btn primary block">Sign in</button>
+      <p id="loginError" class="admin-error" role="alert" hidden></p>
+    </form>
+
+    <main id="dash" class="admin-dash" hidden>
+      <header class="admin-head">
+        <h1>Domino admin</h1>
+        <span id="updated" class="muted"></span>
+        <button id="signOut" class="btn ghost" type="button">Sign out</button>
+      </header>
+      <p id="stale" class="admin-error" role="alert" hidden></p>
+
+      <section>
+        <h2>Right now</h2>
+        <div class="admin-tiles">
+          <div class="admin-tile"><span class="muted">In voice</span><b id="liveVoice"></b><small id="liveRooms" class="muted"></small></div>
+          <div class="admin-tile"><span class="muted">Online</span><b id="liveOnline"></b><small id="liveMatches" class="muted"></small></div>
+        </div>
+      </section>
+
+      <section id="metered" hidden>
+        <h2>TURN relay this billing cycle, from Metered</h2>
+        <div class="admin-chart">
+          <p id="meteredError" class="admin-error" role="alert" hidden>Could not get usage from Metered.</p>
+          <div id="meteredUsage">
+            <div class="admin-quota"><b id="meteredUsed"></b><span id="meteredQuota" class="muted"></span></div>
+            <div class="admin-meter"><i id="meteredBar" class="relayed"></i></div>
+            <p id="meteredWarning" class="admin-error" hidden></p>
+            <div id="meteredDays"></div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Voice usage</h2>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead><tr><th></th><th>Today</th><th>7 days</th><th>30 days</th><th>All time</th></tr></thead>
+            <tbody id="periods"></tbody>
+          </table>
+        </div>
+        <p class="muted admin-note">Reported by browsers, so it can run slightly low. Audio data adds up every device's upload and download. Relayed data is the browsers' estimate of what went through TURN, counted from both ends. For the billed amount, use Metered's figures above.</p>
+      </section>
+
+      <section>
+        <h2>Audio data per day, last 30 days (UTC)</h2>
+        <div class="admin-legend">
+          <span><i class="swatch direct"></i>Direct</span>
+          <span><i class="swatch relayed"></i>Relayed</span>
+        </div>
+        <div id="chart" class="admin-chart"></div>
+        <details class="admin-details">
+          <summary>Daily numbers</summary>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead><tr><th>Day</th><th>Voice time</th><th>Joins</th><th>Direct</th><th>Relayed</th><th>Socket data</th></tr></thead>
+              <tbody id="daily"></tbody>
+            </table>
+          </div>
+        </details>
+      </section>
+
+      <section>
+        <h2>Services</h2>
+        <div class="admin-table-wrap">
+          <table class="admin-table admin-services"><tbody id="services"></tbody></table>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/js/admin.js"></script>
+  </body>
+</html>

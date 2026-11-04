@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
+import { createAdminHandler } from './admin.js';
 import { createHub } from './hub.js';
 import { createStore } from './store.js';
 
@@ -47,6 +48,7 @@ function serveStatic(req, res) {
     }
     return sendFile(res, path.join(PUBLIC, 'play.html'));
   }
+  if (p === '/admin') return sendFile(res, path.join(PUBLIC, 'admin.html'));
   if (p === '/healthz') {
     res.writeHead(200, { 'content-type': 'text/plain' });
     return res.end('ok');
@@ -67,9 +69,13 @@ function matchIdFrom(reqUrl) {
 }
 
 export function createApp({ store: storeOverride } = {}) {
-  const server = http.createServer(serveStatic);
+  const storeReady = storeOverride ? Promise.resolve(storeOverride) : createStore();
+  const admin = createAdminHandler(storeReady);
+  const server = http.createServer((req, res) =>
+    new URL(req.url, 'http://x').pathname === '/api/admin' ? admin(req, res) : serveStatic(req, res),
+  );
   const wss = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024 });
-  const hubReady = (storeOverride ? Promise.resolve(storeOverride) : createStore()).then(createHub);
+  const hubReady = storeReady.then(createHub);
 
   server.on('upgrade', async (req, socket, head) => {
     const id = matchIdFrom(req.url);
