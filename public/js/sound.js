@@ -1,4 +1,4 @@
-// Tiny synthesized sound effects (no audio files). Browsers only allow audio
+// Tiny synthesized sound effects, plus the odd recorded clip. Browsers only allow audio
 // after a user gesture, so the context is created on the first tap.
 let ctx = null;
 let muted = localStorage.getItem('domino.muted') === '1';
@@ -82,6 +82,20 @@ const sounds = {
 export function play(name) {
   if (muted || !context()) return;
   sounds[name]?.();
+}
+
+// Recorded clips, fetched the first time they play.
+const clips = {};
+
+export async function playClip(name) {
+  if (muted || !context()) return;
+  clips[name] ??= fetch(`/sounds/${name}.mp3`)
+    .then((res) => res.arrayBuffer())
+    .then((data) => ctx.decodeAudioData(data));
+  const src = ctx.createBufferSource();
+  src.buffer = await clips[name];
+  src.connect(ctx.destination);
+  src.start();
 }
 
 export const isMuted = () => muted;

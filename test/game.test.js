@@ -118,6 +118,41 @@ test('a bot replacing a dropped player keeps the names unique and gives the seat
   assert.equal(m.seats[1].name, 'Ben');
 });
 
+test('El Manguangua sometimes says it when playing a tile or passing', () => {
+  const opening = (name) => {
+    const m = new Match('phrase');
+    m.join('a', 'Ann');
+    m.handle('a', { t: 'addBots' }, new Set());
+    m.startRound(mulberry32(1));
+    m.seats[m.round.turn] = { token: null, name, emoji: '☕', bot: true };
+    return m;
+  };
+  const phraseAfter = (name, roll) => {
+    const m = opening(name);
+    assert.ok(m.runAuto(m.pendingAuto().key, () => roll));
+    assert.equal(m.round.lastAction.type, 'play');
+    return m.round.lastAction.phrase;
+  };
+  assert.equal(phraseAfter('El Manguangua', 0.09), true);
+  assert.equal(phraseAfter('El Manguangua', 0.1), undefined);
+  assert.equal(phraseAfter('Plan Conejo', 0), undefined);
+
+  const phraseAfterPass = (name, roll) => {
+    const m = opening(name);
+    const r = m.round;
+    r.line = [[6, 6]];
+    r.center = 0;
+    r.mustPlay = null;
+    r.hands = r.hands.map(() => [[0, 1]]);
+    assert.ok(m.runAuto(m.pendingAuto().key, () => roll));
+    assert.equal(r.lastAction.type, 'pass');
+    return r.lastAction.phrase;
+  };
+  assert.equal(phraseAfterPass('El Manguangua', 0.29), true);
+  assert.equal(phraseAfterPass('El Manguangua', 0.3), undefined);
+  assert.equal(phraseAfterPass('Plan Conejo', 0), undefined);
+});
+
 test('the opener rotates to the right each round, whoever won', () => {
   const m = new Match('rotate');
   m.join('a', 'Ann');

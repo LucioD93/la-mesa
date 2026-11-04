@@ -341,6 +341,7 @@ function render(next) {
       if (la.seat === me()) sound.play('place');
       else flyTile(la);
     }
+    if (la.phrase) whenLanded(() => sound.playClip('manguangua'));
   }
   if (prev && hasManguangua(state) && !hasManguangua(prev)) toast(t('manguangua'), 3200);
   if (prev && state.reaction && state.reaction.n !== prev.reaction?.n) showReaction(state.reaction);

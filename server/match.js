@@ -15,6 +15,9 @@ const BOTS = [
   { name: 'Exprópiese', emoji: '🏢' },
   { name: 'El Bachaquero', emoji: '🐜' },
 ];
+// How often El Manguangua says it.
+const PLAY_PHRASE_CHANCE = 0.1;
+const PASS_PHRASE_CHANCE = 0.3;
 export const BOT_DELAY_MS = 1600; // the client's flight animation (1.2s) plus a beat
 export const AUTO_PASS_DELAY_MS = 1300;
 export const STUCK_PLAYER_DELAY_MS = 3000; // long enough to try an illegal tile before the forced pass
@@ -252,13 +255,17 @@ export class Match {
   }
 
   /** Run the pending automatic move, but only if it is still the same turn. */
-  runAuto(key) {
+  runAuto(key, rng = Math.random) {
     const p = this.pendingAuto();
     if (!p || p.key !== key) return false;
     const r = this.round;
     const move = G.botMove(r, r.turn);
+    // Rolled here so the whole table hears it together.
+    const seated = this.seats[r.turn];
+    const phrase = seated?.bot && seated.name === 'El Manguangua' && rng() < (move ? PLAY_PHRASE_CHANCE : PASS_PHRASE_CHANCE);
     if (move) G.play(r, r.turn, move.tile, move.end);
     else G.pass(r, r.turn);
+    if (phrase) r.lastAction.phrase = true;
     this.afterMove();
     return true;
   }
