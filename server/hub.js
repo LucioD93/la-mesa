@@ -63,8 +63,8 @@ export function createHub(store) {
     r.onlineKey = onlineKey(online);
     for (const c of r.conns) {
       if (!c.token) continue;
-      // A tab opened before there was a choice of game can only draw dominoes. It shows `error` as a toast.
-      if (c.dominoOnly && match.game !== 'domino') send(c.ws, { t: 'error', message: 'Reload the page to keep playing' });
+      // A tab from an older deploy can't draw a game added since. It shows `error` as a toast.
+      if (!c.games.includes(match.game)) send(c.ws, { t: 'error', message: 'Reload the page to keep playing' });
       else send(c.ws, match.stateFor(c.token, online));
     }
     scheduleAuto(id, match);
@@ -163,7 +163,8 @@ export function createHub(store) {
       if (!conn.token) {
         if (msg.t !== 'hello' || !msg.token) return;
         conn.token = String(msg.token).slice(0, 64);
-        conn.dominoOnly = !msg.games;
+        // A list of games now. `true` came from pages that knew two games, nothing from those that knew one.
+        conn.games = Array.isArray(msg.games) ? msg.games : msg.games ? ['domino', 'truco'] : ['domino'];
         // A client handing over to a new socket keeps its voice id by sending the
         // same session. Hashing in the token means nobody else can claim that id.
         if (typeof msg.session === 'string') {

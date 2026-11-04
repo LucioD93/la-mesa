@@ -1,7 +1,9 @@
 // The game page: connection, lobby, seats, voice, photos, reactions and the frame of
-// the result. What's on the table belongs to the game's view (domino.js, truco.js).
+// the result. What's on the table belongs to the game's view (domino.js, truco.js, caida.js).
 import { createView as createDominoView } from './domino.js';
 import { createView as createTrucoView } from './truco.js';
+import { createView as createCaidaView } from './caida.js';
+import { RULES } from './rules.js';
 import { reduceMotion, whenLanded } from './flight.js';
 import * as fx from './fx.js';
 import * as sound from './sound.js';
@@ -60,8 +62,8 @@ let deadline = 0; // drop the socket if nothing arrives before this time
 let bannerTimer;
 
 const dial = () => new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/ws?match=${encodeURIComponent(matchId)}`);
-// `games` tells the server this page can draw every game, unlike a tab left open from before.
-const hello = () => ({ t: 'hello', token, name: myName, session: voiceSession, inVoice: voice.joined, games: true, game: gameHint });
+// `games` tells the server what this page can draw, since a tab can stay open across deploys.
+const hello = () => ({ t: 'hello', token, name: myName, session: voiceSession, inVoice: voice.joined, games: Object.keys(views), game: gameHint });
 const scheduleRotation = () => (rotateAt = Date.now() + ROTATE_MS + Math.random() * ROTATE_JITTER_MS);
 
 function connect() {
@@ -353,6 +355,7 @@ function render(next) {
   renderStatus();
   renderResult(prev);
   renderScoreSheet();
+  if (!$('rulesSheet').hidden) paintRules();
   $('reactBtn').hidden = me() === -1 || state.phase === 'lobby';
   if ($('reactBtn').hidden) $('reactBar').hidden = true;
 
@@ -380,8 +383,9 @@ function renderScores() {
   const right = 1 - left;
   $('label0').textContent = teamLabel(left);
   $('label1').textContent = teamLabel(right);
-  $('score0').textContent = state.scores[left];
-  $('score1').textContent = state.scores[right];
+  const scores = view.liveScores?.() ?? state.scores;
+  $('score0').textContent = scores[left];
+  $('score1').textContent = scores[right];
   $('scoreBtn').querySelector('.t0').dataset.team = left;
   $('scoreBtn').querySelector('.t1').dataset.team = right;
   $('target').textContent = state.target;
@@ -893,6 +897,15 @@ function renderScoreSheet() {
     : `<tr><td colspan="4" class="muted center">${t('noRounds')}</td></tr>`;
 }
 
+// ---- rules --------------------------------------------------------------------
+
+function paintRules() {
+  $('rulesTitle').textContent = t('rulesOf', { game: t(`game.${state.game}`) });
+  $('rulesBody').innerHTML = RULES[state.game][i18n.lang]
+    .map(({ h, items }) => `<h3>${esc(h)}</h3><ul>${items.map((item) => `<li>${esc(item)}</li>`).join('')}</ul>`)
+    .join('');
+}
+
 // ---- events -----------------------------------------------------------------
 
 $('hand').addEventListener('pointerdown', onHandDown);
@@ -905,7 +918,7 @@ window.addEventListener('pointerup', onDragEnd);
 window.addEventListener('pointercancel', onDragEnd);
 
 document.body.addEventListener('click', (e) => {
-  const el = e.target.closest('[data-botify],[data-sit],[data-remove],[data-stand],[data-act],[data-close],[data-target],[data-pick]');
+  const el = e.target.closest('[data-botify],[data-sit],[data-remove],[data-stand],[data-act],[data-close],[data-target],[data-pick],[data-rules]');
   if (!el) return;
   if (el.dataset.botify) return send({ t: 'botify', seat: Number(el.dataset.botify) });
   if (el.dataset.remove) {
@@ -921,6 +934,12 @@ document.body.addEventListener('click', (e) => {
   if (el.dataset.target) return send({ t: 'target', target: Number(el.dataset.target) });
   if (el.dataset.pick) return send({ t: 'game', game: el.dataset.pick });
   if ('close' in el.dataset) return (el.closest('.sheet').hidden = true);
+  if ('rules' in el.dataset) {
+    if (!state) return;
+    paintRules();
+    $('rulesBody').scrollTop = 0;
+    return ($('rulesSheet').hidden = false);
+  }
   const act = el.dataset.act;
   if (act === 'peek') return $('result').classList.add('peek');
   if (act === 'unpeek') return $('result').classList.remove('peek');
@@ -937,6 +956,7 @@ $('result').addEventListener('click', (e) => {
 
 $('scoreBtn').onclick = () => state && state.phase !== 'lobby' && ($('scoreSheet').hidden = false);
 $('scoreSheet').addEventListener('click', (e) => e.target === $('scoreSheet') && ($('scoreSheet').hidden = true));
+$('rulesSheet').addEventListener('click', (e) => e.target === $('rulesSheet') && ($('rulesSheet').hidden = true));
 $('shareBtn').onclick = share;
 $('copyBtn').onclick = copyInvite;
 $('botsBtn').onclick = () => send({ t: 'addBots' });
@@ -998,6 +1018,6 @@ const ctx = {
   laughAtMe,
   within,
 };
-const views = { domino: createDominoView(ctx), truco: createTrucoView(ctx) };
+const views = { domino: createDominoView(ctx), truco: createTrucoView(ctx), caida: createCaidaView(ctx) };
 
 connect();

@@ -37,6 +37,7 @@ input { font: inherit; }
 /* Each game keeps its own colors and table. The domino table's rules are scoped with
    body[data-game='domino'] and truco's with body[data-game='truco'] where they share a name. */
 body[data-game='truco'] { --accent: #0e7490; --accent-glow: rgba(14, 116, 144, 0.4); }
+body[data-game='caida'] { --accent: #b45309; --accent-glow: rgba(180, 83, 9, 0.4); }
 
 [data-team='0'] { --team: var(--t0); }
 [data-team='1'] { --team: var(--t1); }
@@ -485,7 +486,7 @@ body[data-game='domino'] .hand {
   background: var(--team);
   box-shadow: inset 0 0 0 2px var(--ivory);
 }
-body[data-game='truco'] .flier-back {
+body:is([data-game='truco'], [data-game='caida']) .flier-back {
   background: repeating-linear-gradient(45deg, #155e75, #155e75 4px, #0e7490 4px, #0e7490 8px);
   box-shadow: inset 0 0 0 3px #fffdf6;
 }
@@ -503,7 +504,7 @@ body[data-game='truco'] .flier-back {
   pointer-events: none;
   animation: impact 0.5s ease-out forwards;
 }
-body[data-game='truco'] .impact { width: calc(var(--cw) * 2); height: calc(var(--cw) * 2); }
+body:is([data-game='truco'], [data-game='caida']) .impact { width: calc(var(--cw) * 2); height: calc(var(--cw) * 2); }
 @keyframes impact {
   from { scale: 0.2; opacity: 0.9; }
   to { scale: 1; opacity: 0; }
@@ -717,6 +718,9 @@ body[data-game='truco'] .impact { width: calc(var(--cw) * 2); height: calc(var(-
 .history tfoot th { font-size: 18px; border: 0; }
 .history .how { color: var(--muted); font-size: 13px; }
 .rules { color: var(--muted); font-size: 13px; margin-top: 16px; }
+.rules-body { margin-top: 10px; font-size: 14px; line-height: 1.45; }
+.rules-body h3 { margin: 14px 0 4px; font-size: 13px; color: var(--gold); text-transform: uppercase; letter-spacing: 0.04em; }
+.rules-body ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 
 /* ---- results ------------------------------------------------------------ */
 .overlay {
@@ -857,7 +861,7 @@ body[data-game='truco'] .board { --cw: min(15.5vw, 11.5dvh, 92px); }
 .worth { font-size: 12px; font-weight: 700; color: var(--muted); }
 .worth.hot { color: var(--gold); }
 
-body[data-game='truco'] .backs i { display: block; width: 9px; height: 14px; border-radius: 2px; background: repeating-linear-gradient(45deg, #155e75, #155e75 2px, #0e7490 2px, #0e7490 4px); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5); }
+body:is([data-game='truco'], [data-game='caida']) .backs i { display: block; width: 9px; height: 14px; border-radius: 2px; background: repeating-linear-gradient(45deg, #155e75, #155e75 2px, #0e7490 2px, #0e7490 4px); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5); }
 .seat.left .backs, .seat.right .backs { margin-top: 2px; }
 .mano-tag {
   position: absolute;
@@ -874,8 +878,27 @@ body[data-game='truco'] .backs i { display: block; width: 9px; height: 14px; bor
   font-weight: 800;
 }
 
+/* ---- caída table -------------------------------------------------------- */
+body[data-game='caida'] .board { --cw: min(13vw, 9dvh, 72px); }
+@media (max-height: 680px) { body[data-game='caida'] .board { --cw: min(13vw, 7dvh); } } /* up to 10 cards have to fit */
+.deal-info { position: absolute; left: 2px; right: 2px; top: 2px; z-index: 1; display: flex; justify-content: space-between; align-items: flex-start; font-size: 11px; color: var(--muted); }
+.deal-pips { display: flex; align-items: center; gap: 6px; }
+.piles b { color: var(--team); font-size: 14px; }
+.loose { position: absolute; inset: 26px 0 0; display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 6px; }
+.loose-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.loose-item small { font-size: 11px; color: var(--muted); }
+.loose-item small.hit { color: var(--gold); font-weight: 800; }
+.loose-item.incoming { visibility: hidden; }
+.loose-item.fresh .card { animation: card-drop 0.3s cubic-bezier(0.2, 1.4, 0.4, 1); }
+.loose-item.taken { z-index: 2; }
+.loose-item.taken .card { box-shadow: 0 0 0 3px var(--team), 0 0 16px var(--team); }
+.card.hit { box-shadow: 0 0 0 2px var(--gold), 0 0 12px rgba(252, 211, 77, 0.7); }
+.card.place { background: rgba(0, 0, 0, 0.18); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.14); }
+.sung { display: block; font-size: 11px; font-weight: 800; color: var(--gold); }
+.call.count { background: var(--accent); min-width: 88px; }
+
 /* ---- calls -------------------------------------------------------------- */
-body:not([data-game='truco']) .actions { display: none; }
+body[data-game='domino'] .actions { display: none; }
 .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; min-height: 40px; margin: 2px 0 6px; }
 .call {
   min-height: 40px;
@@ -917,6 +940,7 @@ body:not([data-game='truco']) .actions { display: none; }
 .shout.envido, .shout.cinco, .shout.falta { background: #6d28d9; color: #fff; }
 .shout.noquiero { background: #b91c1c; color: #fff; }
 .shout.quiero { background: #15803d; color: #fff; }
+.shout.caida { background: var(--gold); color: #2a2000; font-size: 26px; }
 @keyframes shout {
   0% { scale: 0.3; opacity: 0; }
   12% { scale: 1.2; opacity: 1; }
@@ -926,7 +950,7 @@ body:not([data-game='truco']) .actions { display: none; }
 }
 
 /* ---- hand --------------------------------------------------------------- */
-body[data-game='truco'] .hand {
+body:is([data-game='truco'], [data-game='caida']) .hand {
   --cw: min(27vw, 17dvh, 112px);
   display: flex;
   justify-content: center;
