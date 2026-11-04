@@ -125,6 +125,7 @@ public/
   js/cards.js      Card markup (SVG, placing the suit drawings)
   suits/           Traditional suit drawings (public domain)
   sounds/          El Manguangua's catchphrase
+  js/move.js       Moves visitors from the old address, keeping what they have saved
   js/fx.js         Win and lose animations
   js/sound.js      Sound effects
   js/voice.js      Voice chat (WebRTC mesh, signaling over the game socket)
@@ -284,6 +285,7 @@ The app is deployed on Vercel with no build step:
 
 - `public/` is served as static files.
 - `api/ws.js` is a Vercel Function (Node.js runtime, Fluid Compute) that accepts WebSocket upgrades at `/api/ws?match=<id>`.
+- The old address, `domino-ten-theta.vercel.app`, stays on the project. `public/js/move.js` sends its visitors to the production domain, `la-mesa-app.vercel.app`, and carries their token, name, photo, language and sound setting in the URL fragment, because browser storage belongs to one domain.
 - `vercel.json` rewrites `/play/:id` to `/play.html`.
 - The Open Graph tags in `public/index.html` and `public/play.html` point at the production domain, because chat apps need an absolute image URL. Update them if the domain changes.
 
