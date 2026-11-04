@@ -102,3 +102,40 @@ test('a socket handover keeps the voice id and does not hang up', async (t) => {
   const bye = await b.next((m) => m.t === 'voice' && m.data.kind === 'bye');
   assert.equal(bye.from, a.peer);
 });
+
+test('relays player photos without storing them', async (t) => {
+  const store = new MemoryStore();
+  const { server } = createApp({ store });
+  server.listen(0);
+  await once(server, 'listening');
+  const { port } = server.address();
+  t.after(() => server.close());
+
+  const a = await client(port, 'room-1', 'token-a');
+  const b = await client(port, 'room-1', 'token-b');
+  const c = await client(port, 'room-2', 'token-c');
+  t.after(() => [a, b, c].forEach((x) => x.ws.terminate()));
+
+  const image = 'data:image/jpeg;base64,AAAA';
+  const seats = (await b.next((m) => m.t === 'state' && m.seats[1])).seats;
+  assert.notEqual(seats[0].pid, seats[1].pid);
+  assert.match(seats[0].pid, /^[0-9a-f]{12}$/); // a hash, not the secret token
+
+  // A photo reaches the others under the sender's seat id, with a peer to reply to.
+  a.send({ t: 'avatar', image, ask: true });
+  assert.deepEqual(await b.next((m) => m.t === 'avatar'), { t: 'avatar', peer: a.peer, from: seats[0].pid, image, ask: true });
+
+  // The reply goes straight back.
+  b.send({ t: 'avatar', to: a.peer, image: null });
+  assert.deepEqual(await a.next((m) => m.t === 'avatar'), { t: 'avatar', peer: b.peer, from: seats[1].pid, image: null, ask: false });
+
+  // Anything but a JPEG data URL is dropped, so it can't reach another player's page.
+  a.send({ t: 'avatar', image: 'javascript:alert(1)' });
+  a.send({ t: 'avatar', image: 'data:image/svg+xml;base64,AAAA' });
+  a.send({ t: 'avatar', image: `data:image/jpeg;base64,${'A'.repeat(12_000)}` });
+
+  await new Promise((r) => setTimeout(r, 50));
+  assert.ok(!b.inbox.some((m) => m.t === 'avatar'));
+  assert.ok(!c.inbox.some((m) => m.t === 'avatar'));
+  assert.ok(![...store.matches.values()].some((raw) => raw.includes('image/jpeg')));
+});

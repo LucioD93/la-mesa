@@ -32,10 +32,17 @@
       <h1>Domino</h1>
       <p class="sub" data-i18n="landing.sub">4 players · 2 vs 2 · no sign-up</p>
 
-      <label class="field name-field">
-        <span data-i18n="landing.name">Your name</span>
-        <input id="nameInput" maxlength="16" autocomplete="nickname" enterkeyhint="done" placeholder="Pick a name" data-i18n-placeholder="landing.namePlaceholder" />
-      </label>
+      <div class="identity name-field">
+        <div class="photo-field">
+          <button type="button" id="photoBtn" class="photo-btn" aria-label="Take a picture for your avatar" data-i18n-aria="aria.photo"><span aria-hidden="true">📷</span></button>
+          <button type="button" id="photoClear" class="photo-clear" aria-label="Remove your picture" data-i18n-aria="aria.photoClear" hidden>×</button>
+          <input id="photoInput" type="file" accept="image/*" capture="user" hidden />
+        </div>
+        <label class="field">
+          <span data-i18n="landing.name">Your name</span>
+          <input id="nameInput" maxlength="16" autocomplete="nickname" enterkeyhint="done" placeholder="Pick a name" data-i18n-placeholder="landing.namePlaceholder" />
+        </label>
+      </div>
 
       <button id="newMatch" class="btn primary block" data-i18n="landing.new">New match</button>
 
@@ -50,6 +57,7 @@
     <script type="module">
       import { halfHTML } from '/js/tiles.js';
       import * as i18n from '/js/i18n.js';
+      import * as avatar from '/js/avatar.js';
       i18n.apply();
       document.getElementById('langBtn').onclick = () => i18n.cycle();
       document.querySelectorAll('.logo .half').forEach((h) => {
@@ -72,6 +80,7 @@
       };
       nameInput.addEventListener('input', saveName);
       nameInput.addEventListener('keydown', (e) => e.key === 'Enter' && e.target.blur());
+      avatar.bindPicker({ onError: () => alert(i18n.t('photoFailed')) });
       document.getElementById('newMatch').onclick = () => {
         saveName();
         const id = `${pick(words)}-${Math.floor(Math.random() * 900 + 100)}`;

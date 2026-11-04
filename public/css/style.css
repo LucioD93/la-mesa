@@ -127,6 +127,38 @@ body.landing { display: grid; place-items: center; min-height: 100dvh; padding: 
 }
 .hint { color: var(--muted); font-size: 13px; margin-top: 24px; }
 .name-field { margin: 0 0 16px; text-align: left; }
+.identity { display: flex; align-items: flex-end; gap: 10px; min-width: 0; }
+.identity .field { flex: 1; min-width: 0; margin-top: 0; }
+.photo-field { position: relative; flex: none; }
+.photo-btn {
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.3) center / cover no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  font-size: 20px;
+}
+.photo-btn.has-photo span { display: none; }
+.photo-clear {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--panel-2);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+.photo-clear[hidden] { display: none; }
 
 /* ---- game layout -------------------------------------------------------- */
 body.game { overflow: hidden; overscroll-behavior: none; }
@@ -210,6 +242,7 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
   background: var(--team);
   box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.3);
 }
+.avatar-photo { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; pointer-events: none; }
 .avatar.turn { animation: turn 1.1s ease-in-out infinite; }
 @keyframes turn {
   0%, 100% { box-shadow: 0 0 0 3px var(--gold), 0 0 0 6px rgba(252, 211, 77, 0.25); }
@@ -605,6 +638,7 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 .lobby-seat.bottom { grid-area: bottom; }
 .lobby-seat .team-tag { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--team); }
 .lobby-seat .name { font-weight: 700; font-size: 14px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lobby-photo { width: 18px; height: 18px; margin-right: 4px; border-radius: 50%; object-fit: cover; vertical-align: -4px; }
 .lobby-seat .act { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
 
 .segmented { display: flex; padding: 4px; gap: 4px; border-radius: 12px; background: rgba(0, 0, 0, 0.3); }

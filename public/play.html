@@ -100,10 +100,17 @@
         </div>
 
         <div class="lobby-options">
-          <label class="field">
-            <span data-i18n="yourName">Your name</span>
-            <input id="nameInput" maxlength="16" autocomplete="nickname" enterkeyhint="done" />
-          </label>
+          <div class="identity">
+            <div class="photo-field">
+              <button type="button" id="photoBtn" class="photo-btn" aria-label="Take a picture for your avatar" data-i18n-aria="aria.photo"><span aria-hidden="true">📷</span></button>
+              <button type="button" id="photoClear" class="photo-clear" aria-label="Remove your picture" data-i18n-aria="aria.photoClear" hidden>×</button>
+              <input id="photoInput" type="file" accept="image/*" capture="user" hidden />
+            </div>
+            <label class="field">
+              <span data-i18n="yourName">Your name</span>
+              <input id="nameInput" maxlength="16" autocomplete="nickname" enterkeyhint="done" />
+            </label>
+          </div>
           <div class="field">
             <span data-i18n="playTo">Play to</span>
             <div class="segmented" id="targetPicker">

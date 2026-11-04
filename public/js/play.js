@@ -5,6 +5,7 @@ import * as sound from './sound.js';
 import * as i18n from './i18n.js';
 import { t } from './i18n.js';
 import { createVoice } from './voice.js';
+import * as avatar from './avatar.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -20,6 +21,8 @@ const token = localStorage.getItem('domino.token') || randomHex(16);
 localStorage.setItem('domino.token', token);
 let myName = localStorage.getItem('domino.name') || t('player', { n: Math.floor(Math.random() * 90 + 10) });
 localStorage.setItem('domino.name', myName);
+let myPhoto = avatar.load();
+const photos = {}; // the other players' photos by seat `pid`, for this page only
 
 // ---- connection -------------------------------------------------------------
 
@@ -78,7 +81,12 @@ function adopt(sock) {
     if (msg.t === 'state') render(msg);
     else if (msg.t === 'error') toast(t(msg.message));
     else if (msg.t === 'voice') voice.receive(msg.from, msg.data);
-    else if (msg.t === 'voiceConfig') voice.setConfig(msg);
+    else if (msg.t === 'avatar') receivePhoto(msg);
+    else if (msg.t === 'voiceConfig') {
+      voice.setConfig(msg);
+      // Joined: show the others our photo and collect theirs.
+      sendBestEffort({ t: 'avatar', image: myPhoto, ask: true });
+    }
   };
   sock.onclose = () => {
     if (ws === sock) reconnectLater();
@@ -381,7 +389,7 @@ function renderLobby() {
         else if (s.bot)
           body = `<span class="name">🤖 ${esc(s.name)}</span><span class="act" data-remove="${i}">${t('remove')}</span>`;
         else
-          body = `<span class="name">${esc(mine ? t('youSuffix', { name: s.name }) : s.name)}</span>${
+          body = `<span class="name">${photoOf(i) ? photoImg(photoOf(i), 'lobby-photo') : ''}${esc(mine ? t('youSuffix', { name: s.name }) : s.name)}</span>${
             mine ? `<span class="act" data-stand>${t('standUp')}</span>` : `<span class="act">${s.online ? t('ready') : t('offline')}</span>`
           }`;
         return `<button class="lobby-seat ${cells[i]}" data-team="${i % 2}" data-sit="${i}" ${
@@ -397,13 +405,17 @@ function renderLobby() {
   $('startBtn').textContent = me() === -1 ? t('takeSeatToStart') : full ? t('start') : t('waitingFor4');
 }
 
+const photoOf = (seat) => (seat === me() ? myPhoto : photos[state.seats[seat]?.pid]);
+const photoImg = (photo, cls) => `<img class="${cls}" src="${esc(photo)}" alt="" />`;
+
 function seatHTML(seat, pos) {
   const s = state.seats[seat];
   if (!s) return '';
   const r = state.round;
   const turn = r && r.turn === seat && state.phase === 'playing';
   const passed = r?.lastAction?.type === 'pass' && r.lastAction.seat === seat;
-  const initial = s.bot ? '🤖' : esc([...s.name][0]?.toUpperCase() ?? '?');
+  const photo = photoOf(seat);
+  const initial = s.bot ? '🤖' : photo ? photoImg(photo, 'avatar-photo') : esc([...s.name][0]?.toUpperCase() ?? '?');
   const canBotify = !s.bot && !s.online && me() !== -1 && state.phase !== 'lobby';
   const canTake = s.bot && me() === -1 && state.phase !== 'lobby';
   const backs = pos === 2 ? `<span class="backs">${'<i></i>'.repeat(s.count)}</span>` : '';
@@ -846,11 +858,38 @@ function showReaction({ seat, emoji, crowd }) {
 
 // ---- voice chat ---------------------------------------------------------------
 
+// Signaling is best-effort: no "not connected" toast; a reconnect re-joins.
+const sendBestEffort = (msg) => ws?.readyState === 1 && ws.send(JSON.stringify(msg));
+
 const voice = createVoice({
-  // Signaling is best-effort: no "not connected" toast; a reconnect re-joins.
-  send: (msg) => ws?.readyState === 1 && ws.send(JSON.stringify(msg)),
+  send: sendBestEffort,
   onChange: paintVoice,
   onJoin: (name) => toast(t('voiceJoined', { name: name || '?' })),
+});
+
+// ---- player photos ------------------------------------------------------------
+
+function repaintPhotos() {
+  if (!state) return;
+  renderLobby();
+  renderSeats();
+  paintVoice();
+}
+
+function receivePhoto({ from, peer, image, ask }) {
+  if (image) photos[from] = image;
+  else delete photos[from];
+  if (ask) sendBestEffort({ t: 'avatar', to: peer, image: myPhoto });
+  repaintPhotos();
+}
+
+avatar.bindPicker({
+  onChange: (photo) => {
+    myPhoto = photo;
+    sendBestEffort({ t: 'avatar', image: photo });
+    repaintPhotos();
+  },
+  onError: () => toast(t('photoFailed')),
 });
 
 function paintVoice() {

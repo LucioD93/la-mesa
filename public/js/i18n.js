@@ -21,6 +21,8 @@ const en = {
   'aria.voiceMute': 'Mute microphone',
   'aria.voiceUnmute': 'Unmute microphone',
   'aria.voiceLeave': 'Leave voice chat',
+  'aria.photo': 'Take a picture for your avatar',
+  'aria.photoClear': 'Remove your picture',
   'aria.tile': ({ a, b }) => `${a} and ${b}`,
   'tilesLeft': 'tiles left',
 
@@ -39,6 +41,7 @@ const en = {
   'copied': 'Copied ✓',
   'copyFailed': "Couldn't copy. Copy the link by hand.",
   'yourName': 'Your name',
+  'photoFailed': "Couldn't use that picture.",
   'seats': 'Seats',
   'seatsNote': '— partners sit across from each other',
   'playTo': 'Play to',
@@ -145,6 +148,8 @@ const es = {
   'aria.voiceMute': 'Silenciar micrófono',
   'aria.voiceUnmute': 'Activar micrófono',
   'aria.voiceLeave': 'Salir del chat de voz',
+  'aria.photo': 'Tomar una foto para tu avatar',
+  'aria.photoClear': 'Quitar tu foto',
   'aria.tile': ({ a, b }) => `${a} y ${b}`,
   'tilesLeft': 'fichas restantes',
 
@@ -163,6 +168,7 @@ const es = {
   'copied': 'Copiado ✓',
   'copyFailed': 'No se pudo copiar. Copia el enlace a mano.',
   'yourName': 'Tu nombre',
+  'photoFailed': 'No se pudo usar esa foto.',
   'seats': 'Asientos',
   'seatsNote': '— los compañeros se sientan enfrente',
   'playTo': 'Jugar a',

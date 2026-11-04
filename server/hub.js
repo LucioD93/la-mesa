@@ -3,12 +3,18 @@
 // store, so players on different instances still share a match.
 import { createHash, randomBytes } from 'node:crypto';
 import { MoveError } from './game.js';
+import { publicId } from './match.js';
 import { PRESENCE_REFRESH_MS, LEAVE_GRACE_MS } from './store.js';
 
 // Voice chat is peer-to-peer WebRTC; the server only relays the signaling
 // (offers, answers, ICE candidates) between connections in the same match.
 const VOICE_MAX_BYTES = 12_000; // an SDP offer is a few KB
 const VOICE_RATE = 120; // signaling messages per connection per 10s (ICE trickles a burst)
+
+// Player photos live on each device. They pass through here like voice signaling
+// and are never written to the match or the store.
+const AVATAR_MAX_BYTES = 12_000;
+const AVATAR_IMAGE = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/;
 
 /** STUN/TURN servers for the browser. Set ICE_SERVERS to a JSON array to add TURN. */
 function iceServers() {
@@ -52,12 +58,13 @@ export function createHub(store) {
     scheduleAuto(id, match);
   }
 
-  // Voice signaling: to one peer (`to`) or everyone else in the match.
-  function relay(id, { from, to, data }) {
+  // Voice signaling and photos: to one peer (`to`) or everyone else in the match.
+  function relay(id, { from, to, data, avatar }) {
     const r = rooms.get(id);
     if (!r) return;
+    const out = avatar ? { t: 'avatar', peer: from, ...avatar } : { t: 'voice', from, data };
     for (const c of r.conns) {
-      if (c.token && c.peer !== from && (!to || to === c.peer)) send(c.ws, { t: 'voice', from, data });
+      if (c.token && c.peer !== from && (!to || to === c.peer)) send(c.ws, out);
     }
   }
 
@@ -104,13 +111,27 @@ export function createHub(store) {
     let voiceQueue = r.ready; // separate so signaling isn't stuck behind match writes
     let voiceBudget = { left: VOICE_RATE, reset: Date.now() + 10_000 };
 
+    const spendBudget = () => {
+      const now = Date.now();
+      if (now > voiceBudget.reset) voiceBudget = { left: VOICE_RATE, reset: now + 10_000 };
+      return voiceBudget.left-- > 0;
+    };
+
     const onVoice = (msg, size) => {
       if (!conn.token || size > VOICE_MAX_BYTES || !msg.data || typeof msg.data !== 'object') return;
       if (msg.to != null && typeof msg.to !== 'string') return;
-      const now = Date.now();
-      if (now > voiceBudget.reset) voiceBudget = { left: VOICE_RATE, reset: now + 10_000 };
-      if (voiceBudget.left-- <= 0) return;
+      if (!spendBudget()) return;
       const sig = { from: conn.peer, to: msg.to || null, data: msg.data };
+      voiceQueue = voiceQueue.then(() => store.signal(id, sig)).catch(log(id));
+    };
+
+    const onAvatar = (msg, size) => {
+      if (!conn.token || size > AVATAR_MAX_BYTES) return;
+      if (msg.to != null && typeof msg.to !== 'string') return;
+      if (msg.image != null && !(typeof msg.image === 'string' && AVATAR_IMAGE.test(msg.image))) return;
+      if (!spendBudget()) return;
+      const avatar = { from: publicId(conn.token), image: msg.image ?? null, ask: !!msg.ask };
+      const sig = { from: conn.peer, to: msg.to || null, avatar };
       voiceQueue = voiceQueue.then(() => store.signal(id, sig)).catch(log(id));
     };
 
@@ -146,6 +167,7 @@ export function createHub(store) {
       if (!msg || typeof msg !== 'object') return;
       if (msg.t === 'ping') return send(ws, { t: 'pong' });
       if (msg.t === 'voice') return onVoice(msg, raw.length);
+      if (msg.t === 'avatar') return onAvatar(msg, raw.length);
       if (msg.t === 'handoff') return void (conn.handoff = true);
       queue = queue.then(() => onMessage(msg)).catch(log(id));
     });

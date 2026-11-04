@@ -9,6 +9,7 @@ Created in [T3 Code](https://t3.codes).
 ## Features
 
 - **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches.
+- **Player photos.** Take a picture on the home page or in the lobby and it becomes your avatar. It is saved only in your browser's `localStorage`; the server passes it to the others in the match and never stores it.
 - **Shareable matches.** A match lives at `/play/<id>`. The invite button uses the native share sheet when the browser has one, and links unfurl with a preview image in WhatsApp and other chat apps.
 - **Bots.** Fill empty seats from the lobby. Mid-game, a spectator can take over a bot's seat and hand, and a player who disconnected can be replaced by a bot so the game keeps going.
 - **Spectators.** Anyone who opens the link after the seats are taken watches the game.
@@ -157,6 +158,7 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `react` | `emoji` | Seated players (600 ms cooldown) |
 | `blunder` | | You tried an illegal move on your turn, so the others can mock you (2 s cooldown) |
 | `voice` | `to?` (peer id), `data` | Voice chat signaling, relayed to one peer or everyone else in the match (rate limited) |
+| `avatar` | `image` (JPEG data URL or `null`), `to?` (peer id), `ask?` | Your photo, relayed to one peer or everyone else in the match and never stored (rate limited). `ask` means "send me yours". |
 | `ping` | | Keep-alive. The server replies `pong`. |
 
 | Server → client | Payload |
@@ -165,6 +167,7 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `error` | `message` (illegal move) |
 | `voiceConfig` | `peer` (this connection's public voice id), `iceServers`. Sent after `hello`. |
 | `voice` | `from` (peer id), `data`: relayed voice signaling. `data.kind: "bye"` means that connection closed. |
+| `avatar` | `from` (the seat's `pid`), `peer`, `image`, `ask`: another player's photo. Answer `ask` by sending yours `to` that `peer`. |
 | `pong` | |
 
 ## Running locally

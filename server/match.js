@@ -1,6 +1,7 @@
 // A match as plain, serializable state plus the rules for changing it.
 // Connections, timers and storage live elsewhere (see hub.js / store.js) so a
 // match can be loaded and saved by any server instance.
+import { createHash } from 'node:crypto';
 import * as G from './game.js';
 
 const BOT_NAMES = ['Bot Ana', 'Bot Beto', 'Bot Coco', 'Bot Dani'];
@@ -21,6 +22,9 @@ const cleanName = (name) =>
     .slice(0, MAX_NAME);
 
 const bot = (i) => ({ token: null, name: BOT_NAMES[i], bot: true });
+
+/** A stable id for a player that is safe to show others; the token stays secret. */
+export const publicId = (token) => createHash('sha256').update(token).digest('hex').slice(0, 12);
 
 export class Match {
   constructor(id, data = null) {
@@ -274,6 +278,7 @@ export class Match {
         s
           ? {
               name: s.name,
+              pid: s.token ? publicId(s.token) : null,
               bot: s.bot,
               online: s.bot || online.has(s.token),
               team: G.teamOf(i),
