@@ -18,6 +18,7 @@ Created in [T3 Code](https://t3.codes).
 - **Reactions and sound.** Emoji reactions shown at the table (👏 😂 😮 😡 🔥 👋), sound effects, and a pass animation.
 - **English and Spanish.** The language follows the browser, and the EN/ES button switches it (saved in `localStorage`).
 - **Installable.** Ships a web app manifest, so it can be added to the home screen.
+- **Admin page.** `/admin`, behind one shared password, shows who is in voice, TURN usage as reported by Metered, voice joins, game socket traffic, and the state of Redis and TURN.
 
 ### Rules
 
@@ -45,16 +46,20 @@ The project has two runtime dependencies, `ws` and `redis`.
 
 ```
 api/ws.js          Vercel Function: the WebSocket endpoint (/api/ws?match=<id>)
+api/admin.js       Vercel Function: admin data (/api/admin)
 server/
   index.js         Local entry point (HTTP + static files + WebSocket on one port)
   app.js           Shared HTTP/WebSocket server: upgrade handling, heartbeats
   hub.js           Connects sockets to matches, fans out state, schedules bots/auto-passes
   store.js         MemoryStore (local) and RedisStore (shared): storage, presence, pub/sub
+  usage.js         Buffers usage counters and writes them in batches
+  admin.js         Password check and the report behind the admin page
   match.js         A match as serializable state: seats, lobby, scoring, per-player views
   game.js          Pure round logic: dealing, legal moves, playing, passing, scoring, bot AI
 public/
   index.html       Landing page (new match / join by code)
   play.html        Game table
+  admin.html       Admin page
   js/play.js       Client: WebSocket connection, rendering, input
   js/board.js      Lays out the line of tiles on the table
   js/tiles.js      Tile markup
@@ -62,9 +67,10 @@ public/
   js/sound.js      Sound effects
   js/voice.js      Voice chat (WebRTC mesh, signaling over the game socket)
   js/i18n.js       UI strings (English, Spanish) and language switching
+  js/admin.js      Admin page: sign-in and usage
   css/style.css    Styles
 test/              Game and board layout tests
-vercel.json        Rewrites /play/:id → /play.html
+vercel.json        Rewrites /play/:id → /play.html and /admin → /admin.html
 ```
 
 ## Architecture
@@ -137,7 +143,8 @@ Key points:
 - **Heartbeats.** The server pings sockets every 25 s and drops ones that neither answered nor sent anything. The client sends an app-level `ping` every 10 s, plus one right after each action. If no reply arrives within 25 s (6 s after an action), it treats the socket as half-open, drops it and reconnects.
 - **Socket handover.** A Vercel Function, and every socket it holds, ends at its max duration (300 s by default). About 4 minutes into a socket's life (with jitter), the client opens a second socket and sends `hello` with the same `session`. When `voiceConfig` arrives on the new socket, the client switches to it, sends `handoff` on the old one and closes it. The server skips the voice `bye` and the presence grace period for a socket that sent `handoff`. If the old socket dies first, the client falls back to a normal reconnect.
 - **Voice chat.** A full mesh of WebRTC audio connections between everyone in voice. Signaling goes over the game socket and, between instances, through `domino:{id}:sig` (pub/sub only, nothing stored). Each client gets a public peer id, a hash of its token and `session`, so tokens never reach other clients. Every normal connect uses a new `session`; a handover reuses it, which keeps the id and leaves the audio connections untouched. A newcomer broadcasts `join`, members answer `hello`, and in each pair only the peer with the smaller id sends offers, so they never collide. When a socket closes the server broadcasts `bye`; after a reconnect the client re-joins with its new peer id.
-- **Expiry.** Redis keys expire after a day without activity.
+- **Usage tracking.** Audio never reaches the server, so TURN data comes only from Metered's usage API (cached for a minute). The hub tracks who is in voice from the signaling it relays, and counts voice joins and game socket traffic. Each instance writes its counters every 30 s and after its last socket closes.
+- **Expiry.** Redis keys expire after a day without activity. Daily usage counters last 100 days, and the all-time totals don't expire.
 
 ### WebSocket protocol
 
@@ -145,7 +152,7 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 
 | Client → server | Payload | When |
 | --- | --- | --- |
-| `hello` | `token`, `name`, `session?` | First message. Joins the match and takes a free seat if in the lobby. `session` determines the voice peer id. |
+| `hello` | `token`, `name`, `session?`, `inVoice?` | First message. Joins the match and takes a free seat if in the lobby. `session` determines the voice peer id. `inVoice` says a handover or reconnect is already in voice. |
 | `handoff` | | The client is moving to another socket and is about to close this one |
 | `rename` | `name` | Any time |
 | `sit` / `stand` | `seat` | Lobby. `sit` also lets a spectator take over a bot mid-game. |
@@ -186,6 +193,8 @@ Open http://localhost:3000. On startup the server also prints a LAN address so p
 | `PORT` | `3000` | HTTP/WebSocket port (local server) |
 | `REDIS_URL` (or `KV_URL`) | unset | Use Redis instead of memory. Optional locally, required on Vercel. |
 | `ICE_SERVERS` | Google STUN | JSON array of [`RTCIceServer`](https://developer.mozilla.org/docs/Web/API/RTCIceServer)s for voice chat. Add a TURN server so voice works for players behind strict NATs (common on mobile data). |
+| `ADMIN_PASSWORD` | unset | Shared password for `/admin`. The admin data is refused until it's set. |
+| `METERED_APP`, `METERED_SECRET_KEY` | unset | Metered app name (`<app>.metered.live`) and secret key. When set, `/admin` shows the TURN usage Metered reports for the billing cycle. |
 
 Health check: `GET /healthz` → `ok` (local server).
 

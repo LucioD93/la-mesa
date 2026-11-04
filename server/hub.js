@@ -5,6 +5,7 @@ import { createHash, randomBytes } from 'node:crypto';
 import { MoveError } from './game.js';
 import { publicId } from './match.js';
 import { PRESENCE_REFRESH_MS, LEAVE_GRACE_MS } from './store.js';
+import { createUsage } from './usage.js';
 
 // Voice chat is peer-to-peer WebRTC; the server only relays the signaling
 // (offers, answers, ICE candidates) between connections in the same match.
@@ -17,7 +18,7 @@ const AVATAR_MAX_BYTES = 12_000;
 const AVATAR_IMAGE = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/;
 
 /** STUN/TURN servers for the browser. Set ICE_SERVERS to a JSON array to add TURN. */
-function iceServers() {
+export function iceServers() {
   try {
     if (process.env.ICE_SERVERS) return JSON.parse(process.env.ICE_SERVERS);
   } catch {
@@ -29,8 +30,14 @@ function iceServers() {
 export function createHub(store) {
   /** id -> { conns: Set<{ws, token, peer}>, ready, unsub, timer, autoKey, onlineKey } */
   const rooms = new Map();
+  const usage = createUsage(store);
 
-  const send = (ws, data) => ws.readyState === 1 && ws.send(JSON.stringify(data));
+  const send = (ws, data) => {
+    if (ws.readyState !== 1) return;
+    const json = JSON.stringify(data);
+    usage.add({ socketOut: json.length });
+    ws.send(json);
+  };
   const onlineKey = (online) => [...online].sort().join(',');
   const log = (id) => (err) => console.error(`[${id}]`, err);
 
@@ -91,6 +98,7 @@ export function createHub(store) {
   setInterval(() => {
     for (const [id, r] of rooms) {
       const tokens = new Set([...r.conns].map((c) => c.token).filter(Boolean));
+      for (const c of r.conns) if (c.inVoice) usage.voiceSeen(id, c.peer);
       Promise.all([...tokens].map((t) => store.setPresence(id, t)))
         .then(() => store.update(id, (m, online) => m.cleanupLobby(online)))
         .then(({ match, online, changed }) => {
@@ -106,6 +114,7 @@ export function createHub(store) {
     const conn = { ws, token: null, peer: randomBytes(6).toString('hex') };
     const r = room(id);
     r.conns.add(conn);
+    usage.add({ sockets: 1 });
     // Handle one message at a time per socket so moves keep their order.
     let queue = r.ready;
     let voiceQueue = r.ready; // separate so signaling isn't stuck behind match writes
@@ -117,10 +126,20 @@ export function createHub(store) {
       return voiceBudget.left-- > 0;
     };
 
+    const setInVoice = (inVoice) => {
+      conn.inVoice = inVoice;
+      if (inVoice) usage.voiceSeen(id, conn.peer);
+      else usage.voiceGone(id, conn.peer);
+    };
+
     const onVoice = (msg, size) => {
       if (!conn.token || size > VOICE_MAX_BYTES || !msg.data || typeof msg.data !== 'object') return;
       if (msg.to != null && typeof msg.to !== 'string') return;
       if (!spendBudget()) return;
+      if (msg.data.kind === 'join') {
+        usage.add({ voiceJoins: 1 });
+        setInVoice(true);
+      } else if (msg.data.kind === 'leave') setInVoice(false);
       const sig = { from: conn.peer, to: msg.to || null, data: msg.data };
       voiceQueue = voiceQueue.then(() => store.signal(id, sig)).catch(log(id));
     };
@@ -144,6 +163,7 @@ export function createHub(store) {
         if (typeof msg.session === 'string') {
           conn.peer = createHash('sha256').update(`${conn.token}:${msg.session.slice(0, 64)}`).digest('hex').slice(0, 12);
         }
+        if (msg.inVoice) setInVoice(true); // a handover doesn't join voice again
         await store.setPresence(id, conn.token);
         await store.update(id, (m) => m.join(conn.token, msg.name));
         send(ws, { t: 'voiceConfig', peer: conn.peer, iceServers: iceServers() });
@@ -158,6 +178,7 @@ export function createHub(store) {
     };
 
     ws.on('message', (raw) => {
+      usage.add({ socketIn: raw.length });
       let msg;
       try {
         msg = JSON.parse(raw);
@@ -176,6 +197,7 @@ export function createHub(store) {
       r.conns.delete(conn);
       // After a handoff the player is still here, on another socket.
       const token = conn.handoff ? null : conn.token;
+      if (token && conn.inVoice) usage.voiceGone(id, conn.peer);
       // Tell voice peers to hang up on this connection.
       if (token) {
         voiceQueue = voiceQueue
@@ -191,11 +213,12 @@ export function createHub(store) {
             rooms.delete(id);
             clearTimeout(r.timer);
             await r.unsub?.();
+            await usage.flush(); // this instance may stop soon after its last socket
           }
         })
         .catch(log(id));
     });
   }
 
-  return { connect, rooms };
+  return { connect, rooms, usage };
 }

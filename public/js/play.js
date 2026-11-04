@@ -53,7 +53,7 @@ let deadline = 0; // drop the socket if nothing arrives before this time
 let bannerTimer;
 
 const dial = () => new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/ws?match=${encodeURIComponent(matchId)}`);
-const hello = () => ({ t: 'hello', token, name: myName, session: voiceSession });
+const hello = () => ({ t: 'hello', token, name: myName, session: voiceSession, inVoice: voice.joined });
 const scheduleRotation = () => (rotateAt = Date.now() + ROTATE_MS + Math.random() * ROTATE_JITTER_MS);
 
 function connect() {
