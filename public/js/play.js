@@ -310,6 +310,8 @@ async function copyInvite() {
 
 // ---- render -----------------------------------------------------------------
 
+const hasManguangua = (st) => st.seats.some((s) => s?.bot && s.name === 'El Manguangua');
+
 function render(next) {
   const prev = state;
   state = next;
@@ -340,6 +342,7 @@ function render(next) {
       else flyTile(la);
     }
   }
+  if (prev && hasManguangua(state) && !hasManguangua(prev)) toast(t('manguangua'), 3200);
   if (prev && state.reaction && state.reaction.n !== prev.reaction?.n) showReaction(state.reaction);
   if (prev && state.blunder && state.blunder.n !== prev.blunder?.n && state.blunder.seat !== me()) {
     floatEmoji(state.blunder.seat, '🤡');
@@ -387,7 +390,7 @@ function renderLobby() {
         let body;
         if (!s) body = `<span class="name muted">${t('empty')}</span><span class="act">${t('tapToSit')}</span>`;
         else if (s.bot)
-          body = `<span class="name">🤖 ${esc(s.name)}</span><span class="act" data-remove="${i}">${t('remove')}</span>`;
+          body = `<span class="name bot-name">${s.emoji ?? '🤖'} ${botName(s.name)}</span><span class="act" data-remove="${i}">🤖 ${t('remove')}</span>`;
         else
           body = `<span class="name">${photoOf(i) ? photoImg(photoOf(i), 'lobby-photo') : ''}${esc(mine ? t('youSuffix', { name: s.name }) : s.name)}</span>${
             mine ? `<span class="act" data-stand>${t('standUp')}</span>` : `<span class="act">${s.online ? t('ready') : t('offline')}</span>`
@@ -408,6 +411,9 @@ function renderLobby() {
 const photoOf = (seat) => (seat === me() ? myPhoto : photos[state.seats[seat]?.pid]);
 const photoImg = (photo, cls) => `<img class="${cls}" src="${esc(photo)}" alt="" />`;
 
+// Where the longest bot names may hyphenate to fit the narrow side seats.
+const botName = (name) => esc(name).replace('Manguangua', 'Manguan&shy;gua').replace('Bachaquero', 'Bacha&shy;quero').replace('Exprópiese', 'Expró&shy;piese');
+
 function seatHTML(seat, pos) {
   const s = state.seats[seat];
   if (!s) return '';
@@ -415,14 +421,14 @@ function seatHTML(seat, pos) {
   const turn = r && r.turn === seat && state.phase === 'playing';
   const passed = r?.lastAction?.type === 'pass' && r.lastAction.seat === seat;
   const photo = photoOf(seat);
-  const initial = s.bot ? '🤖' : photo ? photoImg(photo, 'avatar-photo') : esc([...s.name][0]?.toUpperCase() ?? '?');
+  const initial = s.bot ? s.emoji ?? '🤖' : photo ? photoImg(photo, 'avatar-photo') : esc([...s.name][0]?.toUpperCase() ?? '?');
   const canBotify = !s.bot && !s.online && me() !== -1 && state.phase !== 'lobby';
   const canTake = s.bot && me() === -1 && state.phase !== 'lobby';
   const backs = pos === 2 ? `<span class="backs">${'<i></i>'.repeat(s.count)}</span>` : '';
   return `
-    <div class="avatar ${turn ? 'turn' : ''}" data-team="${s.team}">${initial}${s.online ? '' : '<b class="off"></b>'}</div>
+    <div class="avatar ${turn ? 'turn' : ''}" data-team="${s.team}">${initial}${s.bot ? '<b class="bot-tag">🤖</b>' : ''}${s.online ? '' : '<b class="off"></b>'}</div>
     <div class="seat-info">
-      <span class="name">${esc(seat === me() ? t('you') : s.name)}</span>
+      ${s.bot ? `<span class="name bot-name">${botName(s.name)}</span>` : `<span class="name">${esc(seat === me() ? t('you') : s.name)}</span>`}
       ${pos === 0 ? '' : `<span class="count" title="${t('tilesLeft')}">${s.count}</span>`}
       ${backs}
     </div>

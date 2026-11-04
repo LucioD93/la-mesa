@@ -4,7 +4,17 @@
 import { createHash } from 'node:crypto';
 import * as G from './game.js';
 
-const BOT_NAMES = ['Bot Ana', 'Bot Beto', 'Bot Coco', 'Bot Dani'];
+// Venezuelan memes.
+const BOTS = [
+  { name: 'El Manguangua', emoji: '☕' },
+  { name: 'Súper Bigote', emoji: '🦸' },
+  { name: 'El Pajarito', emoji: '🐦' },
+  { name: 'Plan Conejo', emoji: '🐰' },
+  { name: 'Chigüire Bipolar', emoji: '🦫' },
+  { name: 'Cheverito', emoji: '😎' },
+  { name: 'Exprópiese', emoji: '🏢' },
+  { name: 'El Bachaquero', emoji: '🐜' },
+];
 export const BOT_DELAY_MS = 1600; // the client's flight animation (1.2s) plus a beat
 export const AUTO_PASS_DELAY_MS = 1300;
 export const STUCK_PLAYER_DELAY_MS = 3000; // long enough to try an illegal tile before the forced pass
@@ -21,7 +31,11 @@ const cleanName = (name) =>
     .trim()
     .slice(0, MAX_NAME);
 
-const bot = (i) => ({ token: null, name: BOT_NAMES[i], bot: true });
+/** A random bot who isn't at the table yet. */
+const newBot = (seats) => {
+  const free = BOTS.filter((b) => !seats.some((s) => s?.bot && s.name === b.name));
+  return { token: null, ...free[Math.floor(Math.random() * free.length)], bot: true };
+};
 
 /** A stable id for a player that is safe to show others; the token stays secret. */
 export const publicId = (token) => createHash('sha256').update(token).digest('hex').slice(0, 12);
@@ -29,7 +43,7 @@ export const publicId = (token) => createHash('sha256').update(token).digest('he
 export class Match {
   constructor(id, data = null) {
     this.id = id;
-    /** @type {({token: string|null, name: string, bot: boolean, replaced?: string} | null)[]} */
+    /** @type {({token: string|null, name: string, bot: boolean, emoji?: string, replaced?: string} | null)[]} */
     this.seats = [null, null, null, null];
     this.names = {}; // token -> display name (spectators included)
     this.phase = 'lobby'; // lobby | playing | roundEnd | matchEnd
@@ -104,7 +118,7 @@ export class Match {
         return true;
       case 'addBots':
         if (this.phase !== 'lobby') return false;
-        this.seats = this.seats.map((s, i) => s ?? bot(i));
+        for (let i = 0; i < 4; i++) this.seats[i] ??= newBot(this.seats);
         return true;
       case 'removeBot': {
         const i = Number(msg.seat);
@@ -117,7 +131,7 @@ export class Match {
         const i = Number(msg.seat);
         const s = this.seats[i];
         if (seat === -1 || !s || s.bot || online.has(s.token)) return false;
-        this.seats[i] = { ...bot(i), replaced: s.token };
+        this.seats[i] = { ...newBot(this.seats), replaced: s.token };
         return true;
       }
       case 'react': {
@@ -280,6 +294,7 @@ export class Match {
               name: s.name,
               pid: s.token ? publicId(s.token) : null,
               bot: s.bot,
+              emoji: s.emoji,
               online: s.bot || online.has(s.token),
               team: G.teamOf(i),
               count: r ? r.hands[i].length : 0,

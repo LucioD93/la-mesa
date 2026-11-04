@@ -86,6 +86,38 @@ test('blocked game goes to the team with fewer pips', () => {
   assert.equal(r.over.points, 16);
 });
 
+test('bots are different memes, drawn at random', () => {
+  const counts = {};
+  const draws = 2000;
+  for (let i = 0; i < draws; i++) {
+    const m = new Match('memes' + i);
+    m.join('a', 'Ann');
+    m.handle('a', { t: 'addBots' }, new Set());
+    const bots = m.seats.filter((s) => s.bot);
+    assert.equal(bots.length, 3);
+    assert.equal(new Set(bots.map((b) => b.name)).size, 3);
+    assert.ok(bots.every((b) => b.emoji));
+    for (const b of bots) counts[b.name] = (counts[b.name] ?? 0) + 1;
+  }
+  // Three of eight per match: each bot sits down about 750 times, none favored.
+  assert.equal(Object.keys(counts).length, 8);
+  for (const n of Object.values(counts)) assert.ok(n > 600 && n < 900, `drawn ${n} times`);
+});
+
+test('a bot replacing a dropped player keeps the names unique and gives the seat back', () => {
+  const m = new Match('memes-botify');
+  m.join('a', 'Ann');
+  m.join('b', 'Ben');
+  m.handle('a', { t: 'addBots' }, new Set(['a', 'b']));
+  m.startRound(mulberry32(1));
+  m.handle('a', { t: 'botify', seat: 1 }, new Set(['a']));
+  assert.ok(m.seats[1].bot);
+  assert.equal(new Set(m.seats.map((s) => s.name)).size, 4);
+  assert.equal(m.stateFor('a', new Set(['a'])).seats[1].emoji, m.seats[1].emoji);
+  m.join('b', 'Ben');
+  assert.equal(m.seats[1].name, 'Ben');
+});
+
 test('the opener rotates to the right each round, whoever won', () => {
   const m = new Match('rotate');
   m.join('a', 'Ann');

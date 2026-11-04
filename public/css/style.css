@@ -186,6 +186,7 @@ body.landing { display: grid; place-items: center; min-height: 100dvh; padding: 
 body.game { overflow: hidden; overscroll-behavior: none; }
 #app {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto 1fr auto;
   height: 100dvh;
   padding-top: var(--safe-t);
@@ -250,6 +251,7 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 .seat-info { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .seat .name { font-size: 13px; font-weight: 600; max-width: 13ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .seat.left .name, .seat.right .name { max-width: 54px; font-size: 12px; }
+.seat.left .bot-name, .seat.right .bot-name { font-size: 10px; line-height: 1.15; white-space: normal; }
 .avatar {
   position: relative;
   display: grid;
@@ -279,6 +281,13 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
   border-radius: 50%;
   background: #6b7280;
   box-shadow: 0 0 0 2px var(--felt-dark);
+}
+.avatar .bot-tag {
+  position: absolute;
+  right: -4px;
+  top: -4px;
+  font-size: 11px;
+  line-height: 1;
 }
 .count {
   min-width: 22px;
@@ -317,7 +326,7 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 }
 .me-row { display: flex; align-items: center; gap: 10px; min-height: 44px; }
 .me-row .seat.me .avatar { width: 34px; height: 34px; font-size: 15px; }
-.status { font-weight: 600; color: var(--muted); }
+.status { min-width: 0; font-size: 13px; font-weight: 600; line-height: 1.15; color: var(--muted); }
 .status.mine { color: var(--gold); animation: blink 1.4s ease-in-out infinite; }
 @keyframes blink { 50% { opacity: 0.6; } }
 .me-tools { display: flex; gap: 6px; margin-left: auto; }
@@ -553,7 +562,9 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.75);
   font-weight: 600;
-  white-space: nowrap;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  text-align: center;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s, translate 0.2s;
@@ -660,6 +671,7 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
 .lobby-seat.bottom { grid-area: bottom; }
 .lobby-seat .team-tag { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--team); }
 .lobby-seat .name { font-weight: 700; font-size: 14px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lobby-seat .bot-name { font-size: 13px; line-height: 1.1; white-space: normal; }
 .lobby-photo { width: 18px; height: 18px; margin-right: 4px; border-radius: 50%; object-fit: cover; vertical-align: -4px; }
 .lobby-seat .act { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
 
@@ -778,6 +790,7 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
   #app { max-width: 900px; margin: 0 auto; }
   .table { grid-template-columns: 90px 1fr 90px; }
   .seat.left .name, .seat.right .name { max-width: 84px; }
+  .seat.left .bot-name, .seat.right .bot-name { font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }

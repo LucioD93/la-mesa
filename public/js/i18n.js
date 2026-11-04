@@ -64,6 +64,7 @@ const en = {
   'useBot': 'Use bot',
   'takeSeat': 'Take seat',
   'removeBotFirst': 'Remove the bot first',
+  'manguangua': 'Shut the door, El Manguangua is coming!',
 
   'score': 'Score',
   'how': 'How',
@@ -195,6 +196,7 @@ const es = {
   'useBot': 'Usar bot',
   'takeSeat': 'Ocupar',
   'removeBotFirst': 'Primero quita el bot',
+  'manguangua': '¡Cierra la puerta que viene El Manguangua!',
 
   'score': 'Puntos',
   'how': 'Cómo',
