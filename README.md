@@ -9,7 +9,7 @@ Created in [T3 Code](https://t3.codes).
 ## Features
 
 - **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches.
-- **Player photos.** Take a picture on the home page or in the lobby and it becomes your avatar. It is saved only in your browser's `localStorage`; the server passes it to the others in the match and never stores it.
+- **Player photos.** Take a picture or choose a file on the home page or in the lobby and it becomes your avatar. A picture taken here never reaches the device's gallery. It is saved only in your browser's `localStorage`; the server passes it to the others in the match and never stores it.
 - **Shareable matches.** A match lives at `/play/<id>`. The invite button uses the native share sheet when the browser has one, and links unfurl with a preview image in WhatsApp and other chat apps.
 - **Bots.** Fill empty seats from the lobby. Mid-game, a spectator can take over a bot's seat and hand, and a player who disconnected can be replaced by a bot so the game keeps going.
 - **Spectators.** Anyone who opens the link after the seats are taken watches the game.

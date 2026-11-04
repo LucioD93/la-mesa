@@ -159,6 +159,28 @@ body.landing { display: grid; place-items: center; min-height: 100dvh; padding: 
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 .photo-clear[hidden] { display: none; }
+.camera {
+  width: min(320px, calc(100vw - 32px));
+  padding: 16px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--panel-2);
+  color: var(--ink);
+}
+.camera::backdrop { background: rgba(0, 0, 0, 0.6); }
+.camera-view {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  margin-bottom: 12px;
+  border-radius: 50%;
+  background: #000;
+  object-fit: cover;
+  transform: scaleX(-1); /* like a mirror */
+}
+.camera-view[hidden] { display: none; }
+.camera-note { margin: 0 0 12px; color: var(--muted); text-align: center; }
+.camera-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
 
 /* ---- game layout -------------------------------------------------------- */
 body.game { overflow: hidden; overscroll-behavior: none; }
