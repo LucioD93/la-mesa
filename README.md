@@ -2,13 +2,13 @@
 
 # La Mesa
 
-Mobile-first, four-player games (2 vs 2) you play in the browser: partner dominoes, Venezuelan truco with vira, perico and perica, and Venezuelan caída. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
+Mobile-first, four-player games (2 vs 2) you play in the browser: partner dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, and partnership rummy. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
 
 Created in [T3 Code](https://t3.codes).
 
 ## Features
 
-- **Three games, one link.** Anyone in the lobby can switch between dominoes, truco and caída, and everyone there sees the change. The target options follow the game. Once the game starts it stays until you go back to the lobby.
+- **Four games, one link.** Anyone in the lobby can switch between dominoes, truco, caída and rummy, and everyone there sees the change. The target options follow the game. Once the game starts it stays until you go back to the lobby.
 - **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches.
 - **Player photos.** Take a picture or choose a file on the home page or in the lobby and it becomes your avatar. A picture taken here never reaches the device's gallery. It is saved only in your browser's `localStorage`; the server passes it to the others in the match and never stores it.
 - **Shareable matches.** A match lives at `/play/<id>`. The invite button uses the native share sheet when the browser has one, and links unfurl with a preview image in WhatsApp and other chat apps. The preview is the same for every game: chat apps only see the static page, and the game can still change until the match starts. The share sheet's text names the current game.
@@ -17,7 +17,7 @@ Created in [T3 Code](https://t3.codes).
 - **Reconnects.** Reloading or briefly losing the connection puts you back in your seat with your hand. Sockets are replaced before the host's time limit ends them, so games and voice calls carry on without a drop. The client notices dead connections within seconds, reconnects with backoff, and retries right away when the network or the tab comes back. If you were swapped for a bot while away, rejoining gives you your seat back.
 - **Voice chat.** Everyone in a match (players and spectators) can join the room's voice chat with the mic button, from the lobby or the table, mute themselves, or hang up. Audio goes peer to peer over WebRTC; the server only relays the connection setup. Seated players in voice get a mic badge on their avatar and a green ring while they talk. Without a microphone (blocked, missing, or a plain-`http` LAN page) you join as a listener.
 - **Reactions and sound.** Emoji reactions shown at the table (👏 😂 😮 😡 🔥 👋), sound effects, and a pass animation. When players send the same emoji within 3 seconds, a big one pops over the table.
-- **Your hand, your order.** Drag a tile or card to a new slot in your hand at any point.
+- **Your hand, your order.** Drag a tile or card to a new slot in your hand at any point. In rummy, a drawn card joins the end of your hand without undoing your order, and a button sorts by suit or by rank.
 - **Rules at the table.** The book icon, in the lobby and at the table, opens the rules of the game being played.
 - **English and Spanish.** The language follows the browser, and the EN/ES button switches it (saved in `localStorage`). Truco's calls (¡Truco!, Quiero…) and caída's (¡Caída!, ¡Ronda!…) stay in Spanish in both.
 - **Traditional suits.** The oros, copas, espadas and bastos use public-domain drawings of the Spanish deck by [Florixc on Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Seme_denari_carte_spagnole.svg), lightly cleaned up in `public/suits/`.
@@ -97,6 +97,19 @@ Caída changes from table to table, and we found no authoritative rulebook. This
 
 **Not implemented:** other cantos such as registro or vigía, bluffing a canto, and *soplada* (there is nothing to claim, because captures are automatic). It's 4 players in teams only.
 
+### Rummy rules
+
+Rummy has many versions. This is a partnership game scored like Rummy 500, kept simple: no jokers, and you only ever take the top discard.
+
+- One 52-card French deck, 7 cards each, 2 vs 2. One card starts the discard pile. The player after the dealer goes first, and the deal rotates each round.
+- **A turn.** Draw the top card of the deck or of the discard pile. Then meld, lay off, both, or neither, and discard one card. A card just taken from the discard pile can't go straight back.
+- **Melds.** A set is 3 or 4 of a rank. A run is 3 or more in a row of one suit. The ace goes low (A-2-3) or high (Q-K-A), but a run doesn't wrap (K-A-2). Melds belong to nobody: anyone can lay off on any of them.
+- **End of the round.** Someone runs out of cards (melding, laying off or discarding the last one), or the deck is empty after a discard.
+- **Scoring.** 2 to 9 are worth 5, tens and faces 10, aces 15 (1 at the bottom of A-2-3). Each team scores what it melded and laid off, less what is still in both partners' hands, so a round can cost points. First to the target (150 or 300) wins.
+- **At the table.** Tap cards to pick them, then Meld, Discard, or tap a meld to lay off on it. Or drag one card onto the discard pile or a meld. Trying a meld or lay-off that isn't legal plays nothing, and the table laughs at you.
+
+**Not implemented:** jokers and wild cards, picking up deeper into the discard pile, and a bonus for going out.
+
 ## Stack
 
 | Layer    | Tech |
@@ -129,6 +142,7 @@ server/
     domino.js      Pure domino rules and bot AI, plus the `game` object
     truco.js       Pure truco rules and bot AI, plus the `game` object
     caida.js       Pure caída rules and bot AI, plus the `game` object
+    rummy.js       Pure rummy rules and bot AI, plus the `game` object
 public/
   index.html       Landing page (new match / join by code)
   play.html        Game table
@@ -137,11 +151,13 @@ public/
   js/domino.js     Domino table: board, hand, drop targets, how a round reads
   js/truco.js      Truco table: vira, trick, call buttons, how a hand reads
   js/caida.js      Caída table: loose cards, the dealer's count, captures, how a round reads
+  js/rummy.js      Rummy table: deck, discard pile, melds, picking cards, how a round reads
   js/rules.js      The full rules of each game, for the rules sheet
   js/flight.js     Throwing a tile or card from a seat to the table
   js/board.js      Lays out the line of tiles on the table
   js/tiles.js      Tile markup
-  js/cards.js      Card markup (SVG, placing the suit drawings)
+  js/cards.js      Spanish card markup (SVG, placing the suit drawings)
+  js/french.js     French card markup for rummy (SVG)
   suits/           Traditional suit drawings (public domain)
   sounds/          El Manguangua's catchphrase
   js/fx.js         Win and lose animations
@@ -151,7 +167,7 @@ public/
   js/i18n.js       UI strings (English, Spanish), shared and per game, and language switching
   js/admin.js      Admin page: sign-in and usage
   css/style.css    Styles
-test/              Rules of both games, match, board layout, game choice, voice relay and admin tests
+test/              Rules of every game, match, board layout, game choice, voice relay and admin tests
 vercel.json        Rewrites /play/:id → /play.html and /admin → /admin.html
 ```
 
@@ -161,7 +177,7 @@ vercel.json        Rewrites /play/:id → /play.html and /admin → /admin.html
 
 A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto` and `roundView`.
 
-On the client, `play.js` keeps one view per game (`domino.js`, `truco.js`, `caida.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
+On the client, `play.js` keeps one view per game (`domino.js`, `truco.js`, `caida.js`, `rummy.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
 
 The `domino:` prefix on Redis keys and the `domino.*` browser storage keys predate truco and cover every game. Renaming them would lose live matches, the usage counters, and players' names, seats and photos. Matches saved without a `game` load as dominoes.
 
@@ -247,14 +263,18 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `rename` | `name` | Any time |
 | `sit` / `stand` | `seat` | Lobby. `sit` also lets a spectator take over a bot mid-game. |
 | `addBots` / `removeBot` | `seat` | Lobby |
-| `game` | `game: "domino" \| "truco" \| "caida"` | Lobby. Resets the target to the game's default. |
-| `target` | `50 \| 75 \| 100` or `12 \| 24 \| 32` | Lobby, from the current game's list |
+| `game` | `game: "domino" \| "truco" \| "caida" \| "rummy"` | Lobby. Resets the target to the game's default. |
+| `target` | `50 \| 75 \| 100`, `12 \| 24 \| 32`, `12 \| 24` or `150 \| 300` | Lobby, from the current game's list |
 | `start` | | Lobby, once all 4 seats are filled |
 | `play` | Domino: `tile: [a, b]`, `end: "L" \| "R"`. Truco and caída: `card: [number, suit]` | On your turn |
 | `call` | `what: "flor" \| "envido" \| "cinco" \| "falta" \| "truco" \| "mazo"` | Truco, when the `options` in your state allow it |
 | `answer` | `yes: boolean` | Truco, a bet is open against your team |
 | `call` | `what: "canto"` | Caída, when `options.canto` is set |
 | `order` | `dir: 1 \| -1` | Caída, you are dealing and the table is not laid yet |
+| `draw` | `from: "stock" \| "discard"` | Rummy, your turn, before you have drawn |
+| `meld` | `cards: [[rank, suit], …]` | Rummy, after drawing. Rank 1 to 13, suit `S`, `H`, `D` or `C`. |
+| `layoff` | `card: [rank, suit]`, `meld` (index on the table) | Rummy, after drawing |
+| `discard` | `card: [rank, suit]` | Rummy, after drawing. Ends your turn. |
 | `next` / `rematch` / `lobby` | | After a round or match ends |
 | `botify` | `seat` | Replace a disconnected player with a bot |
 | `react` | `emoji` | Seated players (600 ms cooldown) |

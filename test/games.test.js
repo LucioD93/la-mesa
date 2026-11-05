@@ -214,6 +214,24 @@ test('a caída game runs through the hub with bots, over sockets', async (t) => 
   assert.deepEqual(started.targets, [12, 24]);
 });
 
+test('a rummy game runs through the hub, and a tab from before rummy is told to reload', async (t) => {
+  const { url } = await listen(t);
+  const old = await client(t, url, { token: 'old', name: 'Old', games: ['domino', 'truco', 'caida'] });
+  const p = await client(t, url, { token: 'p', name: 'P', games: ['domino', 'truco', 'caida', 'rummy'] });
+  await old.next((m) => m.t === 'state' && m.seats[1]);
+  p.say({ t: 'game', game: 'rummy' });
+  await p.next((m) => m.t === 'state' && m.game === 'rummy');
+  const told = await old.next((m) => m.t === 'error');
+  assert.equal(told.message, 'Reload the page to keep playing');
+  p.say({ t: 'addBots' });
+  await p.next((m) => m.t === 'state' && m.seats.every(Boolean));
+  p.say({ t: 'start' });
+  const started = await p.next((m) => m.t === 'state' && m.phase === 'playing');
+  assert.equal(started.round.hand.length, 7);
+  assert.equal(started.round.discard.length, 1);
+  assert.deepEqual(started.targets, [150, 300]);
+});
+
 test('a truco game runs through the hub with bots, over sockets', async (t) => {
   const { url } = await listen(t);
   const p = await client(t, url, { token: 'p', name: 'P', games: true, game: 'truco' });

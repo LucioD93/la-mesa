@@ -38,6 +38,7 @@ input { font: inherit; }
    body[data-game='domino'] and truco's with body[data-game='truco'] where they share a name. */
 body[data-game='truco'] { --accent: #0e7490; --accent-glow: rgba(14, 116, 144, 0.4); }
 body[data-game='caida'] { --accent: #b45309; --accent-glow: rgba(180, 83, 9, 0.4); }
+body[data-game='rummy'] { --accent: #7c3aed; --accent-glow: rgba(124, 58, 237, 0.4); }
 
 [data-team='0'] { --team: var(--t0); }
 [data-team='1'] { --team: var(--t1); }
@@ -490,6 +491,7 @@ body:is([data-game='truco'], [data-game='caida']) .flier-back {
   background: repeating-linear-gradient(45deg, #155e75, #155e75 4px, #0e7490 4px, #0e7490 8px);
   box-shadow: inset 0 0 0 3px #fffdf6;
 }
+body[data-game='rummy'] .flier-back { background: var(--card-back); box-shadow: inset 0 0 0 3px #fffdf6; }
 .flier-back[hidden] { display: none; }
 .avatar.throw { animation: throw 0.4s ease-out; }
 @keyframes throw { 40% { transform: scale(1.25); } }
@@ -968,6 +970,73 @@ body:is([data-game='truco'], [data-game='caida']) .hand {
 .hand-card { cursor: grab; }
 .hand-card.playable { transform: translateY(-6px); box-shadow: 0 0 0 2px var(--gold), 0 8px 18px rgba(0, 0, 0, 0.5); }
 .hand-card.dragging { opacity: 0.25; transform: none; box-shadow: none; }
+
+/* ---- rummy table -------------------------------------------------------- */
+body[data-game='rummy'] {
+  --card-back: repeating-linear-gradient(45deg, #7f1d1d, #7f1d1d 4px, #a32222 4px, #a32222 8px);
+}
+body[data-game='rummy'] .board { --cw: min(13vw, 9dvh, 64px); --mw: min(10vw, 7dvh, 44px); display: flex; flex-direction: column; gap: 8px; }
+.card.back { background: var(--card-back); box-shadow: inset 0 0 0 3px #fffdf6, 0 2px 6px rgba(0, 0, 0, 0.45); }
+.rm-piles { display: flex; align-items: center; justify-content: center; gap: 18px; flex: none; padding-top: 4px; }
+.rm-stock, .rm-discard { position: relative; display: block; padding: 0; border: 0; background: none; border-radius: calc(var(--cw) * 0.1); }
+.rm-stock small { position: absolute; left: 50%; bottom: -8px; translate: -50% 0; padding: 0 6px; border-radius: 999px; background: rgba(0, 0, 0, 0.6); font-size: 11px; font-weight: 800; }
+.rm-discard { min-width: calc(var(--cw) * 1.3); height: calc(var(--cw) * 1.5); }
+.rm-discard .card { position: absolute; left: 0; top: 0; }
+.rm-discard .card.under:nth-child(1) { rotate: -9deg; translate: -4px 2px; }
+.rm-discard .card.under:nth-child(2) { rotate: 5deg; translate: 6px 0; }
+.rm-discard .card.top { rotate: -2deg; translate: calc(var(--cw) * 0.15) 0; }
+.rm-discard .card.top.incoming { visibility: hidden; }
+.rm-discard .card.top.fresh { animation: card-drop 0.3s cubic-bezier(0.2, 1.4, 0.4, 1); }
+.rm-stock.ready .card, .rm-discard.ready .card.top { box-shadow: 0 0 0 3px var(--gold), 0 0 16px rgba(252, 211, 77, 0.55); animation: flor-pulse 1.2s ease-in-out infinite; }
+.rm-discard.target .card.top, .rm-discard.drop-hover .card.top { box-shadow: 0 0 0 3px var(--gold), 0 0 18px var(--gold); }
+.rm-melded { display: flex; flex-direction: column; align-items: center; font-size: 11px; color: var(--muted); }
+.rm-melded b { color: var(--team); font-size: 16px; }
+.rm-melds {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  justify-content: center;
+  gap: 10px 12px;
+  padding: 6px 2px 10px;
+  overflow-y: auto;
+}
+.rm-melds .board-empty { position: static; padding: 18px 24px; font-size: 13px; }
+.meld {
+  display: flex;
+  padding: 4px 6px 4px 4px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--team) 55%, transparent);
+}
+.meld .card { --cw: var(--mw); }
+.meld .card + .card { margin-left: calc(var(--mw) * -0.52); }
+.meld.fresh { animation: card-drop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1); }
+.meld.fits { box-shadow: inset 0 0 0 2px var(--gold), 0 0 14px rgba(252, 211, 77, 0.5); }
+.meld.drop-hover { box-shadow: inset 0 0 0 3px var(--gold), 0 0 20px var(--gold); }
+.card.flier-draw { position: fixed; z-index: 45; pointer-events: none; }
+.mini-back { display: inline-block; width: 8px; height: 12px; margin-right: 3px; border-radius: 2px; vertical-align: -1px; background: var(--card-back); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5); }
+body[data-game='rummy'] .hand {
+  --gap: 4px;
+  --cw: min(calc((100vw - 20px - (var(--n, 7) - 1) * var(--gap)) / var(--n, 7)), 15dvh, 84px);
+  display: flex;
+  justify-content: center;
+  gap: var(--gap);
+  min-height: calc(var(--cw) * 1.5 + 16px);
+  padding-top: 16px;
+}
+@media (min-width: 700px) { body[data-game='rummy'] .hand { --cw: min(calc((880px - (var(--n, 7) - 1) * var(--gap)) / var(--n, 7)), 15dvh, 84px); } }
+body[data-game='rummy'] .hand-card.selected { transform: translateY(-14px); box-shadow: 0 0 0 3px var(--gold), 0 10px 20px rgba(0, 0, 0, 0.5); }
+body[data-game='rummy'] .hand-card.new::after { content: ''; position: absolute; right: 4px; top: 4px; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); }
+body[data-game='rummy'] .hand-card.taken::after { background: var(--accent); }
+.call.draw, .call.meld { background: var(--accent); }
+.call.meld.off { background: var(--panel-2); color: var(--muted); }
+.call.discard { background: #b91c1c; }
+.call.sort { background: transparent; color: var(--muted); font-size: 13px; }
+body[data-game='rummy'] .rh-cards .card + .card { margin-left: -16px; } /* up to a dozen cards left in a hand */
 
 /* ---- result details ------------------------------------------------------- */
 .result-awards { display: grid; gap: 4px; margin: 4px 0 10px; }

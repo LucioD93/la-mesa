@@ -166,4 +166,63 @@ export const RULES = {
       ] },
     ],
   },
+
+  rummy: {
+    en: [
+      { h: 'The game', items: [
+        'One 52-card deck, no jokers, 7 cards each, 2 vs 2. Partners sit across from each other and score as a team.',
+        'One card starts the discard pile face up. The player after the dealer goes first, and the deal rotates every round.',
+        'First team to the target wins. You pick 150 or 300 in the lobby.',
+      ] },
+      { h: 'Your turn', items: [
+        'Draw: the top card of the deck, or the top card of the discard pile.',
+        'Then, as many times as you like: meld cards from your hand, or lay off a card on any meld on the table, yours, your partner\'s or the other team\'s.',
+        'Discard one card to end your turn. A card you just took from the discard pile cannot go straight back.',
+        'Tap cards to pick them, then use the buttons. You can also drag a card onto the discard pile or onto a meld. Drag cards along your hand to arrange it.',
+      ] },
+      { h: 'Melds', items: [
+        'Set: 3 or 4 cards of the same rank.',
+        'Run: 3 or more cards in a row of the same suit. The ace goes below the 2 (A-2-3) or above the king (Q-K-A), but a run does not turn the corner (K-A-2).',
+        'Trying a meld or a lay-off that is not legal plays nothing, and the table laughs at you.',
+      ] },
+      { h: 'Ending a round', items: [
+        'The round ends when someone runs out of cards, by melding, laying off or discarding the last one, or when the deck runs out after a discard.',
+      ] },
+      { h: 'Scoring', items: [
+        'Cards are worth 5 (2 to 9), 10 (10, J, Q, K) and 15 (ace). An ace at the bottom of a run, A-2-3, is worth 1.',
+        'Each team scores the cards it melded and laid off, less the cards still in both partners\' hands. A round can cost you points.',
+      ] },
+      { h: 'House rules', items: [
+        'Rummy has many versions. Not included here: jokers or wild cards, picking up deeper into the discard pile, and a bonus for going out.',
+      ] },
+    ],
+    es: [
+      { h: 'El juego', items: [
+        'Una baraja francesa de 52 cartas, sin comodines, 7 cartas cada uno, 2 contra 2. Los compañeros se sientan enfrente y suman en equipo.',
+        'Una carta boca arriba empieza la pila de descarte. Sale el jugador después del que reparte, y el reparto rota cada mano.',
+        'Gana el primer equipo que llegue a la meta. Se elige 150 o 300 en la sala.',
+      ] },
+      { h: 'Tu turno', items: [
+        'Roba: la carta de arriba del mazo, o la de arriba de la pila de descarte.',
+        'Luego, todas las veces que quieras: baja cartas de tu mano, o pega una carta en cualquier combinación de la mesa, tuya, de tu compañero o del otro equipo.',
+        'Descarta una carta para terminar tu turno. Una carta que acabas de tomar del descarte no puede volver enseguida.',
+        'Toca las cartas para elegirlas y usa los botones. También puedes arrastrar una carta a la pila de descarte o a una combinación. Arrastra cartas dentro de tu mano para ordenarla.',
+      ] },
+      { h: 'Combinaciones', items: [
+        'Trío: 3 o 4 cartas del mismo número.',
+        'Escalera: 3 o más cartas seguidas de la misma pinta. El as va antes del 2 (A-2-3) o después del rey (Q-K-A), pero la escalera no da la vuelta (K-A-2).',
+        'Si intentas bajar o pegar algo que no vale, no se juega, y la mesa se ríe de ti.',
+      ] },
+      { h: 'Cómo termina la mano', items: [
+        'La mano termina cuando alguien se queda sin cartas, bajando, pegando o descartando la última, o cuando se acaba el mazo después de un descarte.',
+      ] },
+      { h: 'Puntos', items: [
+        'Las cartas valen 5 (del 2 al 9), 10 (10, J, Q, K) y 15 (el as). Un as al principio de una escalera, A-2-3, vale 1.',
+        'Cada equipo suma las cartas que bajó y pegó, menos las que les quedan en la mano a los dos compañeros. Una mano puede restar puntos.',
+      ] },
+      { h: 'Reglas de la casa', items: [
+        'El rummy tiene muchas versiones. No se incluyen comodines, tomar cartas más abajo en la pila de descarte, ni un premio por cerrar.',
+      ] },
+    ],
+  },
 };
