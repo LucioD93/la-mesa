@@ -20,7 +20,7 @@ const MAX_NAME = 24;
 export const REACTIONS = ['👏', '😂', '😮', '😡', '🔥', '👋', 'manguangua']; // El Manguangua is a photo, not an emoji
 const REACTION_COOLDOWN_MS = 600; // per player, so a pile-on is not throttled
 const REACTION_CROWD_MS = 3000; // same emoji from others within this joins the crowd
-export const SLOW_TURN_MS = 10_000; // a player thinking longer than this gets mocked by the whole table
+export const SLOW_TURN_MS = 60_000; // a player thinking longer than this gets mocked by the whole table
 const HURRY_REACTIONS = ['manguangua', '🐢', '🐌', '🦥', '😴', '🥱', '💤', '⏳']; // one picked at random each time
 const BLUNDER_COOLDOWN_MS = 2000;
 // How the table looks. Everyone at the table sees the same one.
