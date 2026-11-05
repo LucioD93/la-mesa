@@ -24,7 +24,7 @@ export const CAPTURE_PAUSE_MS = 900; // extra time to watch a capture leave the 
 // The house rules that vary most from table to table.
 const CLEAN_DEAL_POINTS = 1; // the dealer laid 4 different cards first try
 const REPEAT_POINTS = 1; // the other team, per repeated card the dealer turned up
-const MESA_LIMPIA_POINTS = 1;
+const MESA_LIMPIA_POINTS = 4;
 const FREE_CARDS = 20; // half the deck: only the cards above this score
 const PATRULLA_POINTS = 2;
 const TOLETE_POINTS = 3;

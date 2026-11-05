@@ -1,8 +1,9 @@
 // The game page: connection, lobby, seats, voice, photos, reactions and the frame of
-// the result. What's on the table belongs to the game's view (domino.js, truco.js, caida.js).
+// the result. What's on the table belongs to the game's view (domino.js, truco.js, caida.js, parchis.js).
 import { createView as createDominoView } from './domino.js';
 import { createView as createTrucoView } from './truco.js';
 import { createView as createCaidaView } from './caida.js';
+import { createView as createParchisView } from './parchis.js';
 import { RULES } from './rules.js';
 import { reduceMotion, whenLanded } from './flight.js';
 import * as fx from './fx.js';
@@ -423,6 +424,10 @@ function renderLobby() {
   for (const b of $('gamePicker').children) b.classList.toggle('on', b.dataset.pick === state.game);
   $('targetPicker').innerHTML = state.targets
     .map((n) => `<button data-target="${n}" class="${n === state.target ? 'on' : ''}">${n}</button>`)
+    .join('');
+  $('variantField').hidden = !state.variants;
+  $('variantPicker').innerHTML = (state.variants ?? [])
+    .map((n) => `<button data-variant="${n}" class="${n === state.variant ? 'on' : ''}">${n}</button>`)
     .join('');
   const full = !state.seats.includes(null);
   $('botsBtn').disabled = full;
@@ -918,7 +923,7 @@ window.addEventListener('pointerup', onDragEnd);
 window.addEventListener('pointercancel', onDragEnd);
 
 document.body.addEventListener('click', (e) => {
-  const el = e.target.closest('[data-botify],[data-sit],[data-remove],[data-stand],[data-act],[data-close],[data-target],[data-pick],[data-rules]');
+  const el = e.target.closest('[data-botify],[data-sit],[data-remove],[data-stand],[data-act],[data-close],[data-target],[data-variant],[data-pick],[data-rules]');
   if (!el) return;
   if (el.dataset.botify) return send({ t: 'botify', seat: Number(el.dataset.botify) });
   if (el.dataset.remove) {
@@ -932,6 +937,7 @@ document.body.addEventListener('click', (e) => {
     return send({ t: 'sit', seat: Number(el.dataset.sit) });
   }
   if (el.dataset.target) return send({ t: 'target', target: Number(el.dataset.target) });
+  if (el.dataset.variant) return send({ t: 'variant', variant: Number(el.dataset.variant) });
   if (el.dataset.pick) return send({ t: 'game', game: el.dataset.pick });
   if ('close' in el.dataset) return (el.closest('.sheet').hidden = true);
   if ('rules' in el.dataset) {
@@ -1018,6 +1024,6 @@ const ctx = {
   laughAtMe,
   within,
 };
-const views = { domino: createDominoView(ctx), truco: createTrucoView(ctx), caida: createCaidaView(ctx) };
+const views = { domino: createDominoView(ctx), truco: createTrucoView(ctx), caida: createCaidaView(ctx), parchis: createParchisView(ctx) };
 
 connect();

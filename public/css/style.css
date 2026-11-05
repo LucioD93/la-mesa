@@ -642,11 +642,13 @@ body:is([data-game='truco'], [data-game='caida']) .impact { width: calc(var(--cw
 .lobby-body .btn, .lobby-body input { min-height: 44px; }
 .lobby-body .field { margin-top: 0; gap: 4px; }
 .lobby-body .section-title { margin: 0 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lobby-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; margin-top: 10px; }
+.lobby-options { display: grid; grid-template-columns: 2.2fr 1fr; gap: 8px 10px; margin-top: 10px; } /* four game names beside the target */
 .lobby-options .identity { grid-column: 1 / -1; }
 .lobby-options .field { min-width: 0; }
+.lobby-options .variant-field { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 10px; }
+.lobby-options .variant-field .segmented { flex: 1; }
 .lobby-options .segmented { padding: 2px; gap: 2px; }
-.lobby-options .segmented button { min-height: 40px; min-width: 0; }
+.lobby-options .segmented button { min-height: 40px; min-width: 0; padding: 0; font-size: 13px; }
 .lobby-seats { margin-top: 10px; }
 .lobby-table {
   display: grid;
@@ -896,6 +898,79 @@ body[data-game='caida'] .board { --cw: min(13vw, 9dvh, 72px); }
 .card.place { background: rgba(0, 0, 0, 0.18); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.14); }
 .sung { display: block; font-size: 11px; font-weight: 800; color: var(--gold); }
 .call.count { background: var(--accent); min-width: 88px; }
+
+/* ---- parchís table ------------------------------------------------------ */
+body[data-game='parchis'] { --accent: #7c3aed; --accent-glow: rgba(124, 58, 237, 0.4); }
+/* The board takes the full width, so each seat sits by its nest: yours is bottom left. */
+body[data-game='parchis'] .table {
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: 'left top' 'board board' '. right';
+}
+body[data-game='parchis'] .seat.top,
+body[data-game='parchis'] .seat.left,
+body[data-game='parchis'] .seat.right { flex-direction: row; min-height: 44px; padding: 2px 4px; gap: 6px; text-align: left; }
+body[data-game='parchis'] .seat.left { justify-content: flex-start; }
+body[data-game='parchis'] .seat.top, body[data-game='parchis'] .seat.right { justify-content: flex-end; }
+body[data-game='parchis'] .seat .avatar { width: 34px; height: 34px; font-size: 15px; }
+body[data-game='parchis'] .seat-info { flex-direction: column; align-items: flex-start; gap: 0; }
+body[data-game='parchis'] .seat .name { max-width: 13ch; font-size: 12px; white-space: nowrap; }
+body[data-game='parchis'] .board { margin: 2px 0; container-type: size; display: grid; place-items: center; }
+.pboard { position: relative; width: min(100cqw, 100cqh); aspect-ratio: 1; touch-action: manipulation; }
+.pboard svg { display: block; width: 100%; height: 100%; border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
+.pnest.active { animation: pnest 1.1s ease-in-out infinite; }
+@keyframes pnest { 50% { opacity: 0.6; } }
+.token[data-color='0'], .pswatch[data-color='0'], .pdie[data-color='0'] { --piece: #eab308; }
+.token[data-color='1'], .pswatch[data-color='1'], .pdie[data-color='1'] { --piece: #2563eb; }
+.token[data-color='2'], .pswatch[data-color='2'], .pdie[data-color='2'] { --piece: #dc2626; }
+.token[data-color='3'], .pswatch[data-color='3'], .pdie[data-color='3'] { --piece: #16a34a; }
+.token {
+  position: absolute;
+  z-index: 1;
+  width: 4.2%;
+  aspect-ratio: 1;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  translate: -50% -50%;
+  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.75), transparent 45%), var(--piece);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.65), 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+.token.in-nest { width: 6.6%; }
+.token.home { width: 3%; }
+.token.barrier { box-shadow: 0 0 0 1.5px #fff, 0 0 0 2.5px rgba(0, 0, 0, 0.7); }
+.token.can { z-index: 2; animation: token-can 0.9s ease-in-out infinite; }
+@keyframes token-can {
+  0%, 100% { box-shadow: 0 0 0 2px var(--gold), 0 0 0 3px rgba(0, 0, 0, 0.6); }
+  50% { box-shadow: 0 0 0 4px var(--gold), 0 0 10px 4px var(--gold); }
+}
+.pdest { position: absolute; width: 3.2%; aspect-ratio: 1; border-radius: 50%; translate: -50% -50%; border: 2px dashed #7c3aed; pointer-events: none; }
+.pdests { position: absolute; inset: 0; pointer-events: none; }
+.ptally { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pswatch { display: block; width: 10px; height: 10px; border-radius: 50%; background: var(--piece); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5); }
+body[data-game='parchis'] .actions { align-items: center; min-height: 56px; gap: 10px; }
+.pdie {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  width: 52px;
+  height: 52px;
+  padding: 7px;
+  border: 0;
+  border-radius: 11px;
+  background: var(--ivory);
+  box-shadow: 0 0 0 3px var(--piece), 0 4px 10px rgba(0, 0, 0, 0.45);
+}
+.pdie:disabled { cursor: default; color: inherit; }
+.pdie i { display: block; margin: auto; width: 80%; aspect-ratio: 1; border-radius: 50%; }
+.pdie i.on { background: var(--pip); }
+.pdie.rollable { animation: die-ready 1s ease-in-out infinite; }
+.pdie.tumble { animation: die-tumble 0.25s linear infinite; }
+@keyframes die-ready { 50% { scale: 1.08; } }
+@keyframes die-tumble { to { rotate: 360deg; } }
+.pstep { min-width: 44px; min-height: 40px; padding: 0 8px; border: 0; border-radius: 10px; background: rgba(0, 0, 0, 0.3); font-size: 18px; font-weight: 800; color: var(--muted); font-variant-numeric: tabular-nums; }
+.pstep.on { background: var(--gold); color: #2a2000; }
+.pstep:disabled { opacity: 0.45; cursor: default; }
 
 /* ---- calls -------------------------------------------------------------- */
 body[data-game='domino'] .actions { display: none; }

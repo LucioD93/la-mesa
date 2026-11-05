@@ -57,6 +57,8 @@ const sounds = {
     clack();
     note(180, { dur: 0.09, type: 'triangle', gain: 0.25, slide: 90 });
   },
+  // A die rattling on the board.
+  dice: () => [0, 90, 190, 320, 480].forEach((ms) => setTimeout(() => clack(0.18), ms)),
   call: () => note(440, { dur: 0.16, type: 'triangle', gain: 0.16, slide: 620 }),
   // A shout: two rising blasts.
   truco: () => {
