@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import * as G from '../server/games/domino.js';
 import { AUTO_PASS_DELAY_MS, STUCK_PLAYER_DELAY_MS } from '../server/games/domino.js';
 import { Match } from '../server/match.js';
@@ -224,6 +225,17 @@ test('bot-only matches always reach a winner (state survives JSON round-trips)',
     }
     assert.ok(Math.max(...m.scores) >= m.target);
     assert.equal(m.history.length, m.roundNo);
+  }
+});
+
+test('names keep up to 24 characters, the same as the name boxes allow', () => {
+  const m = new Match('names');
+  m.join('tok-a', '  María Alejandra Rodríguez Pérez  ');
+  assert.equal(m.seats[0].name, 'María Alejandra Rodrígue');
+  m.handle('tok-a', { t: 'rename', name: 'Juan Carlos Pérez González' }, new Set());
+  assert.equal(m.seats[0].name, 'Juan Carlos Pérez Gonzál');
+  for (const page of ['index.html', 'play.html']) {
+    assert.match(readFileSync(new URL(`../public/${page}`, import.meta.url), 'utf8'), /id="nameInput" maxlength="24"/, page);
   }
 });
 

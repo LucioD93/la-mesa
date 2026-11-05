@@ -8,7 +8,7 @@ Created in [T3 Code](https://t3.codes).
 
 ## Features
 
-- **Five games, one link.** Anyone in the lobby can switch between dominoes, truco, caída, parchís and roba la cochina, and everyone there sees the change. The target options follow the game. Once the game starts it stays until you go back to the lobby.
+- **Five games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, truco, caída, parchís and roba la cochina, and everyone there sees the change. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again.
 - **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches.
 - **Player photos.** Take a picture or choose a file on the home page or in the lobby and it becomes your avatar. A picture taken here never reaches the device's gallery. It is saved only in your browser's `localStorage`; the server passes it to the others in the match and never stores it.
 - **Shareable matches.** A match lives at `/play/<id>`. The invite button uses the native share sheet when the browser has one, and links unfurl with a preview image in WhatsApp and other chat apps. The preview is the same for every game: chat apps only see the static page, and the game can still change until the match starts. The share sheet's text names the current game.
@@ -170,6 +170,7 @@ public/
   js/parchis.js    Parchís table: the board, hopping pieces, the die, how a game reads
   js/cochina.js    Roba la cochina table: loose cards, both cochinas, steals, how a round reads
   js/rules.js      The full rules of each game, for the rules sheet
+  js/games.js      The lobby's menu of games and their icons (a new game goes here too)
   js/flight.js     Throwing a tile or card from a seat to the table
   js/board.js      Lays out the line of tiles on the table
   js/tiles.js      Tile markup

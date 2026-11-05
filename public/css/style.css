@@ -257,8 +257,20 @@ body[data-game='domino'] .board { overflow: hidden; }
 .seat.right { grid-area: right; }
 .seat.left .seat-info, .seat.right .seat-info { flex-direction: column; align-items: center; }
 .seat-info { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.seat .name { font-size: 13px; font-weight: 600; max-width: 13ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Long names wrap onto a second line in a smaller font before they're cut short. */
+.seat .name, .lobby-seat .name, .rh-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.15;
+}
+.seat .name { font-size: 13px; font-weight: 600; max-width: 16ch; }
+.seat .name.long { font-size: 12px; }
 .seat.left .name, .seat.right .name { max-width: 54px; font-size: 12px; }
+.seat.left .name.long, .seat.right .name.long { font-size: 10.5px; }
 .seat.left .bot-name, .seat.right .bot-name { font-size: 10px; line-height: 1.15; white-space: normal; }
 .avatar {
   position: relative;
@@ -334,7 +346,8 @@ body[data-game='domino'] .backs i { display: block; width: 7px; height: 14px; bo
 }
 .me-row { display: flex; align-items: center; gap: 10px; min-height: 44px; }
 .me-row .seat.me .avatar { width: 34px; height: 34px; font-size: 15px; }
-.status { min-width: 0; font-size: 13px; font-weight: 600; line-height: 1.15; color: var(--muted); }
+.me-row .seat.me { flex: none; } /* "You" never gives way to a long name in the status */
+.status { min-width: 0; font-size: 13px; font-weight: 600; line-height: 1.15; color: var(--muted); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; }
 .status.mine { color: var(--gold); animation: blink 1.4s ease-in-out infinite; }
 @keyframes blink { 50% { opacity: 0.6; } }
 .me-tools { display: flex; gap: 6px; margin-left: auto; }
@@ -643,12 +656,50 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .impact
 .lobby-body .btn, .lobby-body input { min-height: 44px; }
 .lobby-body .field { margin-top: 0; gap: 4px; }
 .lobby-body .section-title { margin: 0 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lobby-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; margin-top: 10px; } /* five game names need the whole row */
-.lobby-options :is(.identity, .game-field, .target-field) { grid-column: 1 / -1; }
-.lobby-options:has(.variant-field:not([hidden])) .target-field { grid-column: auto; } /* the target and parchís's dice share a row */
+.lobby-options { display: grid; grid-template-columns: 1.3fr 1fr; gap: 8px 10px; margin-top: 10px; } /* the game beside the target */
+.lobby-options .identity { grid-column: 1 / -1; }
 .lobby-options .field { min-width: 0; }
+.lobby-options .variant-field { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 10px; }
+.lobby-options .variant-field .segmented { flex: 1; }
 .lobby-options .segmented { padding: 2px; gap: 2px; }
 .lobby-options .segmented button { min-height: 40px; min-width: 0; padding: 0; font-size: 13px; }
+
+/* The game being played, beside the target; tapping it opens the menu of games. */
+[data-g='domino'] { --g: #e11d48; }
+[data-g='truco'] { --g: #0e7490; }
+[data-g='caida'] { --g: #b45309; }
+[data-g='parchis'] { --g: #7c3aed; }
+[data-g='cochina'] { --g: #be185d; }
+.game-card, .game-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  border: 0;
+  border-radius: 12px;
+  color: var(--ink);
+  text-align: left;
+}
+.game-card { padding: 6px 10px 6px 8px; background: color-mix(in srgb, var(--accent) 22%, var(--panel-2)); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.game-card:active, .game-opt:active { transform: scale(0.98); }
+.game-text { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.2; }
+.game-text b { font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.game-card .game-text b.long { white-space: normal; font-size: 14px; line-height: 1.1; } /* "Roba la Cochina" takes two lines beside the target */
+.game-card .game-text small { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.game-change { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(0, 0, 0, 0.3); font-size: 12px; color: var(--muted); }
+.game-icon { position: relative; flex: none; display: grid; place-items: center; width: 40px; height: 40px; }
+.game-icon > svg { width: 100%; height: 100%; }
+.game-icon .tile { width: 19px; height: 38px; --u: 19px; rotate: -8deg; }
+.game-icon .card { --cw: 25px; rotate: 6deg; }
+.game-icon .card.under { position: absolute; left: 4px; top: 3px; rotate: -12deg; }
+.game-icon .card + .card { margin-left: 10px; }
+.game-icon .pig { position: absolute; right: -4px; bottom: -2px; font-size: 18px; line-height: 1; }
+.game-list { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
+.game-opt { width: 100%; min-height: 60px; padding: 8px 12px 8px 10px; background: transparent; }
+.game-opt .game-text b { font-size: 16px; }
+.game-opt .game-text small { font-size: 13px; color: var(--muted); }
+.game-opt[aria-pressed='true'] { background: color-mix(in srgb, var(--g) 22%, var(--panel-2)); box-shadow: inset 0 0 0 1.5px var(--g); }
+.game-check { flex: none; color: var(--gold); font-weight: 800; }
 .lobby-seats { margin-top: 10px; }
 .lobby-table {
   display: grid;
@@ -685,7 +736,8 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .impact
 .lobby-seat.right { grid-area: right; }
 .lobby-seat.bottom { grid-area: bottom; }
 .lobby-seat .team-tag { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--team); }
-.lobby-seat .name { font-weight: 700; font-size: 14px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lobby-seat .name { font-weight: 700; font-size: 14px; max-width: 100%; }
+.lobby-seat .name.long { font-size: 12px; }
 .lobby-seat .bot-name { font-size: 13px; line-height: 1.1; white-space: normal; }
 .lobby-photo { width: 18px; height: 18px; margin-right: 4px; border-radius: 50%; object-fit: cover; vertical-align: -4px; }
 .lobby-seat .act { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; }
@@ -789,7 +841,8 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .impact
 
 .result-hands { display: grid; gap: 6px; margin: 8px 0 14px; text-align: left; }
 .rh { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: rgba(0, 0, 0, 0.2); border-left: 3px solid var(--team); }
-.rh-name { width: 64px; flex: none; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rh-name { width: 72px; flex: none; font-size: 13px; font-weight: 600; }
+.rh-name.long { font-size: 11.5px; }
 .rh-tiles { display: flex; flex-wrap: wrap; gap: 4px; font-size: 13px; }
 .tile.mini { --u: 15px; width: 30px; height: 15px; border-radius: 3px; }
 .tile.mini .half { padding: 10%; }
@@ -933,8 +986,9 @@ body[data-game='parchis'] .seat.right { flex-direction: row; min-height: 44px; p
 body[data-game='parchis'] .seat.left { justify-content: flex-start; }
 body[data-game='parchis'] .seat.top, body[data-game='parchis'] .seat.right { justify-content: flex-end; }
 body[data-game='parchis'] .seat .avatar { width: 34px; height: 34px; font-size: 15px; }
-body[data-game='parchis'] .seat-info { flex-direction: column; align-items: flex-start; gap: 0; }
-body[data-game='parchis'] .seat .name { max-width: 13ch; font-size: 12px; white-space: nowrap; }
+body[data-game='parchis'] .seat .seat-info { flex-direction: column; align-items: flex-start; gap: 0; }
+body[data-game='parchis'] .seat .name { max-width: 16ch; font-size: 12px; }
+body[data-game='parchis'] .seat .name.long { font-size: 11px; }
 body[data-game='parchis'] .board { margin: 2px 0; container-type: size; display: grid; place-items: center; }
 .pboard { position: relative; width: min(100cqw, 100cqh); aspect-ratio: 1; touch-action: manipulation; }
 .pboard svg { display: block; width: 100%; height: 100%; border-radius: 10px; box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45); }
