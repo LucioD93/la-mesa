@@ -506,6 +506,12 @@ export const game = {
     };
   },
 
+  waitingOn(match) {
+    const r = match.round;
+    const seat = r.pending ? [nextSeat(r.pending.by), nextSeat(r.pending.by + 2)].find((s) => !match.seats[s]?.bot) : r.turn;
+    return { seat, key: `${match.roundNo}:${r.seq}` };
+  },
+
   runAuto(match, rng) {
     const r = match.round;
     const seat = botActor(match);
