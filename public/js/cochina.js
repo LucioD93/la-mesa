@@ -1,22 +1,24 @@
-// The roba la cochina table: the loose cards, each team's cochina, steals, and how a round reads.
-import { cardSVG, cardKey, parseKey } from './cards.js';
+// The roba la cochina table: the loose cards, each team's cochina, grabbing them, and how a round reads.
+import { cardSVG, cardKey, parseKey, sameCard } from './cards.js';
 import { canFly, FLIGHT_MS, isFlying, launch, whenLanded } from './flight.js';
 import * as sound from './sound.js';
 import * as i18n from './i18n.js';
 import { t } from './i18n.js';
 
-const SWEEP_DELAY_MS = 450; // how long a capture stays on the table before it leaves
-const SWEEP_MS = 450;
+const GLIDE_MS = 380; // a grabbed card sliding onto the cochina
 
 export function createView(ctx) {
-  const { $, esc, me, seatName, seatEl, seatAvatar, toast, buzz, shake, send, within, teamLabel } = ctx;
+  const { $, esc, me, seatName, seatEl, seatAvatar, toast, buzz, shake, send, laughAtMe, within, teamLabel } = ctx;
+  let active = false;
   let tableSig = '';
   let pilesSig = '';
-  let sweep = null; // a capture still on the table: { before, piles, tops, taken, played, seat, steals }
-  let sweepTimer;
+  let barFor = null; // the grab window the countdown bar is showing
+  let sent = new Set(); // grabs sent and not answered yet, so a double tap sends one
+  let sentAt = null; // the moment those were sent in
 
   const cardHTML = (card, cls = '') => `<span class="card ${cls}">${cardSVG(card)}</span>`;
   const myTeamNow = () => (me() === -1 ? 0 : me() % 2);
+  const myGrab = () => ctx.state?.phase === 'playing' && !!ctx.state.round?.options.grab;
 
   // ---- table talk -------------------------------------------------------------
 
@@ -32,12 +34,6 @@ export function createView(ctx) {
     document.body.append(el);
   }
 
-  function showSteal({ seat, stolen }) {
-    shout(seat, `${t('stole')} +${stolen}`, 'cochina');
-    sound.play('oink');
-    buzz([40, 30, 60]);
-  }
-
   // ---- playing a card ---------------------------------------------------------
 
   function playCard(key) {
@@ -45,7 +41,10 @@ export function createView(ctx) {
     buzz(15);
   }
 
-  const waitToast = (r) => toast(t('waitFor', { name: seatName(r.turn) }), 1200);
+  function waitToast(r) {
+    if (r.options.grab) toast(t('grabFirst'), 1200);
+    else toast(t('waitFor', { name: seatName(r.turn) }), 1200);
+  }
 
   function canDrag(btn) {
     const r = ctx.state?.round;
@@ -54,6 +53,58 @@ export function createView(ctx) {
     shake(btn);
     waitToast(r);
     return false;
+  }
+
+  // ---- grabbing ---------------------------------------------------------------
+
+  /** A tap on the table during your window: the right card or cochina is yours, anything else is laughed at. */
+  function tapBoard(target) {
+    if (!myGrab()) return;
+    const r = ctx.state.round;
+    const n = r.grab.card[0];
+    const theirs = 1 - myTeamNow();
+    const item = target.closest('.loose-item');
+    const pile = target.closest('.cochina');
+    if (item) {
+      const card = parseKey(item.dataset.key);
+      if (sameCard(card, r.grab.card)) return; // your own card comes along by itself
+      if (card[0] !== n) return miss(item);
+      if (sent.has(item.dataset.key)) return;
+      sent.add(item.dataset.key);
+      send({ t: 'grab', card });
+    } else if (pile) {
+      if (Number(pile.dataset.pile) !== theirs || r.tops[theirs]?.[0] !== n) return miss(pile);
+      if (sent.has('pile')) return;
+      sent.add('pile');
+      send({ t: 'grab', pile: true });
+    } else return;
+    buzz(12);
+  }
+
+  function miss(el) {
+    shake(el);
+    laughAtMe();
+  }
+
+  $('board').addEventListener('pointerdown', (e) => active && e.button === 0 && tapBoard(e.target));
+  // Keyboard users press the card or cochina (pointer clicks have a detail).
+  $('board').addEventListener('click', (e) => active && e.detail === 0 && tapBoard(e.target));
+
+  /** The countdown of the open window, for everyone at the table. */
+  function paintBar(r) {
+    const bar = $('grabBar');
+    const g = r.grab;
+    $('board').classList.toggle('grab-me', myGrab());
+    if (!g) {
+      barFor = null;
+      bar.hidden = true;
+      return;
+    }
+    if (barFor === g.n) return;
+    barFor = g.n;
+    bar.hidden = false;
+    bar.dataset.team = g.seat % 2;
+    bar.innerHTML = `<i style="animation-duration: ${g.left}ms"></i>`;
   }
 
   // ---- the loose cards and the cochinas ------------------------------------------
@@ -75,98 +126,68 @@ export function createView(ctx) {
     board.classList.add('thud');
   }
 
-  /** What's drawn: the table, or the table as it was while a capture is still on it. */
-  function tableItems(r) {
-    if (sweep) {
-      const taken = new Set(sweep.taken.map(cardKey));
-      return [
-        ...sweep.before.map((card) => ({ card, taken: taken.has(cardKey(card)) })),
-        { card: sweep.played, taken: true },
-      ];
-    }
-    return r.table.map((card) => ({ card }));
-  }
-
   function paintTable(r, la, isNew) {
-    const items = tableItems(r);
-    const sig = JSON.stringify([ctx.state.roundNo, items, i18n.lang]);
+    const sig = JSON.stringify([ctx.state.roundNo, r.table, la?.n, i18n.lang]);
     if (sig === tableSig) return;
     tableSig = sig;
-    $('loose').innerHTML = items
-      .map(({ card, taken }) => {
+    const played = la?.type === 'play' ? la : null;
+    $('loose').innerHTML = r.table
+      .map((card) => {
         const key = cardKey(card);
-        const justPlayed = la && cardKey(la.card) === key;
-        const flying = justPlayed && (isFlying(la.seat) || (isNew && la.seat !== me() && canFly()));
+        const justPlayed = played && cardKey(played.card) === key;
+        const flying = justPlayed && (isFlying(played.seat) || (isNew && played.seat !== me() && canFly()));
         const motion = flying ? 'incoming' : justPlayed && isNew ? 'fresh' : '';
-        const team = la ? la.seat % 2 : 0;
-        return `<span class="loose-item ${motion} ${taken ? 'taken' : ''}" data-key="${key}" data-team="${team}">${cardHTML(card)}</span>`;
+        const label = t('aria.card', { n: card[0], suit: card[1] });
+        return `<button type="button" class="loose-item ${motion}" data-key="${key}" data-team="${la ? la.seat % 2 : 0}" aria-label="${label}">${cardHTML(card)}</button>`;
       })
       .join('');
   }
 
   /** Our cochina on the left, theirs on the right: the top card and how many under it. */
   function paintPiles(r) {
-    const piles = sweep?.piles ?? r.piles;
-    const tops = sweep?.tops ?? r.tops;
-    const sig = JSON.stringify([piles, tops, me(), i18n.lang]);
+    const sig = JSON.stringify([r.piles, r.tops, me(), i18n.lang]);
     if (sig === pilesSig) return;
     pilesSig = sig;
     const team = myTeamNow();
     $('cochinas').innerHTML = [team, 1 - team]
       .map((tm) => {
-        const top = tops[tm];
-        const stack = Math.min(piles[tm], 4); // a few edges peeking out under the top card
+        const top = r.tops[tm];
+        const stack = Math.min(r.piles[tm], 4); // a few edges peeking out under the top card
         const edges = top ? '<i class="edge"></i>'.repeat(Math.max(stack - 1, 0)) : '';
         const face = top ? cardHTML(top) : '<span class="card place"></span>';
-        return `<div class="cochina" data-team="${tm}" data-pile="${tm}">
+        const label = t('aria.cochina', { team: teamLabel(tm), n: r.piles[tm] });
+        return `<button type="button" class="cochina" data-team="${tm}" data-pile="${tm}" aria-label="${esc(label)}">
           <span class="pile">${edges}${face}</span>
-          <span class="pile-info"><small>${esc(teamLabel(tm))}</small><b>${piles[tm]}</b></span>
-        </div>`;
+          <span class="pile-info"><small>${esc(teamLabel(tm))}</small><b>${r.piles[tm]}</b></span>
+        </button>`;
       })
       .join('');
   }
 
-  function endSweep() {
-    clearTimeout(sweepTimer);
-    sweep = null;
-  }
-
   const pileEl = (team) => $('cochinas')?.querySelector(`[data-pile="${team}"] .pile`);
 
-  function glide(el, to) {
-    const from = el.getBoundingClientRect();
-    const dx = to.left + to.width / 2 - from.left - from.width / 2;
-    const dy = to.top + to.height / 2 - from.top - from.height / 2;
-    el.animate([{ transform: 'none', opacity: 1 }, { transform: `translate(${dx}px, ${dy}px) scale(0.6)`, opacity: 0.3 }], {
-      duration: SWEEP_MS,
-      easing: 'ease-in',
-      fill: 'forwards',
-    });
+  /** Copies of what a grab takes, where it was, to slide onto the cochina once the table is repainted. */
+  function lift(la, prev) {
+    if (!canFly()) return [];
+    const keys = la.cards.map(cardKey);
+    if (la.first && prev.round?.grab) keys.push(cardKey(prev.round.grab.card));
+    const els = keys.map((key) => $('loose').querySelector(`[data-key="${key}"] .card`));
+    if (la.stolen) els.push(pileEl(1 - (la.seat % 2)));
+    return els.filter(Boolean).map((el) => ({ node: el.cloneNode(true), rect: el.getBoundingClientRect() }));
   }
 
-  /** The captured cards, and a stolen cochina, slide onto the team's cochina. */
-  function startSweep(seat) {
-    clearTimeout(sweepTimer);
-    sweepTimer = setTimeout(() => {
-      if (!sweep) return;
-      const team = seat % 2;
-      const to = pileEl(team)?.getBoundingClientRect();
-      if (to) {
-        for (const el of $('loose').querySelectorAll('.loose-item.taken')) glide(el, to);
-        if (sweep.steals) {
-          const theirs = pileEl(1 - team);
-          if (theirs) glide(theirs, to);
-        }
-      }
-      sweepTimer = setTimeout(() => {
-        endSweep();
-        const r = ctx.state.round;
-        if (r) {
-          paintTable(r, r.lastAction, false);
-          paintPiles(r);
-        }
-      }, SWEEP_MS);
-    }, SWEEP_DELAY_MS);
+  function glide(lifted, team) {
+    const to = pileEl(team)?.getBoundingClientRect();
+    if (!to) return;
+    for (const { node, rect } of lifted) {
+      Object.assign(node.style, { position: 'fixed', left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`, margin: 0, zIndex: 40, pointerEvents: 'none' });
+      document.body.append(node);
+      const dx = to.left + to.width / 2 - rect.left - rect.width / 2;
+      const dy = to.top + to.height / 2 - rect.top - rect.height / 2;
+      node
+        .animate([{ transform: 'none' }, { transform: `translate(${dx}px, ${dy}px) rotate(-6deg)` }], { duration: GLIDE_MS, easing: 'cubic-bezier(0.3, 0, 0.2, 1)', fill: 'forwards' })
+        .finished.finally(() => node.remove());
+    }
   }
 
   /** Fly a card from the seat that played it to its place on the table. */
@@ -215,26 +236,32 @@ export function createView(ctx) {
     mount() {
       $('board').innerHTML = `
         <div class="deal-info" id="dealInfo"></div>
+        <div class="grab-bar" id="grabBar" hidden></div>
         <div class="loose" id="loose"></div>
         <div class="cochinas" id="cochinas"></div>`;
       tableSig = pilesSig = '';
-      endSweep();
+      barFor = null;
+      active = true;
     },
 
     unmount() {
-      endSweep();
+      active = false;
+      $('board').classList.remove('grab-me');
     },
 
     renderBoard(prev) {
       const r = ctx.state.round;
+      if (r?.lastAction?.n !== sentAt) {
+        sent = new Set();
+        sentAt = r?.lastAction?.n;
+      }
       if (!r) {
-        endSweep();
         $('dealInfo').innerHTML = $('loose').innerHTML = $('cochinas').innerHTML = '';
         tableSig = pilesSig = '';
+        paintBar({ grab: null });
         return;
       }
       const sameRound = prev?.roundNo === ctx.state.roundNo;
-      if (!sameRound) endSweep();
       const pips = [1, 2, 3].map((n) => `<i class="pip ${n <= r.deal ? 'tie' : ''}"></i>`).join('');
       const team = myTeamNow();
       $('dealInfo').innerHTML = `
@@ -243,41 +270,36 @@ export function createView(ctx) {
 
       const la = r.lastAction;
       const isNew = !!la && sameRound && la.n !== prev?.round?.lastAction?.n;
-      if (isNew) {
-        endSweep();
-        if ((la.taken.length || la.steals) && canFly()) {
-          sweep = {
-            before: prev.round.table,
-            piles: prev.round.piles,
-            tops: prev.round.tops,
-            taken: la.taken,
-            played: la.card,
-            seat: la.seat,
-            steals: la.steals,
-          };
-        }
-      }
+      const lifted = isNew && la.type === 'grab' ? lift(la, prev) : [];
       paintTable(r, la, isNew);
       paintPiles(r);
+      paintBar(r);
+      if (lifted.length) glide(lifted, la.seat % 2);
     },
 
-    /** What just happened: sound, flights, the steal, the catchphrase. */
+    /** What just happened: sound, flights, grabs, steals, the catchphrase. */
     feedback(prev) {
       const r = ctx.state.round;
       const la = r?.lastAction;
       if (!la || prev?.roundNo !== ctx.state.roundNo || la.n === prev?.round?.lastAction?.n) return;
-      const landed = () => {
-        if (sweep) startSweep(la.seat);
-        if (la.steals) showSteal(la);
-      };
-      if (la.seat === me()) {
-        sound.play('place');
-        landed();
-      } else flyCard(la, landed);
-      if (la.phrase) whenLanded(() => sound.playClip('manguangua'));
+      if (la.type === 'play') {
+        if (la.seat === me()) sound.play('place');
+        else flyCard(la, () => {});
+        if (la.phrase) whenLanded(() => sound.playClip('manguangua'));
+      } else if (la.type === 'grab') {
+        sound.play('grab');
+        if (la.stolen) {
+          shout(la.seat, `${t('stole')} +${la.stolen}`, 'cochina');
+          sound.play('oink');
+          buzz([40, 30, 60]);
+        }
+      } else if (la.type === 'close' && la.missed) {
+        shout(la.seat, t('tooSlow'), 'slow');
+        sound.play('no');
+      }
     },
 
-    canAct: (s) => !!s?.round && s.phase === 'playing' && s.round.options.play,
+    canAct: (s) => !!s?.round && s.phase === 'playing' && (s.round.options.play || s.round.options.grab),
 
     turnAlert: () => true,
 
@@ -338,21 +360,26 @@ export function createView(ctx) {
       };
     },
 
-    status: () => null,
+    /** While a window is open, the status says who has to be quick. */
+    status(r) {
+      if (!r.grab) return null;
+      return r.options.grab ? { cls: 'mine', text: t('grabNow') } : { cls: '', text: t('grabbing', { name: seatName(r.grab.seat) }) };
+    },
 
     resultDelay(prev) {
       const la = ctx.state.round.lastAction;
-      const thrown = la && la.seat !== me() && la.n !== prev.round?.lastAction?.n;
-      return (thrown ? FLIGHT_MS : 0) + SWEEP_DELAY_MS + SWEEP_MS + 800;
+      const thrown = la?.type === 'play' && la.seat !== me() && la.n !== prev.round?.lastAction?.n;
+      return (thrown ? FLIGHT_MS : 0) + GLIDE_MS + 800;
     },
 
     result() {
-      const { over, steals, leftovers, lastCapture } = ctx.state.round;
+      const { over, steals, missed, leftovers, lastCapture } = ctx.state.round;
       const { team, cards } = over;
       const row = (text, tm, value) => `<div class="ra" data-team="${tm}"><span>${esc(text)}</span><b>${value}</b></div>`;
       const details = [0, 1]
         .map((tm) => row(t('cochinaOf', { team: teamLabel(tm) }), tm, cards[tm]))
-        .concat([0, 1].filter((tm) => steals[tm]).map((tm) => row(t('stealsOf', { team: teamLabel(tm) }), tm, steals[tm])));
+        .concat([0, 1].filter((tm) => steals[tm]).map((tm) => row(t('stealsOf', { team: teamLabel(tm) }), tm, steals[tm])))
+        .concat([0, 1].filter((tm) => missed[tm]).map((tm) => row(t('missedOf', { team: teamLabel(tm) }), tm, missed[tm])));
       if (leftovers && lastCapture !== null) details.push(row(t('leftovers', { n: leftovers }), lastCapture % 2, `+${leftovers}`));
       return {
         winTeam: team ?? 0,

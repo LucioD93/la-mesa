@@ -956,6 +956,13 @@ body[data-game='caida'] .board { --cw: min(13vw, 9dvh, 72px); }
 body[data-game='cochina'] .board { --cw: min(12vw, 8dvh, 66px); }
 @media (max-height: 680px) { body[data-game='cochina'] .board { --cw: min(12vw, 6.5dvh); } }
 body[data-game='cochina'] .loose { bottom: calc(var(--cw) * 1.5 + 18px); }
+body[data-game='cochina'] :is(.loose-item, .cochina) { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; touch-action: manipulation; }
+.board.grab-me :is(.loose-item, .cochina) { cursor: pointer; }
+.board.grab-me { box-shadow: inset 0 0 0 2px var(--gold); border-radius: 12px; }
+/* The time left to grab, shrinking from both ends. */
+.grab-bar { position: absolute; left: 22%; right: 22%; top: 22px; z-index: 1; height: 6px; border-radius: 3px; background: rgba(0, 0, 0, 0.3); overflow: hidden; }
+.grab-bar i { display: block; height: 100%; background: var(--team); animation: grab-time linear forwards; }
+@keyframes grab-time { to { transform: scaleX(0); } }
 .cochinas { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 4px 10px; }
 .cochina { display: flex; align-items: flex-end; gap: 8px; }
 .cochina:last-child { flex-direction: row-reverse; }
@@ -1091,6 +1098,7 @@ body[data-game='domino'] .actions { display: none; }
 .shout.quiero { background: #15803d; color: #fff; }
 .shout.caida { background: var(--gold); color: #2a2000; font-size: 26px; }
 .shout.cochina { background: #ec4899; color: #fff; font-size: 24px; }
+.shout.slow { background: #475569; color: #fff; }
 @keyframes shout {
   0% { scale: 0.3; opacity: 0; }
   12% { scale: 1.2; opacity: 1; }

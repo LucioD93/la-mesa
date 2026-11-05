@@ -114,12 +114,14 @@ Parchís in pairs on 68 squares, with one die or two, picked in the lobby. One d
 
 ### Roba la cochina rules
 
-Roba la cochina (also *roba montón*, *steal the pile*) is a children's capture game played all over Latin America, with a different rule at every table. This is a common version adapted to teams. The timings and the targets are at the top of `server/games/cochina.js`.
+Roba la cochina (also *roba montón*, *steal the pile*) is a children's capture game played all over Latin America, with a different rule at every table. This is a common version adapted to teams. The grab window, the bots' pace and the targets are at the top of `server/games/cochina.js`.
 
 - 40-card Spanish deck, 2 vs 2. Partners share one pile, the **cochina**, kept face up so its top card shows.
 - **The deal.** 4 cards face up on the table, then three deals of 3 cards each, which uses the whole deck. The player after the dealer starts, and the dealer rotates each round.
-- **Playing.** Play one card; only its number counts. It takes every card of that number from the table onto your cochina, with your card on top. With no match it stays on the table.
-- **Stealing.** If your card matches the top card of the other team's cochina, their whole pile goes onto yours. It can take from the table at the same time. Captures are automatic.
+- **Playing.** Play one card; only its number counts. With no match it stays on the table and the turn moves on.
+- **Grabbing.** A card that matches something opens a 3-second window, shown as a bar. Tap each card of that number on the table to take it onto your cochina; your card goes on top with the first one. Nothing is taken for you: what you don't grab in time stays, and if you grabbed nothing your card stays on the table too. Tapping the wrong thing gets you laughed at.
+- **Stealing.** If your card matches the top card of the other team's cochina, tap it and their whole pile goes onto yours. The same card can take from the table too.
+- **Bots** grab one thing at a time, the cochina first, and fit four grabs in the window. One time in ten they look away and miss the rest.
 - **End of the round.** The last capture takes what's left on the table, slipped under the cochina. The team with more cards wins the round and scores 1, and equal cochinas score nothing.
 - **Winning.** First team to win 1, 3 or 5 rounds, picked in the lobby.
 
@@ -290,6 +292,7 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `call` | `what: "canto"` | Caída, when `options.canto` is set |
 | `order` | `dir: 1 \| -1` | Caída, you are dealing and the table is not laid yet |
 | `roll` | | Parchís, when `options.roll` is set |
+| `grab` | `card: [number, suit]` or `pile: true` | Roba la cochina, while `options.grab` is set: a table card of the number you played, or the rivals' cochina |
 | `move` | `color`, `piece`, `steps?` | Parchís, one of `options.moves`. `steps` picks which die or bonus to use. |
 | `next` / `rematch` / `lobby` | | After a round or match ends |
 | `botify` | `seat` | Replace a disconnected player with a bot |

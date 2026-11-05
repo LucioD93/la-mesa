@@ -256,10 +256,15 @@ export const RULES = {
       ] },
       { h: 'Your turn', items: [
         'Play one card. Only the number counts, never the suit.',
-        'If the table has cards of that number, you take them all onto your cochina, with your card on top.',
-        'If your card matches the top card of the other team\'s cochina, you steal it: the whole pile goes onto yours. ¡Te robé la cochina!',
-        'A card can take from the table and steal at the same time. Capturing is automatic.',
-        'With no match, your card stays on the table for anyone to take.',
+        'With no match, your card stays on the table for anyone to take, and the turn moves on.',
+      ] },
+      { h: 'Grab them!', items: [
+        'If your card matches something, you have 3 seconds to grab it. A bar shows the time left.',
+        'Tap each card of that number on the table to take it onto your cochina. Your card goes on top with the first one.',
+        'If your card matches the top card of the other team\'s cochina, tap it to steal it: the whole pile goes onto yours. ¡Te robé la cochina!',
+        'You can take from the table and steal with the same card.',
+        'Whatever you don\'t grab in time stays where it is, and if you grabbed nothing your card stays on the table too. Tapping something that doesn\'t match gets you laughed at.',
+        'Bots grab too. They are quick, but now and then they look away.',
       ] },
       { h: 'Watch your top card', items: [
         'The card on top of your cochina is the one the rivals need. Taking with a number they might still hold puts your whole pile at risk.',
@@ -269,7 +274,7 @@ export const RULES = {
         'The team with more cards wins the round. Equal cochinas score nothing.',
       ] },
       { h: 'House rules', items: [
-        'Roba la cochina (also roba montón) varies by table. Here partners share a cochina, a card takes every card of its number, and you can never add to your own pile without capturing.',
+        'Roba la cochina (also roba montón) varies by table. Here partners share a cochina, you grab every card of the number yourself, against the clock, and you can never add to your own pile without capturing.',
       ] },
     ],
     es: [
@@ -280,10 +285,15 @@ export const RULES = {
       ] },
       { h: 'Tu turno', items: [
         'Juega una carta. Solo cuenta el número, nunca el palo.',
-        'Si en la mesa hay cartas de ese número, te las llevas todas a tu cochina, con tu carta arriba.',
-        'Si tu carta pega con la de arriba de la cochina del otro equipo, se la robas: la pila entera pasa a la tuya. ¡Te robé la cochina!',
-        'Una carta puede recoger de la mesa y robar a la vez. Se recoge solo.',
-        'Si no pega con nada, tu carta se queda en la mesa para quien se la lleve.',
+        'Si no pega con nada, tu carta se queda en la mesa para quien se la lleve, y pasa el turno.',
+      ] },
+      { h: '¡Agarra!', items: [
+        'Si tu carta pega con algo, tienes 3 segundos para agarrarlo. Una barra muestra el tiempo que queda.',
+        'Toca cada carta de ese número en la mesa para llevarla a tu cochina. Tu carta va arriba con la primera.',
+        'Si tu carta pega con la de arriba de la cochina del otro equipo, tócala para robártela: la pila entera pasa a la tuya. ¡Te robé la cochina!',
+        'Con la misma carta puedes recoger de la mesa y robar.',
+        'Lo que no agarres a tiempo se queda donde está, y si no agarraste nada tu carta también se queda en la mesa. Si tocas algo que no pega, la mesa se ríe de ti.',
+        'Los bots también agarran. Son rápidos, pero de vez en cuando se distraen.',
       ] },
       { h: 'Cuida tu carta de arriba', items: [
         'La carta de arriba de tu cochina es la que buscan los rivales. Recoger con un número que todavía pueden tener pone en riesgo toda tu pila.',
@@ -293,7 +303,7 @@ export const RULES = {
         'Gana la mano el equipo con más cartas. Si las cochinas son iguales, nadie suma.',
       ] },
       { h: 'Reglas de la casa', items: [
-        'Roba la cochina (o roba montón) cambia de mesa en mesa. Aquí los compañeros comparten la cochina, una carta se lleva todas las de su número, y no puedes poner cartas en tu pila sin recoger.',
+        'Roba la cochina (o roba montón) cambia de mesa en mesa. Aquí los compañeros comparten la cochina, cada carta del número se agarra a mano y contra el reloj, y no puedes poner cartas en tu pila sin recoger.',
       ] },
     ],
   },
