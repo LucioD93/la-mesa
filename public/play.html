@@ -123,6 +123,18 @@
               <input id="nameInput" maxlength="24" autocomplete="nickname" enterkeyhint="done" />
             </label>
           </div>
+          <div class="field theme-field">
+            <div class="theme-label"><span data-i18n="style">Style</span><b id="themeName"></b></div>
+            <div class="swatches" id="themePicker">
+              <button data-theme-pick="felt" aria-label="Felt" data-i18n-aria="theme.felt"></button>
+              <button data-theme-pick="pencil" aria-label="Pencil" data-i18n-aria="theme.pencil"></button>
+              <button data-theme-pick="neon" aria-label="Neon" data-i18n-aria="theme.neon"></button>
+              <button data-theme-pick="minimal" aria-label="Minimal" data-i18n-aria="theme.minimal"></button>
+              <button data-theme-pick="dark" aria-label="Dark" data-i18n-aria="theme.dark"></button>
+              <button data-theme-pick="halloween" aria-label="Halloween" data-i18n-aria="theme.halloween"></button>
+              <button data-theme-pick="christmas" aria-label="Christmas" data-i18n-aria="theme.christmas"></button>
+            </div>
+          </div>
           <button type="button" class="game-card" id="gameCard" aria-haspopup="dialog"></button>
           <div class="field">
             <span data-i18n="playTo">Play to</span>
@@ -131,18 +143,6 @@
           <div class="field variant-field" id="variantField" hidden>
             <span data-i18n="variant"></span>
             <div class="segmented" id="variantPicker"></div>
-          </div>
-          <div class="field theme-field">
-            <span data-i18n="style">Style</span>
-            <div class="segmented" id="themePicker">
-              <button data-theme-pick="felt" data-i18n="theme.felt">Felt</button>
-              <button data-theme-pick="pencil" data-i18n="theme.pencil">Pencil</button>
-              <button data-theme-pick="neon" data-i18n="theme.neon">Neon</button>
-              <button data-theme-pick="minimal" data-i18n="theme.minimal">Minimal</button>
-              <button data-theme-pick="dark" data-i18n="theme.dark">Dark</button>
-              <button data-theme-pick="halloween" data-i18n="theme.halloween">Halloween</button>
-              <button data-theme-pick="christmas" data-i18n="theme.christmas">Christmas</button>
-            </div>
           </div>
         </div>
 

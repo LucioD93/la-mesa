@@ -430,7 +430,9 @@ function renderLobby() {
   $('gameCard').innerHTML = `${gameIcon(state.game)}<span class="game-text"><small>${t('game')}</small><b>${t(`game.${state.game}`)}</b></span><span class="game-change" aria-hidden="true">▾</span>`;
   $('gameCard').setAttribute('aria-label', t('aria.changeGame', { game: t(`game.${state.game}`) }));
   if (!$('gamesSheet').hidden) paintGames();
-  for (const b of $('themePicker').children) b.classList.toggle('on', b.dataset.themePick === state.theme);
+  for (const b of $('themePicker').children) b.setAttribute('aria-pressed', b.dataset.themePick === state.theme);
+  $('themeName').textContent = t(`theme.${state.theme}`);
+  $('themeName').dataset.themeName = state.theme;
   $('targetPicker').innerHTML = state.targets
     .map((n) => `<button data-target="${n}" class="${n === state.target ? 'on' : ''}">${n}</button>`)
     .join('');

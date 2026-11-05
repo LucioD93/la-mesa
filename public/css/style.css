@@ -1151,9 +1151,6 @@ body:is([data-game='truco'], [data-game='caida']) .hand {
 @font-face { font-family: 'Mountains of Christmas'; src: url(/fonts/mountains-of-christmas-700.woff2) format('woff2'); font-weight: 700; font-display: swap; }
 
 .lobby-options .theme-field { grid-column: 1 / -1; }
-/* Each choice is lettered like its theme. */
-[data-theme-pick='pencil'] { font-family: 'Patrick Hand', cursive; font-size: 18px; font-weight: 400 !important; }
-[data-theme-pick='neon'] { font-family: 'Orbitron', sans-serif; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
 
 /* ---- pencil: graphite on graph paper ---- */
 :root[data-theme='pencil'] {
@@ -1391,7 +1388,6 @@ body:is([data-game='truco'], [data-game='caida']) .hand {
   --on-color: #ffffff;
   --hand-shade: transparent;
 }
-[data-theme-pick='minimal'] { font-weight: 400 !important; letter-spacing: 0.02em; }
 :where([data-theme='minimal']) :is(.landing h1, .scoreboard .pts, .result-card h2, .rs b) { font-weight: 600; letter-spacing: -0.03em; }
 
 /* No shadows or gradients: a hairline where a box needs an edge. */
@@ -1569,14 +1565,35 @@ body:is([data-game='truco'], [data-game='caida']) .hand {
 :where([data-theme='christmas']) .bar { background: rgba(200, 16, 46, 0.35); }
 [data-theme='christmas'] body .backs i { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7); }
 
-/* Seven styles: the picker takes two rows, each lettered like its style. */
-.theme-field .segmented { display: grid; grid-template-columns: repeat(4, 1fr); }
-.lobby-options .theme-field .segmented button { min-height: 36px; padding: 0 2px; font-size: 14px; }
-.lobby-options .theme-field [data-theme-pick='pencil'] { font-size: 17px; }
-.lobby-options .theme-field [data-theme-pick='neon'] { font-size: 12px; }
-[data-theme-pick='halloween'] { font-family: 'Creepster', cursive; font-weight: 400 !important; letter-spacing: 0.04em; color: #ff8a2a !important; }
-[data-theme-pick='christmas'] { font-family: 'Mountains of Christmas', cursive; color: #e23b4a !important; }
-.lobby-options .theme-field :is([data-theme-pick='halloween'], [data-theme-pick='christmas']) { font-size: 16px; }
+/* Seven styles in one row: a swatch each, and the chosen one's name lettered like its style. */
+.lobby-options .theme-field { flex-direction: row; align-items: center; gap: 10px; }
+.theme-label { display: flex; flex-direction: column; flex: none; width: 76px; line-height: 1.2; }
+.theme-label b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15px; color: var(--ink); }
+.swatches { display: flex; flex: 1; justify-content: space-between; gap: 4px; min-width: 0; }
+.swatches button {
+  flex: 0 1 34px;
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--sw-a) 50%, var(--sw-b) 50%);
+  box-shadow: inset 0 0 0 1px rgba(127, 127, 127, 0.45);
+}
+.swatches button[aria-pressed='true'] { box-shadow: inset 0 0 0 1px rgba(127, 127, 127, 0.45), 0 0 0 2px var(--panel), 0 0 0 4px var(--gold); }
+.swatches button:active { transform: scale(0.92); }
+[data-theme-pick='felt'] { --sw-a: #0d4a37; --sw-b: #e11d48; }
+[data-theme-pick='pencil'] { --sw-a: #fbf9f3; --sw-b: #2e2d2b; }
+[data-theme-pick='neon'] { --sw-a: #0d1638; --sw-b: #22d3ee; }
+[data-theme-pick='minimal'] { --sw-a: #ffffff; --sw-b: #18181b; }
+[data-theme-pick='dark'] { --sw-a: #1a1a1d; --sw-b: #f2c14e; }
+[data-theme-pick='halloween'] { --sw-a: #2b1442; --sw-b: #ff8a2a; }
+[data-theme-pick='christmas'] { --sw-a: #a5191f; --sw-b: #0f6b45; }
+.theme-label [data-theme-name='pencil'] { font-family: 'Patrick Hand', cursive; font-size: 18px; font-weight: 400; }
+.theme-label [data-theme-name='neon'] { font-family: 'Orbitron', sans-serif; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
+.theme-label [data-theme-name='minimal'] { font-weight: 400; letter-spacing: 0.02em; }
+.theme-label [data-theme-name='halloween'] { font-family: 'Creepster', cursive; font-weight: 400; letter-spacing: 0.04em; color: #ff8a2a; }
+.theme-label [data-theme-name='christmas'] { font-family: 'Mountains of Christmas', cursive; color: #e23b4a; }
 
 /* The themes' .tile and .card rules weigh as much as these states, so they are restated last. */
 :is(.tile, .card).drag-ghost:not(.rejected) { box-shadow: 0 0 0 3px var(--gold), 0 14px 28px rgba(0, 0, 0, 0.55); }
