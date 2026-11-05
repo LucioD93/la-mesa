@@ -16,7 +16,7 @@ const BOTS = [
   { name: 'Exprópiese', emoji: '🏢' },
   { name: 'El Bachaquero', emoji: '🐜' },
 ];
-const MAX_NAME = 16;
+const MAX_NAME = 24;
 export const REACTIONS = ['👏', '😂', '😮', '😡', '🔥', '👋'];
 const REACTION_COOLDOWN_MS = 600; // per player, so a pile-on is not throttled
 const REACTION_CROWD_MS = 3000; // same emoji from others within this joins the crowd
@@ -46,6 +46,7 @@ export class Match {
     this.names = {}; // token -> display name (spectators included)
     this.phase = 'lobby'; // lobby | playing | roundEnd | matchEnd
     this.target = this.rules.defaultTarget;
+    this.variant = this.rules.defaultVariant ?? null; // a choice the game offers: parchís's dice
     this.scores = [0, 0];
     this.history = [];
     this.round = null;
@@ -58,8 +59,8 @@ export class Match {
   }
 
   toJSON() {
-    const { id, game, seats, names, phase, target, scores, history, round, roundNo, nextStarter, reaction, blunder, v } = this;
-    return { id, game, seats, names, phase, target, scores, history, round, roundNo, nextStarter, reaction, blunder, v };
+    const { id, game, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, blunder, v } = this;
+    return { id, game, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, blunder, v };
   }
 
   /** The rules of the game this match is playing. */
@@ -67,11 +68,12 @@ export class Match {
     return gameRules(this.game);
   }
 
-  /** Switch game (lobby only). Each game has its own targets, so the target resets. */
+  /** Switch game (lobby only). Each game has its own targets and variants, so they reset. */
   setGame(id) {
     if (this.phase !== 'lobby' || !isGame(id) || id === this.game) return false;
     this.game = id;
     this.target = this.rules.defaultTarget;
+    this.variant = this.rules.defaultVariant ?? null;
     return true;
   }
 
@@ -178,6 +180,10 @@ export class Match {
         if (this.phase !== 'lobby' || !this.rules.targets.includes(Number(msg.target))) return false;
         this.target = Number(msg.target);
         return true;
+      case 'variant':
+        if (this.phase !== 'lobby' || !this.rules.variants?.includes(Number(msg.variant))) return false;
+        this.variant = Number(msg.variant);
+        return true;
       case 'start':
         if (this.phase !== 'lobby' || seat === -1 || this.seats.includes(null)) return false;
         this.startRound();
@@ -272,6 +278,8 @@ export class Match {
       matchId: this.id,
       game: this.game,
       targets: this.rules.targets,
+      variants: this.rules.variants ?? null,
+      variant: this.variant,
       you: seat,
       phase: this.phase,
       target: this.target,
@@ -295,7 +303,7 @@ export class Match {
               emoji: s.emoji,
               online: s.bot || online.has(s.token),
               team: teamOf(i),
-              count: r ? r.hands[i].length : 0,
+              count: r?.hands ? r.hands[i].length : 0, // parchís has no hands
             }
           : null,
       ),

@@ -5,6 +5,8 @@ import { WebSocket } from 'ws';
 import { createApp } from '../server/app.js';
 import { Match } from '../server/match.js';
 import { MemoryStore, RedisStore } from '../server/store.js';
+import { GAME_IDS } from '../server/games/index.js';
+import { GAMES } from '../public/js/games.js';
 
 // A match as the live Redis has it today, saved before matches had a `game`.
 function savedDominoMatch() {
@@ -83,6 +85,10 @@ test('the game survives a save, and a rematch and the lobby keep it', () => {
   loaded.handle('a', { t: 'start' }, new Set());
   assert.ok(Array.isArray(loaded.round.line));
   assert.equal(loaded.round.hands[0].length, 7);
+});
+
+test("the lobby's menu offers every game the server plays, and only those", () => {
+  assert.deepEqual([...GAMES].sort(), [...GAME_IDS].sort());
 });
 
 test('a game message from the other game is ignored', () => {
@@ -214,10 +220,23 @@ test('a caída game runs through the hub with bots, over sockets', async (t) => 
   assert.deepEqual(started.targets, [12, 24]);
 });
 
+test('a parchís game runs through the hub with bots, over sockets', async (t) => {
+  const { url } = await listen(t);
+  const p = await client(t, url, { token: 'p', name: 'P', games: ['parchis'], game: 'parchis' });
+  await p.next((m) => m.t === 'state' && m.game === 'parchis');
+  p.say({ t: 'addBots' });
+  await p.next((m) => m.t === 'state' && m.seats.every(Boolean));
+  p.say({ t: 'start' });
+  const started = await p.next((m) => m.t === 'state' && m.phase === 'playing');
+  assert.deepEqual(started.targets, [1, 2, 3]);
+  assert.deepEqual(started.round.hand, []);
+  assert.equal(started.round.pieces.flat().length, 16);
+});
+
 test('a rummy game runs through the hub, and a tab from before rummy is told to reload', async (t) => {
   const { url } = await listen(t);
-  const old = await client(t, url, { token: 'old', name: 'Old', games: ['domino', 'truco', 'caida'] });
-  const p = await client(t, url, { token: 'p', name: 'P', games: ['domino', 'truco', 'caida', 'rummy'] });
+  const old = await client(t, url, { token: 'old', name: 'Old', games: ['domino', 'truco', 'caida', 'parchis'] });
+  const p = await client(t, url, { token: 'p', name: 'P', games: ['domino', 'truco', 'caida', 'parchis', 'rummy'] });
   await old.next((m) => m.t === 'state' && m.seats[1]);
   p.say({ t: 'game', game: 'rummy' });
   await p.next((m) => m.t === 'state' && m.game === 'rummy');

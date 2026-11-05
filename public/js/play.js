@@ -1,10 +1,12 @@
 // The game page: connection, lobby, seats, voice, photos, reactions and the frame of
-// the result. What's on the table belongs to the game's view (domino.js, truco.js, caida.js, rummy.js).
+// the result. What's on the table belongs to the game's view (domino.js, truco.js, caida.js, parchis.js, rummy.js).
 import { createView as createDominoView } from './domino.js';
 import { createView as createTrucoView } from './truco.js';
 import { createView as createCaidaView } from './caida.js';
+import { createView as createParchisView } from './parchis.js';
 import { createView as createRummyView } from './rummy.js';
 import { RULES } from './rules.js';
+import { GAMES, gameIcon } from './games.js';
 import { reduceMotion, whenLanded } from './flight.js';
 import * as fx from './fx.js';
 import * as sound from './sound.js';
@@ -397,7 +399,7 @@ function renderScores() {
 function renderLobby() {
   const show = state.phase === 'lobby';
   $('lobby').hidden = !show;
-  if (!show) return;
+  if (!show) return ($('gamesSheet').hidden = true);
   $('matchCode').textContent = matchId;
   $('inviteUrl').value = inviteUrl();
   if (document.activeElement !== $('nameInput')) $('nameInput').value = myName;
@@ -412,19 +414,27 @@ function renderLobby() {
         if (!s) body = `<span class="name muted">${t('empty')}</span><span class="act">${t('tapToSit')}</span>`;
         else if (s.bot)
           body = `<span class="name bot-name">${s.emoji ?? '🤖'} ${botName(s.name)}</span><span class="act" data-remove="${i}">🤖 ${t('remove')}</span>`;
-        else
-          body = `<span class="name">${photoOf(i) ? photoImg(photoOf(i), 'lobby-photo') : ''}${esc(mine ? t('youSuffix', { name: s.name }) : s.name)}</span>${
+        else {
+          const label = mine ? t('youSuffix', { name: s.name }) : s.name;
+          body = `<span class="name${[...label].length > 12 ? ' long' : ''}">${photoOf(i) ? photoImg(photoOf(i), 'lobby-photo') : ''}${esc(label)}</span>${
             mine ? `<span class="act" data-stand>${t('standUp')}</span>` : `<span class="act">${s.online ? t('ready') : t('offline')}</span>`
           }`;
+        }
         return `<button class="lobby-seat ${cells[i]}" data-team="${i % 2}" data-sit="${i}" ${
           mine ? 'aria-current="true"' : ''
         }><span class="team-tag">${t('team', { n: (i % 2) + 1 })}</span>${body}</button>`;
       })
       .join('') + `<div class="lobby-felt"></div>`;
 
-  for (const b of $('gamePicker').children) b.classList.toggle('on', b.dataset.pick === state.game);
+  $('gameCard').innerHTML = `${gameIcon(state.game)}<span class="game-text"><small>${t('game')}</small><b>${t(`game.${state.game}`)}</b></span><span class="game-change" aria-hidden="true">▾</span>`;
+  $('gameCard').setAttribute('aria-label', t('aria.changeGame', { game: t(`game.${state.game}`) }));
+  if (!$('gamesSheet').hidden) paintGames();
   $('targetPicker').innerHTML = state.targets
     .map((n) => `<button data-target="${n}" class="${n === state.target ? 'on' : ''}">${n}</button>`)
+    .join('');
+  $('variantField').hidden = !state.variants;
+  $('variantPicker').innerHTML = (state.variants ?? [])
+    .map((n) => `<button data-variant="${n}" class="${n === state.variant ? 'on' : ''}">${n}</button>`)
     .join('');
   const full = !state.seats.includes(null);
   $('botsBtn').disabled = full;
@@ -432,8 +442,21 @@ function renderLobby() {
   $('startBtn').textContent = me() === -1 ? t('takeSeatToStart') : full ? t('start') : t('waitingFor4');
 }
 
+/** The menu of games, with the one being played marked. */
+function paintGames() {
+  $('gameList').innerHTML = GAMES.map(
+    (id) => `<button class="game-opt" data-pick="${id}" data-g="${id}" aria-pressed="${id === state.game}">
+      ${gameIcon(id)}<span class="game-text"><b>${t(`game.${id}`)}</b><small>${t(`gameDesc.${id}`)}</small></span>
+      ${id === state.game ? '<span class="game-check" aria-hidden="true">✓</span>' : ''}</button>`,
+  ).join('');
+}
+
 const photoOf = (seat) => (seat === me() ? myPhoto : photos[state.seats[seat]?.pid]);
 const photoImg = (photo, cls) => `<img class="${cls}" src="${esc(photo)}" alt="" />`;
+
+/** A name's markup: long ones get a smaller font, and the whole name in its title. */
+const nameHTML = (name, cls = 'name') =>
+  `<span class="${cls}${[...name].length > 12 ? ' long' : ''}" title="${esc(name)}">${esc(name)}</span>`;
 
 // Where the longest bot names may hyphenate to fit the narrow side seats.
 const botName = (name) => esc(name).replace('Manguangua', 'Manguan&shy;gua').replace('Bachaquero', 'Bacha&shy;quero').replace('Exprópiese', 'Expró&shy;piese');
@@ -450,7 +473,7 @@ function seatHTML(seat, pos) {
   return `
     <div class="avatar ${turn ? 'turn' : ''}" data-team="${s.team}">${initial}${s.bot ? '<b class="bot-tag">🤖</b>' : ''}${s.online ? '' : '<b class="off"></b>'}${parts.badge}</div>
     <div class="seat-info">
-      ${s.bot ? `<span class="name bot-name">${botName(s.name)}</span>` : `<span class="name">${esc(seat === me() ? t('you') : s.name)}</span>`}
+      ${s.bot ? `<span class="name bot-name">${botName(s.name)}</span>` : nameHTML(seat === me() ? t('you') : s.name)}
       ${parts.info}
     </div>
     ${parts.bubble}
@@ -849,7 +872,7 @@ function buildResult(fresh) {
         .map((i) => seatAt(i))
         .map(
           (s) => `<div class="rh" data-team="${s % 2}">
-            <span class="rh-name">${esc(seatName(s))}</span>
+            ${nameHTML(seatName(s), 'rh-name')}
             ${view.resultHand(r.hands[s])}</div>`,
         )
         .join('')
@@ -859,7 +882,7 @@ function buildResult(fresh) {
   if (mine) {
     if (isMatch) actions.push(
         `<button class="btn primary" data-act="rematch">${t('rematch')}</button>`,
-        `<button class="btn" data-act="lobby">${t('changeSeats')}</button>`,
+        `<button class="btn" data-act="lobby">${t('backToLobby')}</button>`,
       );
     else actions.push(`<button class="btn primary" data-act="next">${t('nextRound')}</button>`);
   } else actions.push(`<p class="muted">${t('waitingPlayers')}…</p>`);
@@ -925,7 +948,7 @@ window.addEventListener('pointerup', onDragEnd);
 window.addEventListener('pointercancel', onDragEnd);
 
 document.body.addEventListener('click', (e) => {
-  const el = e.target.closest('[data-botify],[data-sit],[data-remove],[data-stand],[data-act],[data-close],[data-target],[data-pick],[data-rules]');
+  const el = e.target.closest('[data-botify],[data-sit],[data-remove],[data-stand],[data-act],[data-close],[data-target],[data-variant],[data-pick],[data-rules]');
   if (!el) return;
   if (el.dataset.botify) return send({ t: 'botify', seat: Number(el.dataset.botify) });
   if (el.dataset.remove) {
@@ -939,7 +962,11 @@ document.body.addEventListener('click', (e) => {
     return send({ t: 'sit', seat: Number(el.dataset.sit) });
   }
   if (el.dataset.target) return send({ t: 'target', target: Number(el.dataset.target) });
-  if (el.dataset.pick) return send({ t: 'game', game: el.dataset.pick });
+  if (el.dataset.variant) return send({ t: 'variant', variant: Number(el.dataset.variant) });
+  if (el.dataset.pick) {
+    $('gamesSheet').hidden = true;
+    return el.dataset.pick !== state.game && send({ t: 'game', game: el.dataset.pick });
+  }
   if ('close' in el.dataset) return (el.closest('.sheet').hidden = true);
   if ('rules' in el.dataset) {
     if (!state) return;
@@ -957,6 +984,13 @@ document.body.addEventListener('click', (e) => {
   }
 });
 
+// A name cut short at the table shows whole when tapped.
+$('app').addEventListener('click', (e) => {
+  if (e.target.closest('button')) return;
+  const name = e.target.closest('.seat')?.querySelector('.name[title]');
+  if (name && (name.scrollHeight > name.clientHeight + 1 || name.scrollWidth > name.clientWidth + 1)) toast(name.title, 2400);
+});
+
 $('result').addEventListener('click', (e) => {
   if (e.target === $('result') && $('result').classList.contains('peek')) $('result').classList.remove('peek');
 });
@@ -964,6 +998,11 @@ $('result').addEventListener('click', (e) => {
 $('scoreBtn').onclick = () => state && state.phase !== 'lobby' && ($('scoreSheet').hidden = false);
 $('scoreSheet').addEventListener('click', (e) => e.target === $('scoreSheet') && ($('scoreSheet').hidden = true));
 $('rulesSheet').addEventListener('click', (e) => e.target === $('rulesSheet') && ($('rulesSheet').hidden = true));
+$('gamesSheet').addEventListener('click', (e) => e.target === $('gamesSheet') && ($('gamesSheet').hidden = true));
+$('gameCard').onclick = () => {
+  paintGames();
+  $('gamesSheet').hidden = false;
+};
 $('shareBtn').onclick = share;
 $('copyBtn').onclick = copyInvite;
 $('botsBtn').onclick = () => send({ t: 'addBots' });
@@ -997,7 +1036,7 @@ let nameTimer;
 $('nameInput').addEventListener('input', (e) => {
   clearTimeout(nameTimer);
   nameTimer = setTimeout(() => {
-    const v = e.target.value.trim().slice(0, 16);
+    const v = e.target.value.trim().slice(0, e.target.maxLength);
     if (!v) return;
     myName = v;
     localStorage.setItem('domino.name', v);
@@ -1038,6 +1077,7 @@ const views = {
   domino: createDominoView(ctx),
   truco: createTrucoView(ctx),
   caida: createCaidaView(ctx),
+  parchis: createParchisView(ctx),
   rummy: createRummyView(ctx),
 };
 

@@ -2,13 +2,13 @@
 
 # La Mesa
 
-Mobile-first, four-player games (2 vs 2) you play in the browser: partner dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, and partnership rummy. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
+Mobile-first, four-player games (2 vs 2) you play in the browser: partner dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, parchís in pairs, and partnership rummy. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
 
 Created in [T3 Code](https://t3.codes).
 
 ## Features
 
-- **Four games, one link.** Anyone in the lobby can switch between dominoes, truco, caída and rummy, and everyone there sees the change. The target options follow the game. Once the game starts it stays until you go back to the lobby.
+- **Five games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, truco, caída, parchís and rummy, and everyone there sees the change. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again.
 - **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches.
 - **Player photos.** Take a picture or choose a file on the home page or in the lobby and it becomes your avatar. A picture taken here never reaches the device's gallery. It is saved only in your browser's `localStorage`; the server passes it to the others in the match and never stores it.
 - **Shareable matches.** A match lives at `/play/<id>`. The invite button uses the native share sheet when the browser has one, and links unfurl with a preview image in WhatsApp and other chat apps. The preview is the same for every game: chat apps only see the static page, and the game can still change until the match starts. The share sheet's text names the current game.
@@ -91,11 +91,26 @@ Caída changes from table to table, and we found no authoritative rulebook. This
 - **Cantos.** Sung on your turn, before your first card of each deal. Ronda (a pair) pays 1 for 1 to 7, 2 for 10s, 3 for 11s, 4 for 12s. Patrulla (three in a row) pays 2. Tolete (three of a kind) pays 3. Once everyone has played from the deal, the best kind pays, and if both teams sang the same kind both score.
 - **Captures.** A card takes the same number from the table and any cards that follow it in sequence, automatically. With no match it stays on the table.
 - **Caída.** Taking the card the player before you just played pays 1 for 1 to 7, 2 for a 10, 3 for an 11, 4 for a 12.
-- **Mesa limpia.** Taking every card on the table pays 1, on top of any caída.
+- **Mesa limpia.** Taking every card on the table pays 4, on top of any caída.
 - **End of the round.** The last team to capture takes what's left, and the team with more cards scores 1 for each card above 20.
 - **Winning.** Points land as they happen, and the first team to the target (12 or 24) wins on the spot.
 
 **Not implemented:** other cantos such as registro or vigía, bluffing a canto, and *soplada* (there is nothing to claim, because captures are automatic). It's 4 players in teams only.
+
+### Parchís rules
+
+Parchís in pairs on 68 squares, with one die or two, picked in the lobby. One die follows the classic Spanish rules in [Wikipedia ES](https://es.wikipedia.org/wiki/Parch%C3%ADs). Two dice follows the Superparchís rules at [Mundijuegos Venezuela](https://www.mundijuegos.com.ve/multijugador/parchis/reglas/) and is the default. We found no rulebook specific to Venezuela. Tables differ on several details, and the values that vary most are constants at the top of `server/games/parchis.js`.
+
+- 2 vs 2, partners across: yellow with red, blue with green. Your nest is always drawn at the bottom left.
+- **The route.** 63 squares from your start to your entry, then 7 of your own corridor, then the goal, which needs the exact count.
+- **The die.** A 5 has to bring a piece out if one can come out. A 6 rolls again, and moves 7 with nothing in your nest. A third 6 in a row ends the turn and sends the last piece moved to its nest, unless it's in its corridor.
+- **Two dice.** Each die is used separately, on one piece or two, in the order you pick. Dice adding up to 5 bring a piece out between them, and a double 5 brings out two. A double rolls again, a third double in a row is punished like a third 6, and a 6 is just a 6. A double has to open your barrier if it can, which we carried over from the 6.
+- **Captures.** Landing on a lone rival sends it home and pays 20, counted with one piece. Safe squares and start squares protect, and partners never take each other. Coming out onto a full start square takes the rival that got there last.
+- **Barriers.** Two pieces of one color stop everyone, their owner included, and a 6 has to open yours if it can. A square holds two pieces at most.
+- **The goal.** Reaching it pays 10. A bonus no piece can use is lost. With your four pieces home, your rolls move your partner's.
+- **Winning.** The first pair with all eight pieces home wins the game, and you pick 1, 2 or 3 games in the lobby.
+
+**House rules that differ from that article:** barriers stop everyone on any square (it only applies that to start squares), a 5 always has to come out, and taking a piece as you come out also pays 20. It's 4 players in teams only.
 
 ### Rummy rules
 
@@ -142,6 +157,7 @@ server/
     domino.js      Pure domino rules and bot AI, plus the `game` object
     truco.js       Pure truco rules and bot AI, plus the `game` object
     caida.js       Pure caída rules and bot AI, plus the `game` object
+    parchis.js     Pure parchís rules and bot AI, plus the `game` object
     rummy.js       Pure rummy rules and bot AI, plus the `game` object
 public/
   index.html       Landing page (new match / join by code)
@@ -151,8 +167,10 @@ public/
   js/domino.js     Domino table: board, hand, drop targets, how a round reads
   js/truco.js      Truco table: vira, trick, call buttons, how a hand reads
   js/caida.js      Caída table: loose cards, the dealer's count, captures, how a round reads
+  js/parchis.js    Parchís table: the board, hopping pieces, the die, how a game reads
   js/rummy.js      Rummy table: deck, discard pile, melds, picking cards, how a round reads
   js/rules.js      The full rules of each game, for the rules sheet
+  js/games.js      The lobby's menu of games and their icons (a new game goes here too)
   js/flight.js     Throwing a tile or card from a seat to the table
   js/board.js      Lays out the line of tiles on the table
   js/tiles.js      Tile markup
@@ -177,7 +195,7 @@ vercel.json        Rewrites /play/:id → /play.html and /admin → /admin.html
 
 A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto` and `roundView`.
 
-On the client, `play.js` keeps one view per game (`domino.js`, `truco.js`, `caida.js`, `rummy.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
+On the client, `play.js` keeps one view per game (`domino.js`, `truco.js`, `caida.js`, `parchis.js`, `rummy.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
 
 The `domino:` prefix on Redis keys and the `domino.*` browser storage keys predate truco and cover every game. Renaming them would lose live matches, the usage counters, and players' names, seats and photos. Matches saved without a `game` load as dominoes.
 
@@ -263,14 +281,17 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `rename` | `name` | Any time |
 | `sit` / `stand` | `seat` | Lobby. `sit` also lets a spectator take over a bot mid-game. |
 | `addBots` / `removeBot` | `seat` | Lobby |
-| `game` | `game: "domino" \| "truco" \| "caida" \| "rummy"` | Lobby. Resets the target to the game's default. |
-| `target` | `50 \| 75 \| 100`, `12 \| 24 \| 32`, `12 \| 24` or `150 \| 300` | Lobby, from the current game's list |
+| `game` | `game: "domino" \| "truco" \| "caida" \| "parchis" \| "rummy"` | Lobby. Resets the target to the game's default. |
+| `target` | `50 \| 75 \| 100`, `12 \| 24 \| 32`, `12 \| 24`, `1 \| 2 \| 3` or `150 \| 300` | Lobby, from the current game's list |
+| `variant` | `1 \| 2` | Lobby, a game that offers a choice: parchís's dice |
 | `start` | | Lobby, once all 4 seats are filled |
 | `play` | Domino: `tile: [a, b]`, `end: "L" \| "R"`. Truco and caída: `card: [number, suit]` | On your turn |
 | `call` | `what: "flor" \| "envido" \| "cinco" \| "falta" \| "truco" \| "mazo"` | Truco, when the `options` in your state allow it |
 | `answer` | `yes: boolean` | Truco, a bet is open against your team |
 | `call` | `what: "canto"` | Caída, when `options.canto` is set |
 | `order` | `dir: 1 \| -1` | Caída, you are dealing and the table is not laid yet |
+| `roll` | | Parchís, when `options.roll` is set |
+| `move` | `color`, `piece`, `steps?` | Parchís, one of `options.moves`. `steps` picks which die or bonus to use. |
 | `draw` | `from: "stock" \| "discard"` | Rummy, your turn, before you have drawn |
 | `meld` | `cards: [[rank, suit], …]` | Rummy, after drawing. Rank 1 to 13, suit `S`, `H`, `D` or `C`. |
 | `layoff` | `card: [rank, suit]`, `meld` (index on the table) | Rummy, after drawing |

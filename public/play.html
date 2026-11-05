@@ -6,11 +6,11 @@
     <meta name="theme-color" content="#0b3a2c" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>La Mesa</title>
-    <meta name="description" content="Dominoes, Venezuelan truco, caída or rummy for 4 players, 2 vs 2. No sign-up: send the link and play." />
+    <meta name="description" content="Dominoes, Venezuelan truco, caída, parchís or rummy for 4 players, 2 vs 2. No sign-up: send the link and play." />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="La Mesa" />
     <meta property="og:title" content="Come play with me at La Mesa" />
-    <meta property="og:description" content="Dominoes, Venezuelan truco, caída or rummy for 4 players, 2 vs 2. No sign-up: send the link and play." />
+    <meta property="og:description" content="Dominoes, Venezuelan truco, caída, parchís or rummy for 4 players, 2 vs 2. No sign-up: send the link and play." />
     <meta property="og:image" content="https://domino-ten-theta.vercel.app/og-image.png" />
     <meta property="og:image:secure_url" content="https://domino-ten-theta.vercel.app/og-image.png" />
     <meta property="og:image:type" content="image/png" />
@@ -115,21 +115,17 @@
             </div>
             <label class="field">
               <span data-i18n="yourName">Your name</span>
-              <input id="nameInput" maxlength="16" autocomplete="nickname" enterkeyhint="done" />
+              <input id="nameInput" maxlength="24" autocomplete="nickname" enterkeyhint="done" />
             </label>
           </div>
-          <div class="field">
-            <span data-i18n="game">Game</span>
-            <div class="segmented" id="gamePicker">
-              <button data-pick="domino" data-i18n="game.domino">Domino</button>
-              <button data-pick="truco" data-i18n="game.truco">Truco</button>
-              <button data-pick="caida" data-i18n="game.caida">Caída</button>
-              <button data-pick="rummy" data-i18n="game.rummy">Rummy</button>
-            </div>
-          </div>
+          <button type="button" class="game-card" id="gameCard" aria-haspopup="dialog"></button>
           <div class="field">
             <span data-i18n="playTo">Play to</span>
             <div class="segmented" id="targetPicker"></div>
+          </div>
+          <div class="field variant-field" id="variantField" hidden>
+            <span data-i18n="variant"></span>
+            <div class="segmented" id="variantPicker"></div>
           </div>
         </div>
 
@@ -142,6 +138,17 @@
           <button id="botsBtn" class="btn block" data-i18n="fillBots">Fill empty seats with bots</button>
           <button id="startBtn" class="btn primary block">Start game</button>
         </div>
+      </div>
+    </section>
+
+    <!-- Every game the lobby can switch to -->
+    <section class="sheet" id="gamesSheet" hidden>
+      <div class="sheet-body">
+        <div class="sheet-head">
+          <h2 data-i18n="chooseGame">Choose a game</h2>
+          <button class="icon-btn" data-close aria-label="Close" data-i18n-aria="aria.close">✕</button>
+        </div>
+        <div class="game-list" id="gameList"></div>
       </div>
     </section>
 
