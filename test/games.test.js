@@ -5,6 +5,8 @@ import { WebSocket } from 'ws';
 import { createApp } from '../server/app.js';
 import { Match } from '../server/match.js';
 import { MemoryStore, RedisStore } from '../server/store.js';
+import { GAME_IDS } from '../server/games/index.js';
+import { GAMES } from '../public/js/games.js';
 
 // A match as the live Redis has it today, saved before matches had a `game`.
 function savedDominoMatch() {
@@ -120,6 +122,10 @@ test('the game survives a save, and a rematch and the lobby keep it', () => {
   loaded.handle('a', { t: 'start' }, new Set());
   assert.ok(Array.isArray(loaded.round.line));
   assert.equal(loaded.round.hands[0].length, 7);
+});
+
+test("the lobby's menu offers every game the server plays, and only those", () => {
+  assert.deepEqual([...GAMES].sort(), [...GAME_IDS].sort());
 });
 
 test('a game message from the other game is ignored', () => {

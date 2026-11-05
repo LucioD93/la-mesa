@@ -16,7 +16,7 @@ const BOTS = [
   { name: 'Exprópiese', emoji: '🏢' },
   { name: 'El Bachaquero', emoji: '🐜' },
 ];
-const MAX_NAME = 16;
+const MAX_NAME = 24;
 export const REACTIONS = ['👏', '😂', '😮', '😡', '🔥', '👋', 'manguangua']; // El Manguangua is a photo, not an emoji
 const REACTION_COOLDOWN_MS = 600; // per player, so a pile-on is not throttled
 const REACTION_CROWD_MS = 3000; // same emoji from others within this joins the crowd

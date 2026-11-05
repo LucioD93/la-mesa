@@ -1,4 +1,4 @@
-// The games a match can be. Each one exports a `game` object:
+// The games a match can be. The lobby's menu lists them in public/js/games.js. Each one exports a `game` object:
 //   id, targets, defaultTarget
 //   variants, defaultVariant     optional: a choice for the lobby, read as match.variant
 //   newRound(match, rng)         deal; may note who starts next in match.nextStarter
@@ -18,5 +18,6 @@ const GAMES = { domino, truco, caida, parchis };
 // Matches saved before there was a choice have no `game` field: those are dominoes.
 export const DEFAULT_GAME = 'domino';
 
+export const GAME_IDS = Object.keys(GAMES);
 export const isGame = (id) => typeof id === 'string' && Object.hasOwn(GAMES, id);
 export const gameRules = (id) => GAMES[id];
