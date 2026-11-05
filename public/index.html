@@ -40,7 +40,7 @@
         </div>
         <label class="field">
           <span data-i18n="landing.name">Your name</span>
-          <input id="nameInput" maxlength="16" autocomplete="nickname" enterkeyhint="done" placeholder="Pick a name" data-i18n-placeholder="landing.namePlaceholder" />
+          <input id="nameInput" maxlength="24" autocomplete="nickname" enterkeyhint="done" placeholder="Pick a name" data-i18n-placeholder="landing.namePlaceholder" />
         </label>
       </div>
 
@@ -79,7 +79,7 @@
       const nameInput = document.getElementById('nameInput');
       nameInput.value = localStorage.getItem('domino.name') || '';
       const saveName = () => {
-        const v = nameInput.value.trim().slice(0, 16);
+        const v = nameInput.value.trim().slice(0, nameInput.maxLength);
         if (v) localStorage.setItem('domino.name', v);
       };
       nameInput.addEventListener('input', saveName);
