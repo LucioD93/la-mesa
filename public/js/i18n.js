@@ -41,6 +41,7 @@ const en = {
   'aria.react': 'Send a reaction',
   'aria.sound': 'Toggle sound',
   'aria.rules': 'Rules',
+  'aria.changeGame': ({ game }) => `Game: ${game}. Change game`,
   'rulesOf': ({ game }) => `${game} rules`,
   'aria.close': 'Close',
   'aria.lang': 'Language',
@@ -78,6 +79,11 @@ const en = {
   'game.caida': 'Caída',
   'game.parchis': 'Parchís',
   'gameChanged': ({ game }) => `Now playing: ${game}`,
+  'chooseGame': 'Choose a game',
+  'gameDesc.domino': 'Partner dominoes, double six',
+  'gameDesc.truco': 'Venezuelan, with vira, perico and perica',
+  'gameDesc.caida': 'Capture cards and sing rondas',
+  'gameDesc.parchis': 'A race in pairs, with one die or two',
   'playTo': 'Play to',
   'fillBots': 'Fill with bots',
   'start': 'Start game',
@@ -123,7 +129,7 @@ const en = {
   'youWinMatch': 'You win the match!',
   'youLoseMatch': 'You lose the match',
   'rematch': 'Rematch',
-  'changeSeats': 'Change seats',
+  'backToLobby': 'Back to the lobby',
 };
 
 const es = {
@@ -141,6 +147,7 @@ const es = {
   'aria.react': 'Enviar una reacción',
   'aria.sound': 'Activar o silenciar sonido',
   'aria.rules': 'Reglas',
+  'aria.changeGame': ({ game }) => `Juego: ${game}. Cambiar de juego`,
   'rulesOf': ({ game }) => `Reglas de ${game}`,
   'aria.close': 'Cerrar',
   'aria.lang': 'Idioma',
@@ -178,6 +185,11 @@ const es = {
   'game.caida': 'Caída',
   'game.parchis': 'Parchís',
   'gameChanged': ({ game }) => `Ahora se juega: ${game}`,
+  'chooseGame': 'Elige un juego',
+  'gameDesc.domino': 'Dominó en parejas, doble seis',
+  'gameDesc.truco': 'Venezolano, con vira, perico y perica',
+  'gameDesc.caida': 'Recoge cartas y canta rondas',
+  'gameDesc.parchis': 'Carrera en parejas, con uno o dos dados',
   'playTo': 'Jugar a',
   'fillBots': 'Llenar con bots',
   'start': 'Empezar',
@@ -223,7 +235,7 @@ const es = {
   'youWinMatch': '¡Ganaste la partida!',
   'youLoseMatch': 'Perdiste la partida',
   'rematch': 'Revancha',
-  'changeSeats': 'Cambiar asientos',
+  'backToLobby': 'Volver a la sala',
 
   // Server error messages arrive in English.
   'Round is over': 'La mano terminó',
