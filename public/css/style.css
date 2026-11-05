@@ -38,6 +38,7 @@ input { font: inherit; }
    body[data-game='domino'] and truco's with body[data-game='truco'] where they share a name. */
 body[data-game='truco'] { --accent: #0e7490; --accent-glow: rgba(14, 116, 144, 0.4); }
 body[data-game='caida'] { --accent: #b45309; --accent-glow: rgba(180, 83, 9, 0.4); }
+body[data-game='cochina'] { --accent: #be185d; --accent-glow: rgba(190, 24, 93, 0.4); }
 
 [data-team='0'] { --team: var(--t0); }
 [data-team='1'] { --team: var(--t1); }
@@ -486,7 +487,7 @@ body[data-game='domino'] .hand {
   background: var(--team);
   box-shadow: inset 0 0 0 2px var(--ivory);
 }
-body:is([data-game='truco'], [data-game='caida']) .flier-back {
+body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .flier-back {
   background: repeating-linear-gradient(45deg, #155e75, #155e75 4px, #0e7490 4px, #0e7490 8px);
   box-shadow: inset 0 0 0 3px #fffdf6;
 }
@@ -504,7 +505,7 @@ body:is([data-game='truco'], [data-game='caida']) .flier-back {
   pointer-events: none;
   animation: impact 0.5s ease-out forwards;
 }
-body:is([data-game='truco'], [data-game='caida']) .impact { width: calc(var(--cw) * 2); height: calc(var(--cw) * 2); }
+body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .impact { width: calc(var(--cw) * 2); height: calc(var(--cw) * 2); }
 @keyframes impact {
   from { scale: 0.2; opacity: 0.9; }
   to { scale: 1; opacity: 0; }
@@ -642,11 +643,10 @@ body:is([data-game='truco'], [data-game='caida']) .impact { width: calc(var(--cw
 .lobby-body .btn, .lobby-body input { min-height: 44px; }
 .lobby-body .field { margin-top: 0; gap: 4px; }
 .lobby-body .section-title { margin: 0 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.lobby-options { display: grid; grid-template-columns: 2.2fr 1fr; gap: 8px 10px; margin-top: 10px; } /* four game names beside the target */
-.lobby-options .identity { grid-column: 1 / -1; }
+.lobby-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; margin-top: 10px; } /* five game names need the whole row */
+.lobby-options :is(.identity, .game-field, .target-field) { grid-column: 1 / -1; }
+.lobby-options:has(.variant-field:not([hidden])) .target-field { grid-column: auto; } /* the target and parchís's dice share a row */
 .lobby-options .field { min-width: 0; }
-.lobby-options .variant-field { grid-column: 1 / -1; flex-direction: row; align-items: center; gap: 10px; }
-.lobby-options .variant-field .segmented { flex: 1; }
 .lobby-options .segmented { padding: 2px; gap: 2px; }
 .lobby-options .segmented button { min-height: 40px; min-width: 0; padding: 0; font-size: 13px; }
 .lobby-seats { margin-top: 10px; }
@@ -863,7 +863,7 @@ body[data-game='truco'] .board { --cw: min(15.5vw, 11.5dvh, 92px); }
 .worth { font-size: 12px; font-weight: 700; color: var(--muted); }
 .worth.hot { color: var(--gold); }
 
-body:is([data-game='truco'], [data-game='caida']) .backs i { display: block; width: 9px; height: 14px; border-radius: 2px; background: repeating-linear-gradient(45deg, #155e75, #155e75 2px, #0e7490 2px, #0e7490 4px); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5); }
+body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .backs i { display: block; width: 9px; height: 14px; border-radius: 2px; background: repeating-linear-gradient(45deg, #155e75, #155e75 2px, #0e7490 2px, #0e7490 4px); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5); }
 .seat.left .backs, .seat.right .backs { margin-top: 2px; }
 .mano-tag {
   position: absolute;
@@ -898,6 +898,26 @@ body[data-game='caida'] .board { --cw: min(13vw, 9dvh, 72px); }
 .card.place { background: rgba(0, 0, 0, 0.18); box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.14); }
 .sung { display: block; font-size: 11px; font-weight: 800; color: var(--gold); }
 .call.count { background: var(--accent); min-width: 88px; }
+
+/* ---- roba la cochina table ------------------------------------------------ */
+body[data-game='cochina'] .board { --cw: min(12vw, 8dvh, 66px); }
+@media (max-height: 680px) { body[data-game='cochina'] .board { --cw: min(12vw, 6.5dvh); } }
+body[data-game='cochina'] .loose { bottom: calc(var(--cw) * 1.5 + 18px); }
+.cochinas { position: absolute; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; align-items: flex-end; padding: 0 4px 10px; }
+.cochina { display: flex; align-items: flex-end; gap: 8px; }
+.cochina:last-child { flex-direction: row-reverse; }
+.cochina .pile { position: relative; display: block; }
+.cochina .pile .card { box-shadow: 0 0 0 2px var(--team), 0 2px 6px rgba(0, 0, 0, 0.45); }
+.cochina .pile .card.place { box-shadow: inset 0 0 0 2px var(--team); opacity: 0.5; }
+/* Edges of the cards underneath, peeking out below the top card. */
+.cochina .edge { position: absolute; left: 0; right: 0; height: 100%; border-radius: calc(var(--cw) * 0.09); background: #efe8d6; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+.cochina .edge:nth-child(1) { top: 3px; }
+.cochina .edge:nth-child(2) { top: 6px; }
+.cochina .edge:nth-child(3) { top: 9px; }
+.cochina .pile-info { display: flex; flex-direction: column; line-height: 1.1; }
+.cochina:last-child .pile-info { align-items: flex-end; }
+.cochina .pile-info small { font-size: 11px; color: var(--muted); }
+.cochina .pile-info b { font-size: 22px; color: var(--team); }
 
 /* ---- parchís table ------------------------------------------------------ */
 body[data-game='parchis'] { --accent: #7c3aed; --accent-glow: rgba(124, 58, 237, 0.4); }
@@ -1016,6 +1036,7 @@ body[data-game='domino'] .actions { display: none; }
 .shout.noquiero { background: #b91c1c; color: #fff; }
 .shout.quiero { background: #15803d; color: #fff; }
 .shout.caida { background: var(--gold); color: #2a2000; font-size: 26px; }
+.shout.cochina { background: #ec4899; color: #fff; font-size: 24px; }
 @keyframes shout {
   0% { scale: 0.3; opacity: 0; }
   12% { scale: 1.2; opacity: 1; }
@@ -1025,7 +1046,7 @@ body[data-game='domino'] .actions { display: none; }
 }
 
 /* ---- hand --------------------------------------------------------------- */
-body:is([data-game='truco'], [data-game='caida']) .hand {
+body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .hand {
   --cw: min(27vw, 17dvh, 112px);
   display: flex;
   justify-content: center;

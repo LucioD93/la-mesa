@@ -1,9 +1,11 @@
 // The game page: connection, lobby, seats, voice, photos, reactions and the frame of
-// the result. What's on the table belongs to the game's view (domino.js, truco.js, caida.js, parchis.js).
+// the result. What's on the table belongs to the game's view (domino.js, truco.js, caida.js,
+// parchis.js, cochina.js).
 import { createView as createDominoView } from './domino.js';
 import { createView as createTrucoView } from './truco.js';
 import { createView as createCaidaView } from './caida.js';
 import { createView as createParchisView } from './parchis.js';
+import { createView as createCochinaView } from './cochina.js';
 import { RULES } from './rules.js';
 import { reduceMotion, whenLanded } from './flight.js';
 import * as fx from './fx.js';
@@ -1024,6 +1026,12 @@ const ctx = {
   laughAtMe,
   within,
 };
-const views = { domino: createDominoView(ctx), truco: createTrucoView(ctx), caida: createCaidaView(ctx), parchis: createParchisView(ctx) };
+const views = {
+  domino: createDominoView(ctx),
+  truco: createTrucoView(ctx),
+  caida: createCaidaView(ctx),
+  parchis: createParchisView(ctx),
+  cochina: createCochinaView(ctx),
+};
 
 connect();

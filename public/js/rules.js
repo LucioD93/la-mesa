@@ -247,4 +247,54 @@ export const RULES = {
       ] },
     ],
   },
+  cochina: {
+    en: [
+      { h: 'The game', items: [
+        '40-card Spanish deck, 2 vs 2. Partners share one pile, the cochina, kept face up so everyone sees its top card.',
+        'A round is 4 cards on the table, then three deals of 3 cards each. That uses the whole deck.',
+        'The bigger cochina wins the round and scores 1. You pick how many rounds to win (1, 3 or 5) in the lobby.',
+      ] },
+      { h: 'Your turn', items: [
+        'Play one card. Only the number counts, never the suit.',
+        'If the table has cards of that number, you take them all onto your cochina, with your card on top.',
+        'If your card matches the top card of the other team\'s cochina, you steal it: the whole pile goes onto yours. ¡Te robé la cochina!',
+        'A card can take from the table and steal at the same time. Capturing is automatic.',
+        'With no match, your card stays on the table for anyone to take.',
+      ] },
+      { h: 'Watch your top card', items: [
+        'The card on top of your cochina is the one the rivals need. Taking with a number they might still hold puts your whole pile at risk.',
+      ] },
+      { h: 'End of the round', items: [
+        'Whoever captured last takes whatever is left on the table.',
+        'The team with more cards wins the round. Equal cochinas score nothing.',
+      ] },
+      { h: 'House rules', items: [
+        'Roba la cochina (also roba montón) varies by table. Here partners share a cochina, a card takes every card of its number, and you can never add to your own pile without capturing.',
+      ] },
+    ],
+    es: [
+      { h: 'El juego', items: [
+        'Baraja española de 40 cartas, 2 contra 2. Los compañeros comparten una pila, la cochina, boca arriba para que todos vean la carta de arriba.',
+        'Una mano son 4 cartas en la mesa y luego tres repartos de 3 cartas cada uno. Así se acaba la baraja.',
+        'La cochina más grande gana la mano y suma 1. Se elige en la sala a cuántas manos se juega (1, 3 o 5).',
+      ] },
+      { h: 'Tu turno', items: [
+        'Juega una carta. Solo cuenta el número, nunca el palo.',
+        'Si en la mesa hay cartas de ese número, te las llevas todas a tu cochina, con tu carta arriba.',
+        'Si tu carta pega con la de arriba de la cochina del otro equipo, se la robas: la pila entera pasa a la tuya. ¡Te robé la cochina!',
+        'Una carta puede recoger de la mesa y robar a la vez. Se recoge solo.',
+        'Si no pega con nada, tu carta se queda en la mesa para quien se la lleve.',
+      ] },
+      { h: 'Cuida tu carta de arriba', items: [
+        'La carta de arriba de tu cochina es la que buscan los rivales. Recoger con un número que todavía pueden tener pone en riesgo toda tu pila.',
+      ] },
+      { h: 'Fin de la mano', items: [
+        'Quien recogió de último se lleva lo que quede en la mesa.',
+        'Gana la mano el equipo con más cartas. Si las cochinas son iguales, nadie suma.',
+      ] },
+      { h: 'Reglas de la casa', items: [
+        'Roba la cochina (o roba montón) cambia de mesa en mesa. Aquí los compañeros comparten la cochina, una carta se lleva todas las de su número, y no puedes poner cartas en tu pila sin recoger.',
+      ] },
+    ],
+  },
 };

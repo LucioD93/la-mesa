@@ -65,6 +65,8 @@ const sounds = {
     note(330, { dur: 0.14, type: 'sawtooth', gain: 0.12, slide: 500 });
     note(440, { at: 0.14, dur: 0.3, type: 'sawtooth', gain: 0.12, slide: 880 });
   },
+  // A pig's grunt, for a stolen cochina: oink oink.
+  oink: () => [0, 0.2].forEach((at) => note(300, { at, dur: 0.14, type: 'sawtooth', gain: 0.1, slide: 170 })),
   flor: () => [784, 988, 1175, 1568].forEach((f, i) => note(f, { at: i * 0.08, dur: 0.22, gain: 0.12 })),
   pass: () => sounds.no(),
   no: () => {
