@@ -715,7 +715,9 @@ function showReaction({ seat, emoji, crowd, slow }) {
     // Someone is taking too long: the rest of the table sends it together.
     [0, 1, 2, 3].filter((s) => s !== slow).forEach((s, i) => setTimeout(() => floatEmoji(s, emoji), i * 150));
     if (slow === me()) buzz([80, 60, 80]);
-  } else floatEmoji(seat, emoji);
+    return crowdEmoji(emoji, crowd); // silent: it mocks, it doesn't need to shout
+  }
+  floatEmoji(seat, emoji);
   if (crowd <= 1) return sound.play('react');
   crowdEmoji(emoji, crowd);
   if (emoji === 'manguangua') sound.playClip('manguangua'); // his catchphrase, as when the bot says it

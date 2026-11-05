@@ -100,7 +100,7 @@ export function createHub(store) {
     }, p.delay);
   }
 
-  // A human taking too long gets El Manguangua from the table. Like automatic moves,
+  // A human taking too long gets mocked by the table. Like automatic moves,
   // every instance may schedule it and the moment key keeps it to once.
   function scheduleHurry(id, match) {
     const r = rooms.get(id);

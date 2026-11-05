@@ -20,7 +20,8 @@ const MAX_NAME = 24;
 export const REACTIONS = ['👏', '😂', '😮', '😡', '🔥', '👋', 'manguangua']; // El Manguangua is a photo, not an emoji
 const REACTION_COOLDOWN_MS = 600; // per player, so a pile-on is not throttled
 const REACTION_CROWD_MS = 3000; // same emoji from others within this joins the crowd
-export const SLOW_TURN_MS = 10_000; // a player thinking longer than this gets El Manguangua from the whole table
+export const SLOW_TURN_MS = 60_000; // a player thinking longer than this gets mocked by the whole table
+const HURRY_REACTIONS = ['manguangua', '🐢', '🐌', '🦥', '😴', '🥱', '💤', '⏳']; // one picked at random each time
 const BLUNDER_COOLDOWN_MS = 2000;
 // How the table looks. Everyone at the table sees the same one.
 export const THEMES = ['felt', 'pencil', 'neon', 'minimal', 'dark', 'halloween', 'christmas'];
@@ -293,8 +294,8 @@ export class Match {
     return this.phase === 'playing' && !this.pendingAuto() ? this.rules.waitingOn(this) : null;
   }
 
-  /** Still the same slow moment: everyone else at the table sends El Manguangua at once. */
-  hurry(key) {
+  /** Still the same slow moment: everyone else at the table sends the same mocking reaction at once. */
+  hurry(key, rng = Math.random) {
     const w = this.waitingOn();
     if (!w || w.key !== key || this.hurried === key) return false;
     this.hurried = key;
@@ -302,7 +303,7 @@ export class Match {
     this.reaction = {
       n: (this.reaction?.n ?? 0) + 1,
       seat: crowd[0],
-      emoji: 'manguangua',
+      emoji: HURRY_REACTIONS[Math.floor(rng() * HURRY_REACTIONS.length)],
       at: Date.now(),
       sent: this.reaction?.sent ?? {}, // nobody's own cooldown is spent
       crowd,
