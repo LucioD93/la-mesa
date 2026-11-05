@@ -185,7 +185,7 @@ export function createHub(store) {
         }
         if (msg.inVoice) setInVoice(true); // a handover doesn't join voice again
         await store.setPresence(id, conn.token);
-        await store.update(id, (m) => m.join(conn.token, msg.name, msg.game));
+        await store.update(id, (m) => m.join(conn.token, msg.name, msg.game, msg.theme));
         send(ws, { t: 'voiceConfig', peer: conn.peer, iceServers: iceServers() });
         return;
       }

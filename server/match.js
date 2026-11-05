@@ -22,6 +22,10 @@ const REACTION_COOLDOWN_MS = 600; // per player, so a pile-on is not throttled
 const REACTION_CROWD_MS = 3000; // same emoji from others within this joins the crowd
 export const SLOW_TURN_MS = 10_000; // a player thinking longer than this gets El Manguangua from the whole table
 const BLUNDER_COOLDOWN_MS = 2000;
+// How the table looks. Everyone at the table sees the same one.
+export const THEMES = ['felt', 'pencil', 'neon', 'minimal', 'dark', 'halloween', 'christmas'];
+export const DEFAULT_THEME = 'felt';
+const isTheme = (id) => THEMES.includes(id);
 
 const cleanName = (name) =>
   String(name ?? '')
@@ -48,6 +52,7 @@ export class Match {
     this.phase = 'lobby'; // lobby | playing | roundEnd | matchEnd
     this.target = this.rules.defaultTarget;
     this.variant = this.rules.defaultVariant ?? null; // a choice the game offers: parchís's dice
+    this.theme = DEFAULT_THEME;
     this.scores = [0, 0];
     this.history = [];
     this.round = null;
@@ -58,11 +63,12 @@ export class Match {
     this.blunder = null; // latest illegal move or forgotten flor, for the table to mock: { n, seat, at }
     this.v = 0;
     if (data) Object.assign(this, data, { id, game: this.game });
+    if (!isTheme(this.theme)) this.theme = DEFAULT_THEME; // saved before themes existed
   }
 
   toJSON() {
-    const { id, game, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, hurried, blunder, v } = this;
-    return { id, game, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, hurried, blunder, v };
+    const { id, game, theme, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, hurried, blunder, v } = this;
+    return { id, game, theme, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, hurried, blunder, v };
   }
 
   /** The rules of the game this match is playing. */
@@ -79,15 +85,26 @@ export class Match {
     return true;
   }
 
+  /** Change how the table looks (lobby only, like the game). */
+  setTheme(id) {
+    if (this.phase !== 'lobby' || !isTheme(id) || id === this.theme) return false;
+    this.theme = id;
+    return true;
+  }
+
   seatOf(token) {
     return this.seats.findIndex((s) => s && !s.bot && s.token === token);
   }
 
   // ---- changes (each returns true if the match changed) ---------------------
 
-  join(token, name, gameHint) {
+  join(token, name, gameHint, themeHint) {
     // A link can ask for a game (old Trucazo links), but only a match nobody has joined yet takes it.
-    if (this.v === 0) this.setGame(gameHint);
+    // The first player's last theme also carries over to the new match.
+    if (this.v === 0) {
+      this.setGame(gameHint);
+      this.setTheme(themeHint);
+    }
     name = cleanName(name) || 'Player';
     this.names[token] = name;
     const seat = this.seatOf(token);
@@ -178,6 +195,8 @@ export class Match {
       }
       case 'game':
         return this.setGame(msg.game);
+      case 'theme':
+        return this.setTheme(msg.theme);
       case 'target':
         if (this.phase !== 'lobby' || !this.rules.targets.includes(Number(msg.target))) return false;
         this.target = Number(msg.target);
@@ -304,6 +323,7 @@ export class Match {
       t: 'state',
       matchId: this.id,
       game: this.game,
+      theme: this.theme,
       targets: this.rules.targets,
       variants: this.rules.variants ?? null,
       variant: this.variant,

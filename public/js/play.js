@@ -13,6 +13,7 @@ import * as i18n from './i18n.js';
 import { t } from './i18n.js';
 import { createVoice } from './voice.js';
 import * as avatar from './avatar.js';
+import * as theme from './theme.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -65,7 +66,7 @@ let bannerTimer;
 
 const dial = () => new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/ws?match=${encodeURIComponent(matchId)}`);
 // `games` tells the server what this page can draw, since a tab can stay open across deploys.
-const hello = () => ({ t: 'hello', token, name: myName, session: voiceSession, inVoice: voice.joined, games: Object.keys(views), game: gameHint });
+const hello = () => ({ t: 'hello', token, name: myName, session: voiceSession, inVoice: voice.joined, games: Object.keys(views), game: gameHint, theme: theme.saved() });
 const scheduleRotation = () => (rotateAt = Date.now() + ROTATE_MS + Math.random() * ROTATE_JITTER_MS);
 
 function connect() {
@@ -345,6 +346,7 @@ function render(next) {
   const prev = state && state.game !== next.game ? { ...state, round: null, roundNo: 0 } : state;
   state = next;
   useGame(state.game);
+  theme.use(state.theme);
   const r = state.round;
 
   renderScores();
@@ -364,6 +366,7 @@ function render(next) {
   // Feedback for what just happened.
   view.feedback(prev);
   if (prev && prev.game !== state.game) toast(t('gameChanged', { game: t(`game.${state.game}`) }), 2400);
+  else if (prev && prev.theme !== state.theme) toast(t('themeChanged', { theme: t(`theme.${state.theme}`) }), 2000);
   if (prev && hasManguangua(state) && !hasManguangua(prev)) toast(t('manguangua'), 3200);
   if (prev && state.reaction && state.reaction.n !== prev.reaction?.n) showReaction(state.reaction);
   if (prev && state.blunder && state.blunder.n !== prev.blunder?.n && state.blunder.seat !== me()) {
@@ -427,6 +430,7 @@ function renderLobby() {
   $('gameCard').innerHTML = `${gameIcon(state.game)}<span class="game-text"><small>${t('game')}</small><b>${t(`game.${state.game}`)}</b></span><span class="game-change" aria-hidden="true">▾</span>`;
   $('gameCard').setAttribute('aria-label', t('aria.changeGame', { game: t(`game.${state.game}`) }));
   if (!$('gamesSheet').hidden) paintGames();
+  for (const b of $('themePicker').children) b.classList.toggle('on', b.dataset.themePick === state.theme);
   $('targetPicker').innerHTML = state.targets
     .map((n) => `<button data-target="${n}" class="${n === state.target ? 'on' : ''}">${n}</button>`)
     .join('');
@@ -959,7 +963,7 @@ window.addEventListener('pointerup', onDragEnd);
 window.addEventListener('pointercancel', onDragEnd);
 
 document.body.addEventListener('click', (e) => {
-  const el = e.target.closest('[data-botify],[data-sit],[data-remove],[data-stand],[data-act],[data-close],[data-target],[data-variant],[data-pick],[data-rules]');
+  const el = e.target.closest('[data-botify],[data-sit],[data-remove],[data-stand],[data-act],[data-close],[data-target],[data-variant],[data-pick],[data-theme-pick],[data-rules]');
   if (!el) return;
   if (el.dataset.botify) return send({ t: 'botify', seat: Number(el.dataset.botify) });
   if (el.dataset.remove) {
@@ -978,6 +982,7 @@ document.body.addEventListener('click', (e) => {
     $('gamesSheet').hidden = true;
     return el.dataset.pick !== state.game && send({ t: 'game', game: el.dataset.pick });
   }
+  if (el.dataset.themePick) return send({ t: 'theme', theme: el.dataset.themePick });
   if ('close' in el.dataset) return (el.closest('.sheet').hidden = true);
   if ('rules' in el.dataset) {
     if (!state) return;
