@@ -259,7 +259,7 @@ export const RULES = {
         'With no match, your card stays on the table for anyone to take, and the turn moves on.',
       ] },
       { h: 'Grab them!', items: [
-        'If your card matches something, you have 3 seconds to grab it. A bar shows the time left.',
+        'If your card matches something, you have 3 seconds to grab it. A bar shows the time left, and what you can grab glows.',
         'Tap each card of that number on the table to take it onto your cochina. Your card goes on top with the first one.',
         'If your card matches the top card of the other team\'s cochina, tap it to steal it: the whole pile goes onto yours. ¡Te robé la cochina!',
         'You can take from the table and steal with the same card.',
@@ -288,7 +288,7 @@ export const RULES = {
         'Si no pega con nada, tu carta se queda en la mesa para quien se la lleve, y pasa el turno.',
       ] },
       { h: '¡Agarra!', items: [
-        'Si tu carta pega con algo, tienes 3 segundos para agarrarlo. Una barra muestra el tiempo que queda.',
+        'Si tu carta pega con algo, tienes 3 segundos para agarrarlo. Una barra muestra el tiempo que queda, y lo que puedes agarrar brilla.',
         'Toca cada carta de ese número en la mesa para llevarla a tu cochina. Tu carta va arriba con la primera.',
         'Si tu carta pega con la de arriba de la cochina del otro equipo, tócala para robártela: la pila entera pasa a la tuya. ¡Te robé la cochina!',
         'Con la misma carta puedes recoger de la mesa y robar.',
