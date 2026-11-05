@@ -321,6 +321,8 @@ export const game = {
     };
   },
 
+  waitingOn: (match) => ({ seat: match.round.turn, key: `${match.roundNo}:${match.round.seq}` }),
+
   runAuto(match, rng) {
     const r = match.round;
     const seat = r.turn;

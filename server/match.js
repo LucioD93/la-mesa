@@ -17,9 +17,10 @@ const BOTS = [
   { name: 'El Bachaquero', emoji: '🐜' },
 ];
 const MAX_NAME = 16;
-export const REACTIONS = ['👏', '😂', '😮', '😡', '🔥', '👋'];
+export const REACTIONS = ['👏', '😂', '😮', '😡', '🔥', '👋', 'manguangua']; // El Manguangua is a photo, not an emoji
 const REACTION_COOLDOWN_MS = 600; // per player, so a pile-on is not throttled
 const REACTION_CROWD_MS = 3000; // same emoji from others within this joins the crowd
+export const SLOW_TURN_MS = 10_000; // a player thinking longer than this gets El Manguangua from the whole table
 const BLUNDER_COOLDOWN_MS = 2000;
 
 const cleanName = (name) =>
@@ -52,15 +53,16 @@ export class Match {
     this.round = null;
     this.roundNo = 0;
     this.nextStarter = null; // who starts the next round, null to let the game pick
-    this.reaction = null; // latest emoji thrown at the table: { n, seat, emoji, at, sent, crowd }
+    this.reaction = null; // latest emoji thrown at the table: { n, seat, emoji, at, sent, crowd, slow? }
+    this.hurried = null; // the moment key of the last slow player the table hurried, so it happens once
     this.blunder = null; // latest illegal move or forgotten flor, for the table to mock: { n, seat, at }
     this.v = 0;
     if (data) Object.assign(this, data, { id, game: this.game });
   }
 
   toJSON() {
-    const { id, game, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, blunder, v } = this;
-    return { id, game, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, blunder, v };
+    const { id, game, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, hurried, blunder, v } = this;
+    return { id, game, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, hurried, blunder, v };
   }
 
   /** The rules of the game this match is playing. */
@@ -265,6 +267,31 @@ export class Match {
     return true;
   }
 
+  // ---- slow players ----------------------------------------------------------
+
+  /** The human the table is waiting on, if any: { seat, key }. */
+  waitingOn() {
+    return this.phase === 'playing' && !this.pendingAuto() ? this.rules.waitingOn(this) : null;
+  }
+
+  /** Still the same slow moment: everyone else at the table sends El Manguangua at once. */
+  hurry(key) {
+    const w = this.waitingOn();
+    if (!w || w.key !== key || this.hurried === key) return false;
+    this.hurried = key;
+    const crowd = [0, 1, 2, 3].filter((s) => s !== w.seat);
+    this.reaction = {
+      n: (this.reaction?.n ?? 0) + 1,
+      seat: crowd[0],
+      emoji: 'manguangua',
+      at: Date.now(),
+      sent: this.reaction?.sent ?? {}, // nobody's own cooldown is spent
+      crowd,
+      slow: w.seat,
+    };
+    return true;
+  }
+
   // ---- view ----------------------------------------------------------------
 
   stateFor(token, online) {
@@ -292,6 +319,7 @@ export class Match {
         seat: this.reaction.seat,
         emoji: this.reaction.emoji,
         crowd: this.reaction.crowd?.length ?? 1,
+        ...(this.reaction.slow != null && { slow: this.reaction.slow }), // the seat the whole table is hurrying
       },
       blunder: this.blunder && { n: this.blunder.n, seat: this.blunder.seat },
       seats: this.seats.map((s, i) =>

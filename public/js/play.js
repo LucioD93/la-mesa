@@ -650,12 +650,24 @@ function laughAtMe() {
 
 // ---- reactions ----------------------------------------------------------------
 
+// El Manguangua's reaction is a photo of his face (Henrique Capriles, 2022, CC0 via Wikimedia Commons).
+const FACE = '/img/manguangua.jpg';
+new Image().src = FACE; // so the first one doesn't pop in empty
+
+function fillReaction(el, emoji) {
+  if (emoji !== 'manguangua') return void (el.textContent = emoji);
+  const img = document.createElement('img');
+  img.src = FACE;
+  img.alt = '';
+  el.append(img);
+}
+
 function floatEmoji(seat, emoji) {
   const anchor = seatEl(seat);
   const rect = anchor.getBoundingClientRect();
   const el = document.createElement('span');
   el.className = 'reaction';
-  el.textContent = emoji;
+  fillReaction(el, emoji);
   el.style.left = `${rect.left + rect.width / 2}px`;
   el.style.top = `${rect.top + rect.height / 2}px`;
   el.addEventListener('animationend', () => el.remove());
@@ -668,7 +680,7 @@ function crowdEmoji(emoji, crowd) {
   const rect = $('board').getBoundingClientRect();
   const el = document.createElement('span');
   el.className = 'reaction-crowd';
-  el.textContent = emoji;
+  fillReaction(el, emoji);
   el.style.left = `${rect.left + rect.width / 2}px`;
   el.style.top = `${rect.top + rect.height / 2}px`;
   el.style.setProperty('--crowd', crowd);
@@ -676,10 +688,16 @@ function crowdEmoji(emoji, crowd) {
   document.body.append(el);
 }
 
-function showReaction({ seat, emoji, crowd }) {
-  floatEmoji(seat, emoji);
-  if (crowd > 1) crowdEmoji(emoji, crowd);
-  sound.play('react');
+function showReaction({ seat, emoji, crowd, slow }) {
+  if (slow != null) {
+    // Someone is taking too long: the rest of the table sends it together.
+    [0, 1, 2, 3].filter((s) => s !== slow).forEach((s, i) => setTimeout(() => floatEmoji(s, emoji), i * 150));
+    if (slow === me()) buzz([80, 60, 80]);
+  } else floatEmoji(seat, emoji);
+  if (crowd <= 1) return sound.play('react');
+  crowdEmoji(emoji, crowd);
+  if (emoji === 'manguangua') sound.playClip('manguangua'); // his catchphrase, as when the bot says it
+  else sound.play('crowd');
 }
 
 // ---- voice chat ---------------------------------------------------------------

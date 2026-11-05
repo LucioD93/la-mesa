@@ -16,7 +16,7 @@ Created in [T3 Code](https://t3.codes).
 - **Spectators.** Anyone who opens the link after the seats are taken watches the game.
 - **Reconnects.** Reloading or briefly losing the connection puts you back in your seat with your hand. Sockets are replaced before the host's time limit ends them, so games and voice calls carry on without a drop. The client notices dead connections within seconds, reconnects with backoff, and retries right away when the network or the tab comes back. If you were swapped for a bot while away, rejoining gives you your seat back.
 - **Voice chat.** Everyone in a match (players and spectators) can join the room's voice chat with the mic button, from the lobby or the table, mute themselves, or hang up. Audio goes peer to peer over WebRTC; the server only relays the connection setup. Seated players in voice get a mic badge on their avatar and a green ring while they talk. Without a microphone (blocked, missing, or a plain-`http` LAN page) you join as a listener.
-- **Reactions and sound.** Emoji reactions shown at the table (👏 😂 😮 😡 🔥 👋), sound effects, and a pass animation. When players send the same emoji within 3 seconds, a big one pops over the table.
+- **Reactions and sound.** Emoji reactions shown at the table (👏 😂 😮 😡 🔥 👋, plus El Manguangua's face with his catchphrase), sound effects, and a pass animation. When players send the same emoji within 3 seconds, a big one pops over the table. A player who takes more than 10 seconds over a move gets El Manguangua from everyone else at once.
 - **Your hand, your order.** Drag a tile or card to a new slot in your hand at any point.
 - **Rules at the table.** The book icon, in the lobby and at the table, opens the rules of the game being played.
 - **English and Spanish.** The language follows the browser, and the EN/ES button switches it (saved in `localStorage`). Truco's calls (¡Truco!, Quiero…) and caída's (¡Caída!, ¡Ronda!…) stay in Spanish in both.
@@ -161,6 +161,7 @@ public/
   js/cards.js      Card markup (SVG, placing the suit drawings)
   suits/           Traditional suit drawings (public domain)
   sounds/          El Manguangua's catchphrase
+  img/             El Manguangua's face for the reaction (Henrique Capriles, 2022, CC0, Wikimedia Commons)
   js/fx.js         Win and lose animations
   js/sound.js      Sound effects
   js/voice.js      Voice chat (WebRTC mesh, signaling over the game socket)
@@ -176,7 +177,7 @@ vercel.json        Rewrites /play/:id → /play.html and /admin → /admin.html
 
 ### How a game plugs in
 
-A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto` and `roundView`.
+A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto`, `waitingOn` and `roundView`.
 
 On the client, `play.js` keeps one view per game (`domino.js`, `truco.js`, `caida.js`, `parchis.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
 
