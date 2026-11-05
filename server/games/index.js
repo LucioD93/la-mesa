@@ -6,6 +6,7 @@
 //   settle(match)                the round is over: add its scores and history
 //   pendingAuto(match)           { delay, key } if the table should play itself now
 //   runAuto(match, rng)          play that automatic move
+//   waitingOn(match)             { seat, key } of the human the table waits on, when pendingAuto is null
 //   roundView(round, seat, revealed)   what one player may see of the round
 import { game as domino } from './domino.js';
 import { game as truco } from './truco.js';

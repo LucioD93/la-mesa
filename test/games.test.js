@@ -18,6 +18,43 @@ function savedDominoMatch() {
   return json;
 }
 
+test('a slow human gets El Manguangua from everyone else, once per moment, in every game', () => {
+  for (const game of ['domino', 'truco', 'caida', 'parchis']) {
+    const m = new Match('slow', { game });
+    for (const t of ['a', 'b', 'c', 'd']) m.join(t, t);
+    assert.equal(m.waitingOn(), null, `${game}: nobody is waited on in the lobby`);
+    m.startRound();
+    const w = m.waitingOn();
+    assert.ok(w && w.seat >= 0 && w.seat < 4, game);
+    assert.equal(m.hurry('another moment'), false, game);
+    assert.equal(m.hurry(w.key), true, game);
+    assert.deepEqual(m.reaction.crowd, [0, 1, 2, 3].filter((s) => s !== w.seat), game);
+    const seen = m.stateFor('a', new Set()).reaction;
+    assert.equal(seen.emoji, 'manguangua', game);
+    assert.equal(seen.crowd, 3, game);
+    assert.equal(seen.slow, w.seat, game);
+    assert.equal(m.hurry(w.key), false, `${game}: not twice for the same moment`);
+    assert.equal(new Match('slow', JSON.parse(JSON.stringify(m))).hurry(w.key), false, `${game}: not after a reload either`);
+  }
+});
+
+test('nobody is hurried while a bot is thinking', () => {
+  const m = new Match('bots', { game: 'caida' });
+  m.join('a', 'a');
+  m.handle('a', { t: 'addBots' }, new Set(['a']));
+  m.startRound();
+  m.round.turn = 1;
+  assert.equal(m.waitingOn(), null);
+});
+
+test('El Manguangua is also a reaction anyone can send', () => {
+  const m = new Match('face', { game: 'truco' });
+  for (const t of ['a', 'b']) m.join(t, t);
+  assert.equal(m.handle('a', { t: 'react', emoji: 'manguangua' }, new Set()), true);
+  assert.equal(m.handle('b', { t: 'react', emoji: 'manguangua' }, new Set()), true);
+  assert.deepEqual(m.stateFor('a', new Set()).reaction, { n: 2, seat: 1, emoji: 'manguangua', crowd: 2 });
+});
+
 test('a match saved without a game loads as dominoes and keeps playing', () => {
   const saved = savedDominoMatch();
   const m = new Match('old', { ...saved, target: 75 });

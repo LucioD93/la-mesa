@@ -235,6 +235,9 @@ export const game = {
     return { delay: BOT_DELAY_MS + (newDeal ? DEAL_PAUSE_MS : 0) + (captured ? CAPTURE_PAUSE_MS : 0), key };
   },
 
+  // A grab window always has a timer, so this is only ever a player choosing a card.
+  waitingOn: (match) => ({ seat: match.round.turn, key: `${match.roundNo}:${match.round.seq}` }),
+
   runAuto(match, rng) {
     const r = match.round;
     const seat = r.turn;

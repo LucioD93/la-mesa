@@ -21,6 +21,9 @@ const MIME = {
   '.json': 'application/json',
   '.webmanifest': 'application/manifest+json',
   '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.ico': 'image/x-icon',
+  '.woff2': 'font/woff2',
 };
 
 function sendFile(res, file) {

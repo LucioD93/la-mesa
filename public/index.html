@@ -18,8 +18,12 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="A domino tile and a Spanish playing card on a green felt table, with the words La Mesa" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="icon" href="/icon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- Paint in the last theme right away; the match's own arrives with its state. -->
+    <script>document.documentElement.dataset.theme = localStorage.getItem('domino.theme') || 'felt';</script>
     <link rel="stylesheet" href="/css/style.css" />
   </head>
   <body class="landing">
