@@ -123,18 +123,7 @@
               <input id="nameInput" maxlength="24" autocomplete="nickname" enterkeyhint="done" />
             </label>
           </div>
-          <div class="field theme-field">
-            <div class="theme-label"><span data-i18n="style">Style</span><b id="themeName"></b></div>
-            <div class="swatches" id="themePicker">
-              <button data-theme-pick="felt" aria-label="Felt" data-i18n-aria="theme.felt"></button>
-              <button data-theme-pick="pencil" aria-label="Pencil" data-i18n-aria="theme.pencil"></button>
-              <button data-theme-pick="neon" aria-label="Neon" data-i18n-aria="theme.neon"></button>
-              <button data-theme-pick="minimal" aria-label="Minimal" data-i18n-aria="theme.minimal"></button>
-              <button data-theme-pick="dark" aria-label="Dark" data-i18n-aria="theme.dark"></button>
-              <button data-theme-pick="halloween" aria-label="Halloween" data-i18n-aria="theme.halloween"></button>
-              <button data-theme-pick="christmas" aria-label="Christmas" data-i18n-aria="theme.christmas"></button>
-            </div>
-          </div>
+          <button type="button" class="game-card style-card" id="styleCard" aria-haspopup="dialog"></button>
           <button type="button" class="game-card" id="gameCard" aria-haspopup="dialog"></button>
           <div class="field">
             <span data-i18n="playTo">Play to</span>
@@ -166,6 +155,17 @@
           <button class="icon-btn" data-close aria-label="Close" data-i18n-aria="aria.close">✕</button>
         </div>
         <div class="game-list" id="gameList"></div>
+      </div>
+    </section>
+
+    <!-- Every style the table can take -->
+    <section class="sheet" id="stylesSheet" hidden>
+      <div class="sheet-body">
+        <div class="sheet-head">
+          <h2 data-i18n="chooseStyle">Choose a style</h2>
+          <button class="icon-btn" data-close aria-label="Close" data-i18n-aria="aria.close">✕</button>
+        </div>
+        <div class="game-list" id="styleList"></div>
       </div>
     </section>
 

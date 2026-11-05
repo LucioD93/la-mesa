@@ -400,7 +400,7 @@ function renderScores() {
 function renderLobby() {
   const show = state.phase === 'lobby';
   $('lobby').hidden = !show;
-  if (!show) return ($('gamesSheet').hidden = true);
+  if (!show) return ($('gamesSheet').hidden = $('stylesSheet').hidden = true);
   $('matchCode').textContent = matchId;
   $('inviteUrl').value = inviteUrl();
   if (document.activeElement !== $('nameInput')) $('nameInput').value = myName;
@@ -430,9 +430,9 @@ function renderLobby() {
   $('gameCard').innerHTML = `${gameIcon(state.game)}<span class="game-text"><small>${t('game')}</small><b>${t(`game.${state.game}`)}</b></span><span class="game-change" aria-hidden="true">▾</span>`;
   $('gameCard').setAttribute('aria-label', t('aria.changeGame', { game: t(`game.${state.game}`) }));
   if (!$('gamesSheet').hidden) paintGames();
-  for (const b of $('themePicker').children) b.setAttribute('aria-pressed', b.dataset.themePick === state.theme);
-  $('themeName').textContent = t(`theme.${state.theme}`);
-  $('themeName').dataset.themeName = state.theme;
+  $('styleCard').innerHTML = `${swatch(state.theme)}<span class="game-text"><small>${t('style')}</small><b data-theme-name="${state.theme}">${t(`theme.${state.theme}`)}</b></span><span class="game-change" aria-hidden="true">▾</span>`;
+  $('styleCard').setAttribute('aria-label', t('aria.changeStyle', { style: t(`theme.${state.theme}`) }));
+  if (!$('stylesSheet').hidden) paintStyles();
   $('targetPicker').innerHTML = state.targets
     .map((n) => `<button data-target="${n}" class="${n === state.target ? 'on' : ''}">${n}</button>`)
     .join('');
@@ -453,6 +453,20 @@ function paintGames() {
       ${gameIcon(id)}<span class="game-text"><b>${t(`game.${id}`)}</b><small>${t(`gameDesc.${id}`)}</small></span>
       ${id === state.game ? '<span class="game-check" aria-hidden="true">✓</span>' : ''}</button>`,
   ).join('');
+}
+
+/** A style's two colors in a circle. */
+const swatch = (id) => `<span class="swatch" data-sw="${id}" aria-hidden="true"></span>`;
+
+/** The menu of styles, each name lettered like its style, with the table's marked. */
+function paintStyles() {
+  $('styleList').innerHTML = Object.keys(theme.THEMES)
+    .map(
+      (id) => `<button class="game-opt" data-theme-pick="${id}" aria-pressed="${id === state.theme}">
+      ${swatch(id)}<span class="game-text"><b data-theme-name="${id}">${t(`theme.${id}`)}</b><small>${t(`themeDesc.${id}`)}</small></span>
+      ${id === state.theme ? '<span class="game-check" aria-hidden="true">✓</span>' : ''}</button>`,
+    )
+    .join('');
 }
 
 const photoOf = (seat) => (seat === me() ? myPhoto : photos[state.seats[seat]?.pid]);
@@ -984,7 +998,10 @@ document.body.addEventListener('click', (e) => {
     $('gamesSheet').hidden = true;
     return el.dataset.pick !== state.game && send({ t: 'game', game: el.dataset.pick });
   }
-  if (el.dataset.themePick) return send({ t: 'theme', theme: el.dataset.themePick });
+  if (el.dataset.themePick) {
+    $('stylesSheet').hidden = true;
+    return el.dataset.themePick !== state.theme && send({ t: 'theme', theme: el.dataset.themePick });
+  }
   if ('close' in el.dataset) return (el.closest('.sheet').hidden = true);
   if ('rules' in el.dataset) {
     if (!state) return;
@@ -1020,6 +1037,11 @@ $('gamesSheet').addEventListener('click', (e) => e.target === $('gamesSheet') &&
 $('gameCard').onclick = () => {
   paintGames();
   $('gamesSheet').hidden = false;
+};
+$('stylesSheet').addEventListener('click', (e) => e.target === $('stylesSheet') && ($('stylesSheet').hidden = true));
+$('styleCard').onclick = () => {
+  paintStyles();
+  $('stylesSheet').hidden = false;
 };
 $('shareBtn').onclick = share;
 $('copyBtn').onclick = copyInvite;
