@@ -18,7 +18,7 @@ function savedDominoMatch() {
   return json;
 }
 
-test('a slow human gets El Manguangua from everyone else, once per moment, in every game', () => {
+test('a slow human gets mocked by everyone else, once per moment, in every game', () => {
   for (const game of ['domino', 'truco', 'caida', 'parchis']) {
     const m = new Match('slow', { game });
     for (const t of ['a', 'b', 'c', 'd']) m.join(t, t);
@@ -27,7 +27,7 @@ test('a slow human gets El Manguangua from everyone else, once per moment, in ev
     const w = m.waitingOn();
     assert.ok(w && w.seat >= 0 && w.seat < 4, game);
     assert.equal(m.hurry('another moment'), false, game);
-    assert.equal(m.hurry(w.key), true, game);
+    assert.equal(m.hurry(w.key, () => 0), true, game);
     assert.deepEqual(m.reaction.crowd, [0, 1, 2, 3].filter((s) => s !== w.seat), game);
     const seen = m.stateFor('a', new Set()).reaction;
     assert.equal(seen.emoji, 'manguangua', game);
@@ -36,6 +36,14 @@ test('a slow human gets El Manguangua from everyone else, once per moment, in ev
     assert.equal(m.hurry(w.key), false, `${game}: not twice for the same moment`);
     assert.equal(new Match('slow', JSON.parse(JSON.stringify(m))).hurry(w.key), false, `${game}: not after a reload either`);
   }
+});
+
+test('the table mocks a slow player with a reaction picked at random', () => {
+  const m = new Match('slow', { game: 'domino' });
+  for (const t of ['a', 'b', 'c', 'd']) m.join(t, t);
+  m.startRound();
+  assert.equal(m.hurry(m.waitingOn().key, () => 0.99), true);
+  assert.equal(m.stateFor('a', new Set()).reaction.emoji, '⏳');
 });
 
 test('nobody is hurried while a bot is thinking', () => {
