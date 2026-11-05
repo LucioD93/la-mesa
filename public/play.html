@@ -18,8 +18,12 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="A domino tile and a Spanish playing card on a green felt table, with the words La Mesa" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="icon" href="/icon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- Paint in the last theme right away; the match's own arrives with its state. -->
+    <script>document.documentElement.dataset.theme = localStorage.getItem('domino.theme') || 'felt';</script>
     <link rel="stylesheet" href="/css/style.css" />
   </head>
   <body class="game">
@@ -127,6 +131,18 @@
           <div class="field variant-field" id="variantField" hidden>
             <span data-i18n="variant"></span>
             <div class="segmented" id="variantPicker"></div>
+          </div>
+          <div class="field theme-field">
+            <span data-i18n="style">Style</span>
+            <div class="segmented" id="themePicker">
+              <button data-theme-pick="felt" data-i18n="theme.felt">Felt</button>
+              <button data-theme-pick="pencil" data-i18n="theme.pencil">Pencil</button>
+              <button data-theme-pick="neon" data-i18n="theme.neon">Neon</button>
+              <button data-theme-pick="minimal" data-i18n="theme.minimal">Minimal</button>
+              <button data-theme-pick="dark" data-i18n="theme.dark">Dark</button>
+              <button data-theme-pick="halloween" data-i18n="theme.halloween">Halloween</button>
+              <button data-theme-pick="christmas" data-i18n="theme.christmas">Christmas</button>
+            </div>
           </div>
         </div>
 

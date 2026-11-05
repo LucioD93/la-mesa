@@ -9,6 +9,7 @@ Created in [T3 Code](https://t3.codes).
 ## Features
 
 - **Four games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, truco, caída and parchís, and everyone there sees the change. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again.
+- **Table styles.** Anyone in the lobby can pick how the table looks for everyone in the match: Felt (the green table), Pencil (graphite on graph paper, with hatched card backs and colored-pencil teams) Neon (dark glass tiles with lit pips and a glowing grid) Minimal (flat white, hairlines, no shadows) Dark (graphite, charcoal tiles with white pips, amber highlights), Halloween (a moonlit purple night with bats and pumpkin tiles) or Christmas (a red table under falling snow, snow-white tiles with red pips and candy-cane card backs). A new match starts in the style its first player saw last. The fonts are served from `public/fonts/` (all SIL Open Font License).
 - **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches.
 - **Player photos.** Take a picture or choose a file on the home page or in the lobby and it becomes your avatar. A picture taken here never reaches the device's gallery. It is saved only in your browser's `localStorage`; the server passes it to the others in the match and never stores it.
 - **Shareable matches.** A match lives at `/play/<id>`. The invite button uses the native share sheet when the browser has one, and links unfurl with a preview image in WhatsApp and other chat apps. The preview is the same for every game: chat apps only see the static page, and the game can still change until the match starts. The share sheet's text names the current game.
@@ -137,7 +138,7 @@ server/
   usage.js         Buffers usage counters and writes them in batches
   admin.js         Password check and the report behind the admin page
   metered.js       TURN usage from Metered's API
-  match.js         A match as serializable state: game, seats, lobby, reactions, per-player views
+  match.js         A match as serializable state: game, table style, seats, lobby, reactions, per-player views
   games/
     index.js       The list of games, and what a game has to provide
     common.js      Seats and teams, shuffling, MoveError, bot pacing, the catchphrase odds
@@ -161,16 +162,19 @@ public/
   js/tiles.js      Tile markup
   js/cards.js      Card markup (SVG, placing the suit drawings)
   suits/           Traditional suit drawings (public domain)
+  icon.svg         Favicon (a domino on the felt); favicon.ico, apple-touch-icon.png and icon-*.png are it rendered to PNG
   sounds/          El Manguangua's catchphrase
   img/             El Manguangua's face for the reaction (Henrique Capriles, 2022, CC0, Wikimedia Commons)
   js/fx.js         Win and lose animations
   js/sound.js      Sound effects
   js/voice.js      Voice chat (WebRTC mesh, signaling over the game socket)
   js/avatar.js     Player photos: camera, file picker, local storage
+  js/theme.js      Table styles: paints the page in the match's style and remembers the last one
   js/i18n.js       UI strings (English, Spanish), shared and per game, and language switching
   js/admin.js      Admin page: sign-in and usage
-  css/style.css    Styles
-test/              Rules of both games, match, board layout, game choice, voice relay and admin tests
+  css/style.css    Styles, then each table style's overrides at the end
+  fonts/           Patrick Hand (pencil), Orbitron and Chakra Petch (neon), Creepster (halloween), Mountains of Christmas (christmas)
+test/              Rules of both games, match, board layout, game and style choice, voice relay and admin tests
 vercel.json        Rewrites /play/:id → /play.html and /admin → /admin.html
 ```
 
@@ -261,7 +265,7 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 
 | Client → server | Payload | When |
 | --- | --- | --- |
-| `hello` | `token`, `name`, `session?`, `inVoice?`, `games?`, `game?` | First message. Joins the match and takes a free seat if in the lobby. `session` determines the voice peer id. `inVoice` says a handover or reconnect is already in voice. `games` lists the games this page can draw. A tab from an older deploy sends `true` (domino and truco) or nothing (domino), and is asked to reload instead of receiving a state it can't draw. `game` picks the game if the match is brand new, from a `?game=` link. |
+| `hello` | `token`, `name`, `session?`, `inVoice?`, `games?`, `game?`, `theme?` | First message. Joins the match and takes a free seat if in the lobby. `session` determines the voice peer id. `inVoice` says a handover or reconnect is already in voice. `games` lists the games this page can draw. A tab from an older deploy sends `true` (domino and truco) or nothing (domino), and is asked to reload instead of receiving a state it can't draw. `game` picks the game if the match is brand new, from a `?game=` link. `theme` does the same for the table style, from the last one this device saw. |
 | `handoff` | | The client is moving to another socket and is about to close this one |
 | `rename` | `name` | Any time |
 | `sit` / `stand` | `seat` | Lobby. `sit` also lets a spectator take over a bot mid-game. |
@@ -269,6 +273,7 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `game` | `game: "domino" \| "truco" \| "caida" \| "parchis"` | Lobby. Resets the target to the game's default. |
 | `target` | `50 \| 75 \| 100`, `12 \| 24 \| 32`, `12 \| 24` or `1 \| 2 \| 3` | Lobby, from the current game's list |
 | `variant` | `1 \| 2` | Lobby, a game that offers a choice: parchís's dice |
+| `theme` | `theme: "felt" \| "pencil" \| "neon" \| "minimal" \| "dark" \| "halloween" \| "christmas"` | Lobby. Everyone in the match sees it. |
 | `start` | | Lobby, once all 4 seats are filled |
 | `play` | Domino: `tile: [a, b]`, `end: "L" \| "R"`. Truco and caída: `card: [number, suit]` | On your turn |
 | `call` | `what: "flor" \| "envido" \| "cinco" \| "falta" \| "truco" \| "mazo"` | Truco, when the `options` in your state allow it |
@@ -287,7 +292,7 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 
 | Server → client | Payload |
 | --- | --- |
-| `state` | Full personalized view: game, targets, phase, seats, scores, history, the round (board line and legal moves, or vira, tricks, open bets and `options`) and your hand |
+| `state` | Full personalized view: game, theme, targets, phase, seats, scores, history, the round (board line and legal moves, or vira, tricks, open bets and `options`) and your hand |
 | `error` | `message` (illegal move) |
 | `voiceConfig` | `peer` (this connection's public voice id), `iceServers`. Sent after `hello`. |
 | `voice` | `from` (peer id), `data`: relayed voice signaling. `data.kind: "bye"` means that connection closed. |
