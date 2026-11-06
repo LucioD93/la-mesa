@@ -10,7 +10,7 @@ test('a new match uses the default theme, and so does one saved before themes', 
   }
 });
 
-test('the theme is picked in the lobby only, by anyone there, and everyone sees it', () => {
+test('the theme is picked by anyone in the match, even mid-game, and everyone sees it', () => {
   const m = new Match('t');
   m.join('a', 'A');
   m.join('b', 'B');
@@ -22,10 +22,11 @@ test('the theme is picked in the lobby only, by anyone there, and everyone sees 
   assert.equal(m.handle('spectator', { t: 'theme', theme: 'pencil' }, new Set()), true);
   for (const who of ['a', 'b', 'spectator']) assert.equal(m.stateFor(who, new Set()).theme, 'pencil');
 
+  // Mid-game too: the style is only how the table looks.
   m.handle('a', { t: 'addBots' }, new Set());
   m.handle('a', { t: 'start' }, new Set());
-  assert.equal(m.handle('a', { t: 'theme', theme: 'neon' }, new Set()), false);
-  assert.equal(m.theme, 'pencil');
+  assert.equal(m.handle('a', { t: 'theme', theme: 'neon' }, new Set()), true);
+  assert.equal(m.stateFor('b', new Set()).theme, 'neon');
 });
 
 test('the theme survives a save', async () => {
