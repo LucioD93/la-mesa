@@ -1170,4 +1170,16 @@ window.__laMesa = {
   token,
 };
 
+// For tests and the console: what this tab knows, and its way to talk to the server.
+// It's what the page already holds, so it's there in production too.
+window.__laMesa = {
+  get state() {
+    return state;
+  },
+  heard,
+  send,
+  matchId,
+  token,
+};
+
 connect();
