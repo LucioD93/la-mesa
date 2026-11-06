@@ -18,7 +18,13 @@ const BOTS = [
   { name: 'El Bachaquero', emoji: '🐜' },
 ];
 const MAX_NAME = 24;
-export const REACTIONS = ['👏', '😂', '😮', '😡', '🔥', '👋', 'manguangua']; // El Manguangua is a photo, not an emoji
+// Same ids as public/js/reactions.js, in its order. El Manguangua is a photo, not an emoji.
+export const REACTIONS = [
+  '😂', '🤣', '😭', '🥲', '😮', '😱', '😡', '🤬', '🤔', '😏', '🙄', '😴', '🤡', '🥵', '😎', '🤯',
+  '👏', '👍', '👎', '🙏', '🤌', '💪', '🫡', '👀', '🤝', '✌️',
+  '🔥', '💯', '🎉', '🍀', '💀', '🐢', '⏳', '🧠', '🎯', '🏆',
+  'manguangua',
+];
 const REACTION_COOLDOWN_MS = 600; // per player, so a pile-on is not throttled
 const REACTION_CROWD_MS = 3000; // same emoji from others within this joins the crowd
 export const SLOW_TURN_MS = 60_000; // a player thinking longer than this gets mocked by the whole table

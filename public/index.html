@@ -38,7 +38,7 @@
 
       <div class="identity name-field">
         <div class="photo-field">
-          <button type="button" id="photoBtn" class="photo-btn" aria-label="Take a picture for your avatar" data-i18n-aria="aria.photo"><span aria-hidden="true">📷</span></button>
+          <button type="button" id="photoBtn" class="photo-btn" aria-label="Take a picture for your avatar" data-i18n-aria="aria.photo"><span aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2.5h7L17 8h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span></button>
           <button type="button" id="photoClear" class="photo-clear" aria-label="Remove your picture" data-i18n-aria="aria.photoClear" hidden>×</button>
           <input id="photoInput" type="file" accept="image/*" hidden />
         </div>
@@ -55,7 +55,8 @@
         <button class="btn" data-i18n="landing.join">Join</button>
       </form>
 
-      <p class="hint" data-i18n="landing.hint">Dominoes, Venezuelan truco, caída, parchís, roba la cochina or rummy: you pick in the lobby. Create a match and send the link to your friends. Empty seats can be filled with bots.</p>
+      <ul class="game-chips" id="gameChips"></ul>
+      <p class="hint" data-i18n="landing.hint">Pick the game in the lobby, send the link, and fill empty seats with bots.</p>
     </main>
 
     <script type="module">
@@ -63,6 +64,11 @@
       import { cardSVG, parseKey } from '/js/cards.js';
       import * as i18n from '/js/i18n.js';
       import * as avatar from '/js/avatar.js';
+      import { GAMES } from '/js/games.js';
+      // The six games, in the lobby's order; names follow the language.
+      document.getElementById('gameChips').innerHTML = GAMES.map(
+        (id) => `<li data-g="${id}"><i aria-hidden="true"></i><span data-i18n="game.${id}"></span></li>`,
+      ).join('');
       i18n.apply();
       document.getElementById('langBtn').onclick = () => i18n.cycle();
       document.querySelectorAll('.logo .half').forEach((h) => {
