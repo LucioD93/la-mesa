@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { WebSocket } from 'ws';
 import { createApp } from '../server/app.js';
-import { Match } from '../server/match.js';
+import { Match, REACTIONS } from '../server/match.js';
 import { MemoryStore, RedisStore } from '../server/store.js';
 import { GAME_IDS } from '../server/games/index.js';
 import { GAMES } from '../public/js/games.js';
+import { REACTIONS as PICKER_REACTIONS, IMAGES } from '../public/js/reactions.js';
 
 // A match as the live Redis has it today, saved before matches had a `game`.
 function savedDominoMatch() {
@@ -53,6 +54,12 @@ test('nobody is hurried while a bot is thinking', () => {
   m.startRound();
   m.round.turn = 1;
   assert.equal(m.waitingOn(), null);
+});
+
+test('the server accepts exactly the reactions the picker offers', () => {
+  assert.deepEqual(REACTIONS, PICKER_REACTIONS);
+  assert.equal(new Set(REACTIONS).size, REACTIONS.length, 'no reaction twice');
+  for (const id of REACTIONS.filter((r) => /^[a-z]+$/.test(r))) assert.ok(IMAGES[id], `${id} has a picture`);
 });
 
 test('El Manguangua is also a reaction anyone can send', () => {

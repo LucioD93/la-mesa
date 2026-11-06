@@ -9,6 +9,7 @@ import { createView as createCochinaView } from './cochina.js';
 import { createView as createRummyView } from './rummy.js';
 import { RULES } from './rules.js';
 import { GAMES, gameIcon } from './games.js';
+import { REACTION_TABS, REACTIONS, IMAGES, FIRST_RECENT } from './reactions.js';
 import { reduceMotion, whenLanded } from './flight.js';
 import * as fx from './fx.js';
 import * as sound from './sound.js';
@@ -382,7 +383,7 @@ function render(next) {
   renderScoreSheet();
   if (!$('rulesSheet').hidden) paintRules();
   $('reactBtn').hidden = me() === -1 || state.phase === 'lobby';
-  if ($('reactBtn').hidden) $('reactBar').hidden = true;
+  if ($('reactBtn').hidden) closeReactions();
   paintMenu();
   // Someone else ended the game first: nothing left to confirm.
   if (state.phase === 'lobby' || state.phase === 'matchEnd') $('confirmLobby').hidden = true;
@@ -718,16 +719,65 @@ function laughAtMe() {
 
 // ---- reactions ----------------------------------------------------------------
 
-// El Manguangua's reaction is a photo of his face (Henrique Capriles, 2022, CC0 via Wikimedia Commons).
-const FACE = '/img/manguangua.jpg';
-new Image().src = FACE; // so the first one doesn't pop in empty
+for (const { src } of Object.values(IMAGES)) new Image().src = src; // so the first one doesn't pop in empty
 
 function fillReaction(el, emoji) {
-  if (emoji !== 'manguangua') return void (el.textContent = emoji);
+  if (!IMAGES[emoji]) return void (el.textContent = emoji);
   const img = document.createElement('img');
-  img.src = FACE;
+  img.src = IMAGES[emoji].src;
   img.alt = '';
   el.append(img);
+}
+
+// The picker: a popover over the table, opening on what this device sent last.
+const RECENT_KEY = 'domino.reactions';
+const MAX_RECENT = 12;
+let reactTab = 'recent';
+let reactTimer;
+
+function recentReactions() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(RECENT_KEY));
+    const known = Array.isArray(saved) ? saved.filter((id) => REACTIONS.includes(id)) : [];
+    if (known.length) return known;
+  } catch {}
+  return FIRST_RECENT;
+}
+
+function rememberReaction(id) {
+  const recent = [id, ...recentReactions().filter((r) => r !== id)].slice(0, MAX_RECENT);
+  localStorage.setItem(RECENT_KEY, JSON.stringify(recent));
+}
+
+function paintReactions() {
+  const tabs = [{ id: 'recent', icon: '🕘', items: recentReactions() }, ...REACTION_TABS];
+  $('reactTabs').innerHTML = tabs
+    .map(
+      (tab) => `<button role="tab" data-react-tab="${tab.id}" aria-selected="${tab.id === reactTab}">
+        <span aria-hidden="true">${tab.icon}</span><small>${t(`react.${tab.id}`)}</small></button>`,
+    )
+    .join('');
+  $('reactGrid').innerHTML = tabs
+    .find((tab) => tab.id === reactTab)
+    .items.map((id) =>
+      IMAGES[id]
+        ? `<button data-emoji="${id}" aria-label="${esc(IMAGES[id].label)}"><img src="${IMAGES[id].src}" alt="" /></button>`
+        : `<button data-emoji="${id}">${id}</button>`,
+    )
+    .join('');
+}
+
+function openReactions() {
+  reactTab = 'recent';
+  paintReactions();
+  $('reactBar').hidden = false;
+  $('reactBtn').setAttribute('aria-expanded', 'true');
+}
+
+function closeReactions() {
+  clearTimeout(reactTimer);
+  $('reactBar').hidden = true;
+  $('reactBtn').setAttribute('aria-expanded', 'false');
 }
 
 function floatEmoji(seat, emoji) {
@@ -1081,13 +1131,26 @@ $('inviteBtn').onclick = invite;
 $('botsBtn').onclick = () => send({ t: 'addBots' });
 $('startBtn').onclick = () => send({ t: 'start' });
 
-$('reactBtn').onclick = () => ($('reactBar').hidden = !$('reactBar').hidden);
+$('reactBtn').onclick = () => ($('reactBar').hidden ? openReactions() : closeReactions());
 $('reactBar').addEventListener('click', (e) => {
+  const tab = e.target.closest('[data-react-tab]')?.dataset.reactTab;
+  if (tab) {
+    reactTab = tab;
+    return paintReactions();
+  }
   const emoji = e.target.closest('[data-emoji]')?.dataset.emoji;
   if (!emoji) return;
   send({ t: 'react', emoji });
-  $('reactBar').hidden = true;
+  rememberReaction(emoji); // Recent isn't repainted while open, so nothing moves under the finger
+  // Open a moment longer for a burst of laughs, then out of the way.
+  clearTimeout(reactTimer);
+  reactTimer = setTimeout(closeReactions, 2500);
 });
+// A tap anywhere else puts it away.
+document.addEventListener('pointerdown', (e) => {
+  if (!$('reactBar').hidden && !e.target.closest('#reactBar, #reactBtn')) closeReactions();
+});
+document.addEventListener('keydown', (e) => e.key === 'Escape' && closeReactions());
 
 // ---- the ⋯ menu ---------------------------------------------------------------
 
