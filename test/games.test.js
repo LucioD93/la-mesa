@@ -18,6 +18,51 @@ function savedDominoMatch() {
   return json;
 }
 
+test('a slow human gets mocked by everyone else, once per moment, in every game', () => {
+  for (const game of ['domino', 'truco', 'caida', 'parchis']) {
+    const m = new Match('slow', { game });
+    for (const t of ['a', 'b', 'c', 'd']) m.join(t, t);
+    assert.equal(m.waitingOn(), null, `${game}: nobody is waited on in the lobby`);
+    m.startRound();
+    const w = m.waitingOn();
+    assert.ok(w && w.seat >= 0 && w.seat < 4, game);
+    assert.equal(m.hurry('another moment'), false, game);
+    assert.equal(m.hurry(w.key, () => 0), true, game);
+    assert.deepEqual(m.reaction.crowd, [0, 1, 2, 3].filter((s) => s !== w.seat), game);
+    const seen = m.stateFor('a', new Set()).reaction;
+    assert.equal(seen.emoji, 'manguangua', game);
+    assert.equal(seen.crowd, 3, game);
+    assert.equal(seen.slow, w.seat, game);
+    assert.equal(m.hurry(w.key), false, `${game}: not twice for the same moment`);
+    assert.equal(new Match('slow', JSON.parse(JSON.stringify(m))).hurry(w.key), false, `${game}: not after a reload either`);
+  }
+});
+
+test('the table mocks a slow player with a reaction picked at random', () => {
+  const m = new Match('slow', { game: 'domino' });
+  for (const t of ['a', 'b', 'c', 'd']) m.join(t, t);
+  m.startRound();
+  assert.equal(m.hurry(m.waitingOn().key, () => 0.99), true);
+  assert.equal(m.stateFor('a', new Set()).reaction.emoji, '⏳');
+});
+
+test('nobody is hurried while a bot is thinking', () => {
+  const m = new Match('bots', { game: 'caida' });
+  m.join('a', 'a');
+  m.handle('a', { t: 'addBots' }, new Set(['a']));
+  m.startRound();
+  m.round.turn = 1;
+  assert.equal(m.waitingOn(), null);
+});
+
+test('El Manguangua is also a reaction anyone can send', () => {
+  const m = new Match('face', { game: 'truco' });
+  for (const t of ['a', 'b']) m.join(t, t);
+  assert.equal(m.handle('a', { t: 'react', emoji: 'manguangua' }, new Set()), true);
+  assert.equal(m.handle('b', { t: 'react', emoji: 'manguangua' }, new Set()), true);
+  assert.deepEqual(m.stateFor('a', new Set()).reaction, { n: 2, seat: 1, emoji: 'manguangua', crowd: 2 });
+});
+
 test('a match saved without a game loads as dominoes and keeps playing', () => {
   const saved = savedDominoMatch();
   const m = new Match('old', { ...saved, target: 75 });
@@ -231,6 +276,20 @@ test('a parchís game runs through the hub with bots, over sockets', async (t) =
   assert.deepEqual(started.targets, [1, 2, 3]);
   assert.deepEqual(started.round.hand, []);
   assert.equal(started.round.pieces.flat().length, 16);
+});
+
+test('a roba la cochina game runs through the hub with bots, over sockets', async (t) => {
+  const { url } = await listen(t);
+  const p = await client(t, url, { token: 'p', name: 'P', games: ['cochina'], game: 'cochina' });
+  await p.next((m) => m.t === 'state' && m.game === 'cochina');
+  p.say({ t: 'addBots' });
+  await p.next((m) => m.t === 'state' && m.seats.every(Boolean));
+  p.say({ t: 'start' });
+  const started = await p.next((m) => m.t === 'state' && m.phase === 'playing');
+  assert.deepEqual(started.targets, [1, 3, 5]);
+  assert.equal(started.round.hand.length, 3);
+  assert.equal(started.round.table.length, 4);
+  assert.deepEqual(started.round.piles, [0, 0]);
 });
 
 test('a rummy game runs through the hub, and a tab from before rummy is told to reload', async (t) => {

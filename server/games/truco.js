@@ -506,10 +506,16 @@ export const game = {
     };
   },
 
+  waitingOn(match) {
+    const r = match.round;
+    const seat = r.pending ? [nextSeat(r.pending.by), nextSeat(r.pending.by + 2)].find((s) => !match.seats[s]?.bot) : r.turn;
+    return { seat, key: `${match.roundNo}:${r.seq}` };
+  },
+
   runAuto(match, rng) {
     const r = match.round;
     const seat = botActor(match);
-    const move = botMove(r, seat);
+    const move = botMove(r, seat, rng);
     const phrase = isManguangua(match.seats[seat]) && rng() < (move.type === 'play' ? PLAY_PHRASE_CHANCE : TALK_PHRASE_CHANCE);
     applyMove(r, seat, move);
     if (phrase) (move.type === 'play' ? r.lastAction : r.lastCall).phrase = true;

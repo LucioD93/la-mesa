@@ -65,6 +65,13 @@ const sounds = {
     note(330, { dur: 0.14, type: 'sawtooth', gain: 0.12, slide: 500 });
     note(440, { at: 0.14, dur: 0.3, type: 'sawtooth', gain: 0.12, slide: 880 });
   },
+  // A card snatched off the table.
+  grab: () => {
+    clack(0.22);
+    note(520, { dur: 0.08, type: 'triangle', gain: 0.12, slide: 900 });
+  },
+  // A pig's grunt, for a stolen cochina: oink oink.
+  oink: () => [0, 0.2].forEach((at) => note(300, { at, dur: 0.14, type: 'sawtooth', gain: 0.1, slide: 170 })),
   flor: () => [784, 988, 1175, 1568].forEach((f, i) => note(f, { at: i * 0.08, dur: 0.22, gain: 0.12 })),
   pass: () => sounds.no(),
   no: () => {
@@ -76,6 +83,11 @@ const sounds = {
     note(880, { at: 0.09, dur: 0.18, gain: 0.12 });
   },
   react: () => note(520, { dur: 0.12, type: 'triangle', gain: 0.15, slide: 900 }),
+  // The big reaction popping over the table: a whoosh up into a chord.
+  crowd: () => {
+    note(220, { dur: 0.3, type: 'triangle', gain: 0.16, slide: 880 });
+    [523, 659, 784].forEach((f, i) => note(f, { at: 0.22 + i * 0.05, dur: 0.4, type: 'triangle', gain: 0.1 }));
+  },
   // Sad trombone: wah, wah, wah, waaah.
   mock: () => {
     [311, 294, 277].forEach((f, i) => note(f, { at: i * 0.28, dur: 0.26, type: 'sawtooth', gain: 0.08 }));
@@ -98,16 +110,25 @@ export function play(name) {
 
 // Recorded clips, fetched the first time they play.
 const clips = {};
+const playing = new Set(); // a clip asked for again while it plays (a crowd growing) doesn't talk over itself
 
 export async function playClip(name) {
-  if (muted || !context()) return;
+  if (muted || !context() || playing.has(name)) return;
+  playing.add(name);
   clips[name] ??= fetch(`/sounds/${name}.mp3`)
     .then((res) => res.arrayBuffer())
     .then((data) => ctx.decodeAudioData(data));
-  const src = ctx.createBufferSource();
-  src.buffer = await clips[name];
-  src.connect(ctx.destination);
-  src.start();
+  try {
+    const src = ctx.createBufferSource();
+    src.buffer = await clips[name];
+    src.onended = () => playing.delete(name);
+    src.connect(ctx.destination);
+    src.start();
+  } catch (err) {
+    playing.delete(name);
+    delete clips[name]; // try fetching again next time
+    throw err;
+  }
 }
 
 export const isMuted = () => muted;

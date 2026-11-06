@@ -4,7 +4,7 @@ import { tileHTML } from './tiles.js';
 import { cardSVG } from './cards.js';
 import { cardSVG as frenchSVG } from './french.js';
 
-export const GAMES = ['domino', 'truco', 'caida', 'parchis', 'rummy'];
+export const GAMES = ['domino', 'truco', 'caida', 'parchis', 'cochina', 'rummy'];
 
 const card = (c, cls = '') => `<span class="card ${cls}">${cardSVG(c)}</span>`;
 
@@ -16,6 +16,7 @@ const ICONS = {
     `<svg viewBox="0 0 40 40" aria-hidden="true">${['#facc15', '#3b82f6', '#22c55e', '#ef4444']
       .map((fill, i) => `<rect x="${i % 2 ? 21 : 3}" y="${i < 2 ? 3 : 21}" width="16" height="16" rx="3" fill="${fill}"/>`)
       .join('')}<circle cx="20" cy="20" r="5" fill="#fbf8ef"/></svg>`,
+  cochina: () => `${card([5, 'b'], 'under')}${card([5, 'o'])}<span class="pig">🐷</span>`,
   rummy: () => `<span class="card under">${frenchSVG([7, 'H'])}</span><span class="card">${frenchSVG([1, 'S'])}</span>`,
 };
 

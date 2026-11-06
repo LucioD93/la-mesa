@@ -2,13 +2,14 @@
 
 # La Mesa
 
-Mobile-first, four-player games (2 vs 2) you play in the browser: partner dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, parchís in pairs, and partnership rummy. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
+Mobile-first, four-player games (2 vs 2) you play in the browser: partner dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, parchís in pairs, roba la cochina, and partnership rummy. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
 
 Created in [T3 Code](https://t3.codes).
 
 ## Features
 
-- **Five games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, truco, caída, parchís and rummy, and everyone there sees the change. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again.
+- **Six games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, truco, caída, parchís, roba la cochina and rummy, and everyone there sees the change. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again.
+- **Table styles.** Anyone in the lobby can pick how the table looks for everyone in the match: Felt (the green table), Pencil (graphite on graph paper, with hatched card backs and colored-pencil teams) Neon (dark glass tiles with lit pips and a glowing grid) Minimal (flat white, hairlines, no shadows) Dark (graphite, charcoal tiles with white pips, amber highlights), Halloween (a moonlit purple night with bats and pumpkin tiles) or Christmas (a red table under falling snow, snow-white tiles with red pips and candy-cane card backs). A new match starts in the style its first player saw last. The fonts are served from `public/fonts/` (all SIL Open Font License).
 - **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches.
 - **Player photos.** Take a picture or choose a file on the home page or in the lobby and it becomes your avatar. A picture taken here never reaches the device's gallery. It is saved only in your browser's `localStorage`; the server passes it to the others in the match and never stores it.
 - **Shareable matches.** A match lives at `/play/<id>`. The invite button uses the native share sheet when the browser has one, and links unfurl with a preview image in WhatsApp and other chat apps. The preview is the same for every game: chat apps only see the static page, and the game can still change until the match starts. The share sheet's text names the current game.
@@ -16,7 +17,7 @@ Created in [T3 Code](https://t3.codes).
 - **Spectators.** Anyone who opens the link after the seats are taken watches the game.
 - **Reconnects.** Reloading or briefly losing the connection puts you back in your seat with your hand. Sockets are replaced before the host's time limit ends them, so games and voice calls carry on without a drop. The client notices dead connections within seconds, reconnects with backoff, and retries right away when the network or the tab comes back. If you were swapped for a bot while away, rejoining gives you your seat back.
 - **Voice chat.** Everyone in a match (players and spectators) can join the room's voice chat with the mic button, from the lobby or the table, mute themselves, or hang up. Audio goes peer to peer over WebRTC; the server only relays the connection setup. Seated players in voice get a mic badge on their avatar and a green ring while they talk. Without a microphone (blocked, missing, or a plain-`http` LAN page) you join as a listener.
-- **Reactions and sound.** Emoji reactions shown at the table (👏 😂 😮 😡 🔥 👋), sound effects, and a pass animation. When players send the same emoji within 3 seconds, a big one pops over the table.
+- **Reactions and sound.** Emoji reactions shown at the table (👏 😂 😮 😡 🔥 👋, plus El Manguangua's face with his catchphrase), sound effects, and a pass animation. When players send the same emoji within 3 seconds, a big one pops over the table. A player who takes more than a minute over a move gets mocked by everyone else at once, silently, with a reaction picked at random (🐢 🐌 🦥 😴 🥱 💤 ⏳ or El Manguangua).
 - **Your hand, your order.** Drag a tile or card to a new slot in your hand at any point. In rummy, a drawn card joins the end of your hand without undoing your order, and a button sorts by suit or by rank.
 - **Rules at the table.** The book icon, in the lobby and at the table, opens the rules of the game being played.
 - **English and Spanish.** The language follows the browser, and the EN/ES button switches it (saved in `localStorage`). Truco's calls (¡Truco!, Quiero…) and caída's (¡Caída!, ¡Ronda!…) stay in Spanish in both.
@@ -112,6 +113,21 @@ Parchís in pairs on 68 squares, with one die or two, picked in the lobby. One d
 
 **House rules that differ from that article:** barriers stop everyone on any square (it only applies that to start squares), a 5 always has to come out, and taking a piece as you come out also pays 20. It's 4 players in teams only.
 
+### Roba la cochina rules
+
+Roba la cochina (also *roba montón*, *steal the pile*) is a children's capture game played all over Latin America, with a different rule at every table. This is a common version adapted to teams. The grab window, the bots' pace and the targets are at the top of `server/games/cochina.js`.
+
+- 40-card Spanish deck, 2 vs 2. Partners share one pile, the **cochina**, kept face up so its top card shows.
+- **The deal.** 4 cards face up on the table, then three deals of 3 cards each, which uses the whole deck. The player after the dealer starts, and the dealer rotates each round.
+- **Playing.** Play one card; only its number counts. With no match it stays on the table and the turn moves on.
+- **Grabbing.** A card that matches something opens a 3-second window, shown as a bar, and what you can grab glows. Tap each card of that number on the table to take it onto your cochina; your card goes on top with the first one. Nothing is taken for you: what you don't grab in time stays, and if you grabbed nothing your card stays on the table too. Tapping the wrong thing gets you laughed at.
+- **Stealing.** If your card matches the top card of the other team's cochina, tap to steal that card. The next card is exposed; keep tapping while its number matches to steal more. The same card can take from the table too.
+- **Bots** grab one thing at a time, the cochina first, and fit four grabs in the window. One time in ten they look away and miss the rest.
+- **End of the round.** The last capture takes what's left on the table, slipped under the cochina. The team with more cards wins the round and scores 1, and equal cochinas score nothing.
+- **Winning.** First team to win 1, 3 or 5 rounds, picked in the lobby.
+
+**Not implemented:** stacking a card onto your own cochina when it matches your top card, and individual piles for 2 or 3 players.
+
 ### Rummy rules
 
 Rummy has many versions. This is a partnership game scored like Rummy 500, kept simple: no jokers, and you only ever take the top discard.
@@ -150,7 +166,11 @@ server/
   usage.js         Buffers usage counters and writes them in batches
   admin.js         Password check and the report behind the admin page
   metered.js       TURN usage from Metered's API
-  match.js         A match as serializable state: game, seats, lobby, reactions, per-player views
+  match.js         A match as serializable state: game, table style, seats, lobby, reactions, per-player views
+  dev/
+    config.js      Testing knobs (DEV_TOOLS, TIME_SCALE, SEED), seeded and rigged random numbers
+    tools.js       /api/dev: read, rewrite and drive any match
+    scenarios.js   Ready-made moments to test in each game
   games/
     index.js       The list of games, and what a game has to provide
     common.js      Seats and teams, shuffling, MoveError, bot pacing, the catchphrase odds
@@ -158,6 +178,7 @@ server/
     truco.js       Pure truco rules and bot AI, plus the `game` object
     caida.js       Pure caída rules and bot AI, plus the `game` object
     parchis.js     Pure parchís rules and bot AI, plus the `game` object
+    cochina.js     Pure roba la cochina rules and bot AI, plus the `game` object
     rummy.js       Pure rummy rules and bot AI, plus the `game` object
 public/
   index.html       Landing page (new match / join by code)
@@ -168,6 +189,7 @@ public/
   js/truco.js      Truco table: vira, trick, call buttons, how a hand reads
   js/caida.js      Caída table: loose cards, the dealer's count, captures, how a round reads
   js/parchis.js    Parchís table: the board, hopping pieces, the die, how a game reads
+  js/cochina.js    Roba la cochina table: loose cards, both cochinas, steals, how a round reads
   js/rummy.js      Rummy table: deck, discard pile, melds, picking cards, how a round reads
   js/rules.js      The full rules of each game, for the rules sheet
   js/games.js      The lobby's menu of games and their icons (a new game goes here too)
@@ -177,15 +199,20 @@ public/
   js/cards.js      Spanish card markup (SVG, placing the suit drawings)
   js/french.js     French card markup for rummy (SVG)
   suits/           Traditional suit drawings (public domain)
+  icon.svg         Favicon (a domino on the felt); favicon.ico, apple-touch-icon.png and icon-*.png are it rendered to PNG
   sounds/          El Manguangua's catchphrase
+  img/             El Manguangua's face for the reaction (Henrique Capriles, 2022, CC0, Wikimedia Commons)
   js/fx.js         Win and lose animations
   js/sound.js      Sound effects
   js/voice.js      Voice chat (WebRTC mesh, signaling over the game socket)
   js/avatar.js     Player photos: camera, file picker, local storage
+  js/theme.js      Table styles: paints the page in the match's style and remembers the last one
   js/i18n.js       UI strings (English, Spanish), shared and per game, and language switching
   js/admin.js      Admin page: sign-in and usage
-  css/style.css    Styles
-test/              Rules of every game, match, board layout, game choice, voice relay and admin tests
+  css/style.css    Styles, then each table style's overrides at the end
+  fonts/           Patrick Hand (pencil), Orbitron and Chakra Petch (neon), Creepster (halloween), Mountains of Christmas (christmas)
+scripts/sim.js     Plays whole matches over WebSockets with headless players
+test/              Rules of every game, match, board layout, game and style choice, voice relay, admin and dev tools tests
 vercel.json        Rewrites /play/:id → /play.html and /admin → /admin.html
 ```
 
@@ -193,9 +220,9 @@ vercel.json        Rewrites /play/:id → /play.html and /admin → /admin.html
 
 ### How a game plugs in
 
-A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto` and `roundView`.
+A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto`, `waitingOn` and `roundView`. The testing tools need two lines per game too: how a bot plays any seat (`STEP` in `server/dev/scenarios.js`) and how a headless player chooses (`STRATEGY` in `scripts/sim.js`).
 
-On the client, `play.js` keeps one view per game (`domino.js`, `truco.js`, `caida.js`, `parchis.js`, `rummy.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
+On the client, `play.js` keeps one view per game (`domino.js`, `truco.js`, `caida.js`, `parchis.js`, `cochina.js`, `rummy.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
 
 The `domino:` prefix on Redis keys and the `domino.*` browser storage keys predate truco and cover every game. Renaming them would lose live matches, the usage counters, and players' names, seats and photos. Matches saved without a `game` load as dominoes.
 
@@ -276,21 +303,23 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 
 | Client → server | Payload | When |
 | --- | --- | --- |
-| `hello` | `token`, `name`, `session?`, `inVoice?`, `games?`, `game?` | First message. Joins the match and takes a free seat if in the lobby. `session` determines the voice peer id. `inVoice` says a handover or reconnect is already in voice. `games` lists the games this page can draw. A tab from an older deploy sends `true` (domino and truco) or nothing (domino), and is asked to reload instead of receiving a state it can't draw. `game` picks the game if the match is brand new, from a `?game=` link. |
+| `hello` | `token`, `name`, `session?`, `inVoice?`, `games?`, `game?`, `theme?` | First message. Joins the match and takes a free seat if in the lobby. `session` determines the voice peer id. `inVoice` says a handover or reconnect is already in voice. `games` lists the games this page can draw. A tab from an older deploy sends `true` (domino and truco) or nothing (domino), and is asked to reload instead of receiving a state it can't draw. `game` picks the game if the match is brand new, from a `?game=` link. `theme` does the same for the table style, from the last one this device saw. |
 | `handoff` | | The client is moving to another socket and is about to close this one |
 | `rename` | `name` | Any time |
 | `sit` / `stand` | `seat` | Lobby. `sit` also lets a spectator take over a bot mid-game. |
 | `addBots` / `removeBot` | `seat` | Lobby |
-| `game` | `game: "domino" \| "truco" \| "caida" \| "parchis" \| "rummy"` | Lobby. Resets the target to the game's default. |
-| `target` | `50 \| 75 \| 100`, `12 \| 24 \| 32`, `12 \| 24`, `1 \| 2 \| 3` or `150 \| 300` | Lobby, from the current game's list |
+| `game` | `game: "domino" \| "truco" \| "caida" \| "parchis" \| "cochina" \| "rummy"` | Lobby. Resets the target to the game's default. |
+| `target` | `50 \| 75 \| 100`, `12 \| 24 \| 32`, `12 \| 24`, `1 \| 2 \| 3`, `1 \| 3 \| 5` or `150 \| 300` | Lobby, from the current game's list |
 | `variant` | `1 \| 2` | Lobby, a game that offers a choice: parchís's dice |
+| `theme` | `theme: "felt" \| "pencil" \| "neon" \| "minimal" \| "dark" \| "halloween" \| "christmas"` | Lobby. Everyone in the match sees it. |
 | `start` | | Lobby, once all 4 seats are filled |
-| `play` | Domino: `tile: [a, b]`, `end: "L" \| "R"`. Truco and caída: `card: [number, suit]` | On your turn |
+| `play` | Domino: `tile: [a, b]`, `end: "L" \| "R"`. Truco, caída and roba la cochina: `card: [number, suit]` | On your turn |
 | `call` | `what: "flor" \| "envido" \| "cinco" \| "falta" \| "truco" \| "mazo"` | Truco, when the `options` in your state allow it |
 | `answer` | `yes: boolean` | Truco, a bet is open against your team |
 | `call` | `what: "canto"` | Caída, when `options.canto` is set |
 | `order` | `dir: 1 \| -1` | Caída, you are dealing and the table is not laid yet |
 | `roll` | | Parchís, when `options.roll` is set |
+| `grab` | `card: [number, suit]` or `pile: true` | Roba la cochina, while `options.grab` is set: a table card of the number you played, or the rivals' cochina |
 | `move` | `color`, `piece`, `steps?` | Parchís, one of `options.moves`. `steps` picks which die or bonus to use. |
 | `draw` | `from: "stock" \| "discard"` | Rummy, your turn, before you have drawn |
 | `meld` | `cards: [[rank, suit], …]` | Rummy, after drawing. Rank 1 to 13, suit `S`, `H`, `D` or `C`. |
@@ -306,7 +335,7 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 
 | Server → client | Payload |
 | --- | --- |
-| `state` | Full personalized view: game, targets, phase, seats, scores, history, the round (board line and legal moves, or vira, tricks, open bets and `options`) and your hand |
+| `state` | Full personalized view: game, theme, targets, phase, seats, scores, history, the round (board line and legal moves, or vira, tricks, open bets and `options`) and your hand |
 | `error` | `message` (illegal move) |
 | `voiceConfig` | `peer` (this connection's public voice id), `iceServers`. Sent after `hello`. |
 | `voice` | `from` (peer id), `data`: relayed voice signaling. `data.kind: "bye"` means that connection closed. |
@@ -331,6 +360,9 @@ Open http://localhost:3000. On startup the server also prints a LAN address so p
 | `ICE_SERVERS` | Google STUN | JSON array of [`RTCIceServer`](https://developer.mozilla.org/docs/Web/API/RTCIceServer)s for voice chat. Add a TURN server so voice works for players behind strict NATs (common on mobile data). |
 | `ADMIN_PASSWORD` | unset | Shared password for `/admin`. The admin data is refused until it's set. |
 | `METERED_APP`, `METERED_SECRET_KEY` | unset | Metered app name (`<app>.metered.live`) and secret key. When set, `/admin` shows the TURN usage Metered reports for the billing cycle. |
+| `DEV_TOOLS` | unset | `1` turns on [`/api/dev`](#testing-tools). Ignored on Vercel. |
+| `TIME_SCALE` | `1` | Multiplies every wait the server schedules: bot moves, forced passes, closing a cochina grab, the slow-player mocking. `0.1` makes bots ten times faster (the client's animations don't speed up). Ignored on Vercel. |
+| `SEED` | unset | Deals, dice and bot choices follow this seed, so the same moves in a match with the same id replay the same game. Ignored on Vercel. |
 
 Health check: `GET /healthz` → `ok` (local server).
 
@@ -339,6 +371,53 @@ Health check: `GET /healthz` → `ok` (local server).
 ```sh
 npm test
 ```
+
+### Testing tools
+
+Reaching a particular moment by playing to it takes a while, so there are tools to jump there. They're for your own machine: everything below is off unless you turn it on, and none of it works on Vercel.
+
+**Changing a match while it's open.** Start the server with `npm run dev:tools` (`DEV_TOOLS=1`). Then `/api/dev` reads and rewrites any match. Changes go through the store like a move does, so every open tab redraws right away. Anyone who can reach the server can see every hand, phones on your Wi-Fi included.
+
+| Route | Does |
+| --- | --- |
+| `GET /api/dev` | Lists the routes and scenarios |
+| `GET /api/dev/match/<id>` | The whole match, every hand included, with `auto` (the pending automatic move) and `waitingOn` |
+| `PUT /api/dev/match/<id>` | Replaces the match. `{}` is a fresh lobby. |
+| `PATCH /api/dev/match/<id>` | Merges into the match. Arrays are replaced, or patched by index: `{"round": {"hands": {"0": [[6, 6]]}}}` |
+| `POST /api/dev/match/<id>/scenario/<name>` | Sets up a scenario. Body (all optional): `game`, `humans` (default 1), `seed`, `target`, `variant`, `kind` |
+| `POST /api/dev/match/<id>/send` | `{ "as": "p1", "msg": { "t": "roll" } }`: a message from that player, as if sent from their tab. An illegal move answers 409. |
+| `POST /api/dev/match/<id>/auto` | Plays the pending bot move or forced pass now |
+| `POST /api/dev/match/<id>/hurry` | Mocks the player the table is waiting on now |
+| `POST /api/dev/match/<id>/rig` | `{ "dice": [6, 6] }` or `{ "values": [0.1] }`: the match's next random draws |
+
+```sh
+curl -X POST localhost:3000/api/dev/match/demo/scenario/truco-flor
+curl -X PATCH localhost:3000/api/dev/match/demo -d '{"scores": [23, 23]}'
+```
+
+**Scenarios** seat players `p0`, `p1`… from seat 0 and bots in the rest. Seat 0 is the one the moment is about. Most of them deal real rounds and let bots play every seat until the moment comes, so the hands and the deck stay consistent. `seed` repeats the same one. These work for any game (`game` in the body, or the match's current one): `lobby`, `deal`, `match-point`, `round-end`, `match-end`. Then there's one per moment worth testing in each game:
+
+- Dominoes: `domino-opening`, `domino-last-tile`, `domino-stuck`, `domino-block`
+- Truco: `truco-flor`, `truco-reservada`, `truco-envido`, `truco-answer`
+- Caída: `caida-ronda` (`kind`: `ronda`, `patrulla` or `tolete`), `caida-caida`, `caida-mesa-limpia`
+- Parchís: `parchis-home`, `parchis-capture`, `parchis-leave`. Each rigs seat 0's next roll.
+- Cochina: `cochina-steal`, `cochina-grab`
+
+`GET /api/dev` describes each one.
+
+**Playing as anyone.** `/play/<id>?as=p0` plays as the token `p0` in that tab, without touching the device's own token, name or photo. Add `&name=` to name the player. A few tabs with `?as=p0` … `?as=p3` seat a whole table in one browser. This works without `DEV_TOOLS`, since it only needs a token the player already has.
+
+**From the console.** `window.__laMesa` has the tab's latest `state`, the last 50 messages it `heard` from the server, and `send(msg)`.
+
+**Simulating matches.** `npm run sim -- <game>` plays a whole match over real WebSockets. Headless players make random choices from what their own state allows, and bots take any seats left. The run fails if the server refuses a move or the match stalls. By default it starts its own server with `TIME_SCALE=0.02`. With `--url` it plays on a running server, so you can watch it as a spectator.
+
+```sh
+npm run sim -- truco --seed 7                  # repeats exactly with the same seed
+npm run sim -- cochina --bots 2 --rounds 3
+npm run sim -- domino --url http://localhost:3000 --match demo --pace 600   # watch at /play/demo
+```
+
+`npm run sim -- --help` lists the options.
 
 ## Deployment
 

@@ -268,10 +268,10 @@ export const game = {
     return newRound({ dealer, scores: match.scores, target: match.target, rng });
   },
 
-  handle(round, seat, msg) {
+  handle(round, seat, msg, rng) {
     if (msg.t === 'play' && Array.isArray(msg.card)) play(round, seat, msg.card);
     else if (msg.t === 'call' && msg.what === 'canto') sing(round, seat);
-    else if (msg.t === 'order') chooseOrder(round, seat, msg.dir);
+    else if (msg.t === 'order') chooseOrder(round, seat, msg.dir, rng);
     else return false;
     return true;
   },
@@ -292,6 +292,8 @@ export const game = {
       key: `${match.roundNo}:${r.seq}`,
     };
   },
+
+  waitingOn: (match) => ({ seat: match.round.turn, key: `${match.roundNo}:${match.round.seq}` }),
 
   runAuto(match, rng) {
     const r = match.round;

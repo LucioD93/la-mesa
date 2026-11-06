@@ -4,6 +4,7 @@
 import { createHash } from 'node:crypto';
 import { MoveError, teamOf } from './games/common.js';
 import { DEFAULT_GAME, gameRules, isGame } from './games/index.js';
+import { matchRng } from './dev/config.js';
 
 // Venezuelan memes.
 const BOTS = [
@@ -17,10 +18,16 @@ const BOTS = [
   { name: 'El Bachaquero', emoji: '🐜' },
 ];
 const MAX_NAME = 24;
-export const REACTIONS = ['👏', '😂', '😮', '😡', '🔥', '👋'];
+export const REACTIONS = ['👏', '😂', '😮', '😡', '🔥', '👋', 'manguangua']; // El Manguangua is a photo, not an emoji
 const REACTION_COOLDOWN_MS = 600; // per player, so a pile-on is not throttled
 const REACTION_CROWD_MS = 3000; // same emoji from others within this joins the crowd
+export const SLOW_TURN_MS = 60_000; // a player thinking longer than this gets mocked by the whole table
+const HURRY_REACTIONS = ['manguangua', '🐢', '🐌', '🦥', '😴', '🥱', '💤', '⏳']; // one picked at random each time
 const BLUNDER_COOLDOWN_MS = 2000;
+// How the table looks. Everyone at the table sees the same one.
+export const THEMES = ['felt', 'pencil', 'neon', 'minimal', 'dark', 'halloween', 'christmas'];
+export const DEFAULT_THEME = 'felt';
+const isTheme = (id) => THEMES.includes(id);
 
 const cleanName = (name) =>
   String(name ?? '')
@@ -47,20 +54,23 @@ export class Match {
     this.phase = 'lobby'; // lobby | playing | roundEnd | matchEnd
     this.target = this.rules.defaultTarget;
     this.variant = this.rules.defaultVariant ?? null; // a choice the game offers: parchís's dice
+    this.theme = DEFAULT_THEME;
     this.scores = [0, 0];
     this.history = [];
     this.round = null;
     this.roundNo = 0;
     this.nextStarter = null; // who starts the next round, null to let the game pick
-    this.reaction = null; // latest emoji thrown at the table: { n, seat, emoji, at, sent, crowd }
+    this.reaction = null; // latest emoji thrown at the table: { n, seat, emoji, at, sent, crowd, slow? }
+    this.hurried = null; // the moment key of the last slow player the table hurried, so it happens once
     this.blunder = null; // latest illegal move or forgotten flor, for the table to mock: { n, seat, at }
     this.v = 0;
     if (data) Object.assign(this, data, { id, game: this.game });
+    if (!isTheme(this.theme)) this.theme = DEFAULT_THEME; // saved before themes existed
   }
 
   toJSON() {
-    const { id, game, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, blunder, v } = this;
-    return { id, game, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, blunder, v };
+    const { id, game, theme, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, hurried, blunder, v } = this;
+    return { id, game, theme, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, hurried, blunder, v };
   }
 
   /** The rules of the game this match is playing. */
@@ -77,15 +87,26 @@ export class Match {
     return true;
   }
 
+  /** Change how the table looks. Everyone in the match sees the new style. */
+  setTheme(id) {
+    if (!isTheme(id) || id === this.theme) return false;
+    this.theme = id;
+    return true;
+  }
+
   seatOf(token) {
     return this.seats.findIndex((s) => s && !s.bot && s.token === token);
   }
 
   // ---- changes (each returns true if the match changed) ---------------------
 
-  join(token, name, gameHint) {
+  join(token, name, gameHint, themeHint) {
     // A link can ask for a game (old Trucazo links), but only a match nobody has joined yet takes it.
-    if (this.v === 0) this.setGame(gameHint);
+    // The first player's last theme also carries over to the new match.
+    if (this.v === 0) {
+      this.setGame(gameHint);
+      this.setTheme(themeHint);
+    }
     name = cleanName(name) || 'Player';
     this.names[token] = name;
     const seat = this.seatOf(token);
@@ -176,6 +197,8 @@ export class Match {
       }
       case 'game':
         return this.setGame(msg.game);
+      case 'theme':
+        return this.setTheme(msg.theme);
       case 'target':
         if (this.phase !== 'lobby' || !this.rules.targets.includes(Number(msg.target))) return false;
         this.target = Number(msg.target);
@@ -198,14 +221,14 @@ export class Match {
         this.startRound();
         return true;
       case 'lobby':
-        // Back to the lobby to change seats/teams after a match.
-        if (this.phase !== 'matchEnd' || seat === -1) return false;
+        // Return to the lobby at any point to change seats, teams, or game settings.
+        if (this.phase === 'lobby' || seat === -1) return false;
         this.resetScores();
         this.phase = 'lobby';
         this.round = null;
         return true;
       default:
-        if (this.phase !== 'playing' || seat === -1 || !this.rules.handle(this.round, seat, msg)) return false;
+        if (this.phase !== 'playing' || seat === -1 || !this.rules.handle(this.round, seat, msg, matchRng(this, 'move'))) return false;
         this.afterMove();
         return true;
     }
@@ -237,7 +260,7 @@ export class Match {
     this.nextStarter = null;
   }
 
-  startRound(rng = Math.random) {
+  startRound(rng = matchRng(this, 'deal')) {
     this.round = this.rules.newRound(this, rng);
     this.roundNo += 1;
     this.phase = 'playing';
@@ -257,11 +280,36 @@ export class Match {
   }
 
   /** Run the pending automatic move, but only if it is still the same moment. */
-  runAuto(key, rng = Math.random) {
+  runAuto(key, rng = matchRng(this, 'auto')) {
     const p = this.pendingAuto();
     if (!p || p.key !== key) return false;
     this.rules.runAuto(this, rng);
     this.afterMove();
+    return true;
+  }
+
+  // ---- slow players ----------------------------------------------------------
+
+  /** The human the table is waiting on, if any: { seat, key }. */
+  waitingOn() {
+    return this.phase === 'playing' && !this.pendingAuto() ? this.rules.waitingOn(this) : null;
+  }
+
+  /** Still the same slow moment: everyone else at the table sends the same mocking reaction at once. */
+  hurry(key, rng = matchRng(this, 'hurry')) {
+    const w = this.waitingOn();
+    if (!w || w.key !== key || this.hurried === key) return false;
+    this.hurried = key;
+    const crowd = [0, 1, 2, 3].filter((s) => s !== w.seat);
+    this.reaction = {
+      n: (this.reaction?.n ?? 0) + 1,
+      seat: crowd[0],
+      emoji: HURRY_REACTIONS[Math.floor(rng() * HURRY_REACTIONS.length)],
+      at: Date.now(),
+      sent: this.reaction?.sent ?? {}, // nobody's own cooldown is spent
+      crowd,
+      slow: w.seat,
+    };
     return true;
   }
 
@@ -277,6 +325,7 @@ export class Match {
       t: 'state',
       matchId: this.id,
       game: this.game,
+      theme: this.theme,
       targets: this.rules.targets,
       variants: this.rules.variants ?? null,
       variant: this.variant,
@@ -292,6 +341,7 @@ export class Match {
         seat: this.reaction.seat,
         emoji: this.reaction.emoji,
         crowd: this.reaction.crowd?.length ?? 1,
+        ...(this.reaction.slow != null && { slow: this.reaction.slow }), // the seat the whole table is hurrying
       },
       blunder: this.blunder && { n: this.blunder.n, seat: this.blunder.seat },
       seats: this.seats.map((s, i) =>

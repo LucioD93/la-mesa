@@ -133,6 +133,8 @@ export function createView(ctx) {
       avatar,
       flier,
       target: slotOf, // gone if a new trick or hand started mid-flight
+      // Match the side slots' slight tilt so the card doesn't snap flat on landing.
+      rotation: slot.classList.contains('p1') ? 4 : slot.classList.contains('p3') ? -4 : 0,
       fit: () => [width, height],
       onImpact: (el) => impact(el, seat % 2),
       onDone: () => slotOf()?.classList.remove('incoming'),
@@ -282,7 +284,8 @@ export function createView(ctx) {
     },
 
     dressGhost(ghost) {
-      ghost.className = `${ghost.className.replace('playable', '')} drag-ghost`;
+      ghost.classList.remove('hand-card', 'playable', 'dragging');
+      ghost.classList.add('drag-ghost');
     },
 
     dragOver(key, x, y) {
