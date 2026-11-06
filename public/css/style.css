@@ -1887,10 +1887,7 @@ body.admin { height: auto; min-height: 100dvh; background: var(--felt-dark); pad
 .team-card .game-change { color: var(--team); }
 .team-form h2 { display: flex; align-items: center; gap: 10px; }
 .team-form h2::before { content: ''; flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--team); box-shadow: 0 0 0 4px color-mix(in srgb, var(--team) 25%, transparent); }
-.team-who { margin: 6px 0 0; font-size: 14px; color: var(--muted); }
-.team-field > span { display: flex; justify-content: space-between; }
-.team-field small { font-weight: 600; letter-spacing: 0; font-variant-numeric: tabular-nums; }
-.team-field input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--team); }
+.team-form input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--team); }
 .team-ideas { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .team-ideas button { min-height: 36px; padding: 6px 12px; border: 0; border-radius: 999px; background: var(--well); color: var(--ink); font-weight: 700; box-shadow: inset 0 0 0 1px var(--edge); }
 .team-ideas button[aria-pressed='true'] { background: color-mix(in srgb, var(--team) 22%, var(--panel-2)); box-shadow: inset 0 0 0 1.5px var(--team); }
