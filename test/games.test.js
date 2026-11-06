@@ -278,6 +278,20 @@ test('a parchís game runs through the hub with bots, over sockets', async (t) =
   assert.equal(started.round.pieces.flat().length, 16);
 });
 
+test('a roba la cochina game runs through the hub with bots, over sockets', async (t) => {
+  const { url } = await listen(t);
+  const p = await client(t, url, { token: 'p', name: 'P', games: ['cochina'], game: 'cochina' });
+  await p.next((m) => m.t === 'state' && m.game === 'cochina');
+  p.say({ t: 'addBots' });
+  await p.next((m) => m.t === 'state' && m.seats.every(Boolean));
+  p.say({ t: 'start' });
+  const started = await p.next((m) => m.t === 'state' && m.phase === 'playing');
+  assert.deepEqual(started.targets, [1, 3, 5]);
+  assert.equal(started.round.hand.length, 3);
+  assert.equal(started.round.table.length, 4);
+  assert.deepEqual(started.round.piles, [0, 0]);
+});
+
 test('a truco game runs through the hub with bots, over sockets', async (t) => {
   const { url } = await listen(t);
   const p = await client(t, url, { token: 'p', name: 'P', games: true, game: 'truco' });

@@ -2,13 +2,13 @@
 
 # La Mesa
 
-Mobile-first, four-player games (2 vs 2) you play in the browser: partner dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, and parchís in pairs. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
+Mobile-first, four-player games (2 vs 2) you play in the browser: partner dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, parchís in pairs, and roba la cochina. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
 
 Created in [T3 Code](https://t3.codes).
 
 ## Features
 
-- **Four games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, truco, caída and parchís, and everyone there sees the change. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again.
+- **Five games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, truco, caída, parchís and roba la cochina, and everyone there sees the change. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again.
 - **Table styles.** Anyone in the lobby can pick how the table looks for everyone in the match: Felt (the green table), Pencil (graphite on graph paper, with hatched card backs and colored-pencil teams) Neon (dark glass tiles with lit pips and a glowing grid) Minimal (flat white, hairlines, no shadows) Dark (graphite, charcoal tiles with white pips, amber highlights), Halloween (a moonlit purple night with bats and pumpkin tiles) or Christmas (a red table under falling snow, snow-white tiles with red pips and candy-cane card backs). A new match starts in the style its first player saw last. The fonts are served from `public/fonts/` (all SIL Open Font License).
 - **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches.
 - **Player photos.** Take a picture or choose a file on the home page or in the lobby and it becomes your avatar. A picture taken here never reaches the device's gallery. It is saved only in your browser's `localStorage`; the server passes it to the others in the match and never stores it.
@@ -113,6 +113,21 @@ Parchís in pairs on 68 squares, with one die or two, picked in the lobby. One d
 
 **House rules that differ from that article:** barriers stop everyone on any square (it only applies that to start squares), a 5 always has to come out, and taking a piece as you come out also pays 20. It's 4 players in teams only.
 
+### Roba la cochina rules
+
+Roba la cochina (also *roba montón*, *steal the pile*) is a children's capture game played all over Latin America, with a different rule at every table. This is a common version adapted to teams. The grab window, the bots' pace and the targets are at the top of `server/games/cochina.js`.
+
+- 40-card Spanish deck, 2 vs 2. Partners share one pile, the **cochina**, kept face up so its top card shows.
+- **The deal.** 4 cards face up on the table, then three deals of 3 cards each, which uses the whole deck. The player after the dealer starts, and the dealer rotates each round.
+- **Playing.** Play one card; only its number counts. With no match it stays on the table and the turn moves on.
+- **Grabbing.** A card that matches something opens a 3-second window, shown as a bar, and what you can grab glows. Tap each card of that number on the table to take it onto your cochina; your card goes on top with the first one. Nothing is taken for you: what you don't grab in time stays, and if you grabbed nothing your card stays on the table too. Tapping the wrong thing gets you laughed at.
+- **Stealing.** If your card matches the top card of the other team's cochina, tap to steal that card. The next card is exposed; keep tapping while its number matches to steal more. The same card can take from the table too.
+- **Bots** grab one thing at a time, the cochina first, and fit four grabs in the window. One time in ten they look away and miss the rest.
+- **End of the round.** The last capture takes what's left on the table, slipped under the cochina. The team with more cards wins the round and scores 1, and equal cochinas score nothing.
+- **Winning.** First team to win 1, 3 or 5 rounds, picked in the lobby.
+
+**Not implemented:** stacking a card onto your own cochina when it matches your top card, and individual piles for 2 or 3 players.
+
 ## Stack
 
 | Layer    | Tech |
@@ -146,6 +161,7 @@ server/
     truco.js       Pure truco rules and bot AI, plus the `game` object
     caida.js       Pure caída rules and bot AI, plus the `game` object
     parchis.js     Pure parchís rules and bot AI, plus the `game` object
+    cochina.js     Pure roba la cochina rules and bot AI, plus the `game` object
 public/
   index.html       Landing page (new match / join by code)
   play.html        Game table
@@ -155,6 +171,7 @@ public/
   js/truco.js      Truco table: vira, trick, call buttons, how a hand reads
   js/caida.js      Caída table: loose cards, the dealer's count, captures, how a round reads
   js/parchis.js    Parchís table: the board, hopping pieces, the die, how a game reads
+  js/cochina.js    Roba la cochina table: loose cards, both cochinas, steals, how a round reads
   js/rules.js      The full rules of each game, for the rules sheet
   js/games.js      The lobby's menu of games and their icons (a new game goes here too)
   js/flight.js     Throwing a tile or card from a seat to the table
@@ -184,7 +201,7 @@ vercel.json        Rewrites /play/:id → /play.html and /admin → /admin.html
 
 A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto`, `waitingOn` and `roundView`.
 
-On the client, `play.js` keeps one view per game (`domino.js`, `truco.js`, `caida.js`, `parchis.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
+On the client, `play.js` keeps one view per game (`domino.js`, `truco.js`, `caida.js`, `parchis.js`, `cochina.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
 
 The `domino:` prefix on Redis keys and the `domino.*` browser storage keys predate truco and cover every game. Renaming them would lose live matches, the usage counters, and players' names, seats and photos. Matches saved without a `game` load as dominoes.
 
@@ -270,17 +287,18 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `rename` | `name` | Any time |
 | `sit` / `stand` | `seat` | Lobby. `sit` also lets a spectator take over a bot mid-game. |
 | `addBots` / `removeBot` | `seat` | Lobby |
-| `game` | `game: "domino" \| "truco" \| "caida" \| "parchis"` | Lobby. Resets the target to the game's default. |
-| `target` | `50 \| 75 \| 100`, `12 \| 24 \| 32`, `12 \| 24` or `1 \| 2 \| 3` | Lobby, from the current game's list |
+| `game` | `game: "domino" \| "truco" \| "caida" \| "parchis" \| "cochina"` | Lobby. Resets the target to the game's default. |
+| `target` | `50 \| 75 \| 100`, `12 \| 24 \| 32`, `12 \| 24`, `1 \| 2 \| 3` or `1 \| 3 \| 5` | Lobby, from the current game's list |
 | `variant` | `1 \| 2` | Lobby, a game that offers a choice: parchís's dice |
 | `theme` | `theme: "felt" \| "pencil" \| "neon" \| "minimal" \| "dark" \| "halloween" \| "christmas"` | Lobby. Everyone in the match sees it. |
 | `start` | | Lobby, once all 4 seats are filled |
-| `play` | Domino: `tile: [a, b]`, `end: "L" \| "R"`. Truco and caída: `card: [number, suit]` | On your turn |
+| `play` | Domino: `tile: [a, b]`, `end: "L" \| "R"`. Truco, caída and roba la cochina: `card: [number, suit]` | On your turn |
 | `call` | `what: "flor" \| "envido" \| "cinco" \| "falta" \| "truco" \| "mazo"` | Truco, when the `options` in your state allow it |
 | `answer` | `yes: boolean` | Truco, a bet is open against your team |
 | `call` | `what: "canto"` | Caída, when `options.canto` is set |
 | `order` | `dir: 1 \| -1` | Caída, you are dealing and the table is not laid yet |
 | `roll` | | Parchís, when `options.roll` is set |
+| `grab` | `card: [number, suit]` or `pile: true` | Roba la cochina, while `options.grab` is set: a table card of the number you played, or the rivals' cochina |
 | `move` | `color`, `piece`, `steps?` | Parchís, one of `options.moves`. `steps` picks which die or bonus to use. |
 | `next` / `rematch` / `lobby` | | After a round or match ends |
 | `botify` | `seat` | Replace a disconnected player with a bot |

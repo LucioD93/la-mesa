@@ -1,9 +1,11 @@
 // The game page: connection, lobby, seats, voice, photos, reactions and the frame of
-// the result. What's on the table belongs to the game's view (domino.js, truco.js, caida.js, parchis.js).
+// the result. What's on the table belongs to the game's view (domino.js, truco.js, caida.js,
+// parchis.js, cochina.js).
 import { createView as createDominoView } from './domino.js';
 import { createView as createTrucoView } from './truco.js';
 import { createView as createCaidaView } from './caida.js';
 import { createView as createParchisView } from './parchis.js';
+import { createView as createCochinaView } from './cochina.js';
 import { RULES } from './rules.js';
 import { GAMES, gameIcon } from './games.js';
 import { reduceMotion, whenLanded } from './flight.js';
@@ -427,7 +429,8 @@ function renderLobby() {
       })
       .join('') + `<div class="lobby-felt"></div>`;
 
-  $('gameCard').innerHTML = `${gameIcon(state.game)}<span class="game-text"><small>${t('game')}</small><b>${t(`game.${state.game}`)}</b></span><span class="game-change" aria-hidden="true">▾</span>`;
+  const gameName = t(`game.${state.game}`);
+  $('gameCard').innerHTML = `${gameIcon(state.game)}<span class="game-text"><small>${t('game')}</small><b class="${gameName.length > 10 ? 'long' : ''}">${gameName}</b></span><span class="game-change" aria-hidden="true">▾</span>`;
   $('gameCard').setAttribute('aria-label', t('aria.changeGame', { game: t(`game.${state.game}`) }));
   if (!$('gamesSheet').hidden) paintGames();
   for (const b of $('themePicker').children) b.classList.toggle('on', b.dataset.themePick === state.theme);
@@ -1082,6 +1085,12 @@ const ctx = {
   laughAtMe,
   within,
 };
-const views = { domino: createDominoView(ctx), truco: createTrucoView(ctx), caida: createCaidaView(ctx), parchis: createParchisView(ctx) };
+const views = {
+  domino: createDominoView(ctx),
+  truco: createTrucoView(ctx),
+  caida: createCaidaView(ctx),
+  parchis: createParchisView(ctx),
+  cochina: createCochinaView(ctx),
+};
 
 connect();
