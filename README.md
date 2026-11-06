@@ -121,7 +121,7 @@ Roba la cochina (also *roba montón*, *steal the pile*) is a children's capture 
 - **The deal.** 4 cards face up on the table, then three deals of 3 cards each, which uses the whole deck. The player after the dealer starts, and the dealer rotates each round.
 - **Playing.** Play one card; only its number counts. With no match it stays on the table and the turn moves on.
 - **Grabbing.** A card that matches something opens a 3-second window, shown as a bar, and what you can grab glows. Tap each card of that number on the table to take it onto your cochina; your card goes on top with the first one. Nothing is taken for you: what you don't grab in time stays, and if you grabbed nothing your card stays on the table too. Tapping the wrong thing gets you laughed at.
-- **Stealing.** If your card matches the top card of the other team's cochina, tap it and their whole pile goes onto yours. The same card can take from the table too.
+- **Stealing.** If your card matches the top card of the other team's cochina, tap to steal that card. The next card is exposed; keep tapping while its number matches to steal more. The same card can take from the table too.
 - **Bots** grab one thing at a time, the cochina first, and fit four grabs in the window. One time in ten they look away and miss the rest.
 - **End of the round.** The last capture takes what's left on the table, slipped under the cochina. The team with more cards wins the round and scores 1, and equal cochinas score nothing.
 - **Winning.** First team to win 1, 3 or 5 rounds, picked in the lobby.

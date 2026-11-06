@@ -105,8 +105,9 @@ export function grab(round, seat, { card, pile }, now = Date.now()) {
   let got;
   if (pile) {
     if (!steals) throw new MoveError('That cochina is not yours to steal');
-    got = round.piles[1 - team];
-    round.piles[1 - team] = [];
+    // Steal the exposed card, not the whole stack. That exposes the next card,
+    // which can be stolen too when its rank matches the card that was played.
+    got = [round.piles[1 - team].pop()];
     round.steals[team] += 1;
   } else {
     const target = Array.isArray(card) && taken.find((c) => sameCard(c, card));
@@ -124,7 +125,7 @@ export function grab(round, seat, { card, pile }, now = Date.now()) {
   round.seq += 1;
   // Grabbing the last thing ends the window, and this grab stays the last action so the table sees it.
   const closes = !hasTargets(targets(round, seat, g.card, g.card));
-  round.lastAction = { n: round.seq, type: 'grab', seat, cards: pile ? [] : got, stolen: pile ? got.length : 0, first: g.got === 1, closes };
+  round.lastAction = { n: round.seq, type: 'grab', seat, cards: pile ? [] : got, stolen: pile ? 1 : 0, first: g.got === 1, closes };
   if (closes) shut(round);
   return round;
 }

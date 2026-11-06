@@ -75,20 +75,24 @@ test('each card is grabbed by hand, the played card goes on top, and the window 
   assert.deepEqual(r.lastAction, { n: r.seq, type: 'grab', seat: 1, cards: [[7, 'c']], stolen: 0, first: false, closes: true });
 });
 
-test("grabbing the rivals' cochina steals the whole pile, under the played card", () => {
+test("grabbing the rivals' cochina steals matching top cards one by one", () => {
   const r = dealt({
     table: [[12, 'c']],
     hands: [rest(), [[5, 'o'], [6, 'b']], rest(), rest()],
-    piles: [[[1, 'c'], [4, 'e'], [5, 'c']], [[10, 'e']]],
+    piles: [[[1, 'c'], [5, 'e'], [5, 'c']], [[10, 'e']]],
   });
   G.play(r, 1, [5, 'o'], NOW);
   G.grab(r, 1, { pile: true }, NOW + 300);
-  assert.deepEqual(r.piles[0], []);
-  assert.deepEqual(r.piles[1], [[10, 'e'], [1, 'c'], [4, 'e'], [5, 'c'], [5, 'o']]);
-  assert.deepEqual(r.steals, [0, 1]);
+  assert.deepEqual(r.piles[0], [[1, 'c'], [5, 'e']]);
+  assert.deepEqual(r.piles[1], [[10, 'e'], [5, 'c'], [5, 'o']]);
+  assert.ok(r.grab, 'the newly exposed 5 can be stolen too');
+  G.grab(r, 1, { pile: true }, NOW + 500);
+  assert.deepEqual(r.piles[0], [[1, 'c']]);
+  assert.deepEqual(r.piles[1], [[10, 'e'], [5, 'c'], [5, 'e'], [5, 'o']]);
+  assert.deepEqual(r.steals, [0, 2]);
   assert.deepEqual(r.table, [[12, 'c']]);
   assert.equal(r.grab, null);
-  assert.equal(r.lastAction.stolen, 3); // the table sees the steal, not just the window closing
+  assert.equal(r.lastAction.stolen, 1);
 });
 
 test('a steal and a table capture can come from the same card, in any order', () => {
