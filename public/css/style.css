@@ -1817,10 +1817,7 @@ body[data-game='rummy'] .rh-cards .card + .card { margin-left: -16px; } /* up to
 :where([data-theme='christmas']) .bar { background: rgba(200, 16, 46, 0.35); }
 [data-theme='christmas'] body .backs i { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7); }
 
-/* The table's style, above the game; tapping it opens the menu of styles, each a swatch of its
-   two colors with its name lettered like the style. */
-.lobby-options .style-card { grid-column: 1 / -1; padding-block: 4px; }
-.style-card { background: var(--panel-2); box-shadow: inset 0 0 0 1.5px var(--edge); }
+/* The menu of styles (⋯ → Table style): each a swatch of its two colors with its name lettered like the style. */
 .swatch {
   flex: none;
   width: 34px;
@@ -1882,15 +1879,12 @@ body.admin { height: auto; min-height: 100dvh; background: var(--felt-dark); pad
 .lobby-seat .team-tag { display: inline-flex; align-items: center; max-width: 100%; white-space: nowrap; }
 .lobby-seat .team-tag > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .lobby-seat .team-tag.named { font-size: 11px; text-transform: none; letter-spacing: 0; }
-.lobby-seat .team-tag.editable {
-  align-items: center;
-  gap: 4px;
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--team) 16%, transparent);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--team) 55%, transparent);
-}
-.lobby-seat .team-tag svg { flex: none; }
+/* Your team, above the game, tinted in its color. */
+.lobby-options .team-card { grid-column: 1 / -1; padding-block: 4px; background: color-mix(in srgb, var(--team) 12%, var(--panel-2)); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--team) 50%, transparent); }
+.team-card[hidden] { display: none; }
+.team-badge { flex: none; display: grid; place-items: center; width: 34px; height: 34px; margin: 3px; border-radius: 50%; background: var(--team); color: var(--on-color); }
+.team-card .game-text b.unnamed { color: var(--muted); }
+.team-card .game-change { color: var(--team); }
 .team-form h2 { display: flex; align-items: center; gap: 10px; }
 .team-form h2::before { content: ''; flex: none; width: 12px; height: 12px; border-radius: 50%; background: var(--team); box-shadow: 0 0 0 4px color-mix(in srgb, var(--team) 25%, transparent); }
 .team-who { margin: 6px 0 0; font-size: 14px; color: var(--muted); }

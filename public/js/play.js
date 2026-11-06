@@ -461,8 +461,7 @@ function renderLobby() {
   $('gameCard').innerHTML = `${gameIcon(state.game)}<span class="game-text"><small>${t('game')}</small><b class="${gameName.length > 10 ? 'long' : ''}">${gameName}</b></span><span class="game-change" aria-hidden="true">▾</span>`;
   $('gameCard').setAttribute('aria-label', t('aria.changeGame', { game: t(`game.${state.game}`) }));
   if (!$('gamesSheet').hidden) paintGames();
-  $('styleCard').innerHTML = `${swatch(state.theme)}<span class="game-text"><small>${t('style')}</small><b data-theme-name="${state.theme}">${t(`theme.${state.theme}`)}</b></span><span class="game-change" aria-hidden="true">▾</span>`;
-  $('styleCard').setAttribute('aria-label', t('aria.changeStyle', { style: t(`theme.${state.theme}`) }));
+  paintTeamCard();
   if (!$('stylesSheet').hidden) paintStyles();
   $('targetPicker').innerHTML = state.targets
     .map((n) => `<button data-target="${n}" class="${n === state.target ? 'on' : ''}">${n}</button>`)
@@ -477,12 +476,23 @@ function renderLobby() {
   $('startBtn').textContent = me() === -1 ? t('takeSeatToStart') : full ? t('start') : t('waitingFor4');
 }
 
-/** A lobby seat's team name. Your own team's opens the sheet to rename it. */
+/** A lobby seat's team name. */
 function teamTag(team) {
   const name = state.teamNames?.[team] ?? t('team', { n: team + 1 });
-  const cls = `team-tag${state.teamNames?.[team] ? ' named' : ''}`;
-  if (me() === -1 || team !== myTeam()) return `<span class="${cls}"><span>${esc(name)}</span></span>`;
-  return `<span class="${cls} editable" role="button" tabindex="0" data-team-edit aria-label="${esc(t('aria.teamName', { name }))}"><span>${esc(name)}</span><svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/></svg></span>`;
+  return `<span class="team-tag${state.teamNames?.[team] ? ' named' : ''}"><span>${esc(name)}</span></span>`;
+}
+
+/** Your team's name, above the game. Tapping it opens the sheet to rename it. Spectators have no team to name. */
+function paintTeamCard() {
+  const card = $('teamCard');
+  card.hidden = me() === -1;
+  if (card.hidden) return;
+  const team = myTeam();
+  const named = state.teamNames?.[team];
+  const name = named ?? t('team', { n: team + 1 });
+  card.dataset.team = team;
+  card.innerHTML = `<span class="team-badge" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><circle cx="8.5" cy="8" r="3.2"/><circle cx="15.5" cy="8" r="3.2"/><path d="M2.5 19c0-3.5 2.7-6 6-6s6 2.5 6 6zM12.6 13.6c.9-.4 1.9-.6 2.9-.6 3.3 0 6 2.5 6 6h-5.2c0-2.2-1.4-4.2-3.7-5.4z"/></svg></span><span class="game-text"><small>${t('yourTeam')}</small><b class="${named ? '' : 'unnamed'}">${esc(name)}</b></span><span class="game-change" aria-hidden="true"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M4 20h4L19 9l-4-4L4 16z" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/></svg></span>`;
+  card.setAttribute('aria-label', t('aria.teamName', { name }));
 }
 
 // Quick picks for a team name. Venezuelan table talk reads the same in both languages.
@@ -1110,9 +1120,8 @@ window.addEventListener('pointerup', onDragEnd);
 window.addEventListener('pointercancel', onDragEnd);
 
 document.body.addEventListener('click', (e) => {
-  const el = e.target.closest('[data-botify],[data-sit],[data-remove],[data-stand],[data-act],[data-close],[data-target],[data-variant],[data-pick],[data-theme-pick],[data-rules],[data-team-edit]');
+  const el = e.target.closest('[data-botify],[data-sit],[data-remove],[data-stand],[data-act],[data-close],[data-target],[data-variant],[data-pick],[data-theme-pick],[data-rules]');
   if (!el) return;
-  if ('teamEdit' in el.dataset) return openTeamSheet();
   if (el.dataset.botify) return send({ t: 'botify', seat: Number(el.dataset.botify) });
   if (el.dataset.remove) {
     e.stopPropagation();
@@ -1170,17 +1179,8 @@ $('gameCard').onclick = () => {
   $('gamesSheet').hidden = false;
 };
 $('stylesSheet').addEventListener('click', (e) => e.target === $('stylesSheet') && ($('stylesSheet').hidden = true));
-$('styleCard').onclick = () => {
-  paintStyles();
-  $('stylesSheet').hidden = false;
-};
+$('teamCard').onclick = openTeamSheet;
 $('teamSheet').addEventListener('click', (e) => e.target === $('teamSheet') && ($('teamSheet').hidden = true));
-$('lobbySeats').addEventListener('keydown', (e) => {
-  if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('[data-team-edit]')) {
-    e.preventDefault();
-    openTeamSheet();
-  }
-});
 $('teamInput').addEventListener('input', paintTeamIdeas);
 $('teamIdeas').addEventListener('click', (e) => {
   const idea = e.target.closest('[data-idea]')?.dataset.idea;
@@ -1236,7 +1236,6 @@ function paintMenu() {
   $('menuSound').textContent = t(sound.isMuted() ? 'off' : 'on');
   if (!state) return;
   $('menuStyleName').textContent = t(`theme.${state.theme}`);
-  $('menuStyle').hidden = state.phase === 'lobby'; // the lobby has its own style card
   $('menuLobby').hidden = state.phase === 'lobby' || me() === -1;
 }
 
