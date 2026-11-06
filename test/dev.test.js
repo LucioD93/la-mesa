@@ -14,6 +14,7 @@ import { SCENARIOS, applyScenario, playUntil } from '../server/dev/scenarios.js'
 import { merge } from '../server/dev/tools.js';
 import { florType, envidoValue } from '../server/games/truco.js';
 import { cantoOf } from '../server/games/caida.js';
+import { bestMelds } from '../server/games/rummy.js';
 
 /** Set env vars for one test. */
 function withEnv(t, vars) {
@@ -114,6 +115,11 @@ const PROMISES = {
   'parchis-leave': (m) => m.round.pieces.flat().every((p) => p === -1),
   'cochina-steal': (m) => m.round.hands[0].some((c) => c[0] === m.round.piles[1].at(-1)[0]),
   'cochina-grab': (m) => m.round.turn === 0,
+  'rummy-take': (m) => m.round.turn === 0 && !m.round.drawn && m.round.discard.length > 0,
+  'rummy-meld': (m) => m.round.turn === 0 && m.round.drawn && bestMelds(m.round.hands[0]).length > 0,
+  'rummy-layoff': (m) => m.round.turn === 0 && m.round.drawn && m.round.melds.length > 0,
+  'rummy-out': (m) => m.round.turn === 0 && m.round.drawn && bestMelds(m.round.hands[0]).length > 0,
+  'rummy-last-card': (m) => m.round.turn === 0 && m.round.drawn && m.round.stock.length === 0,
 };
 
 test('every scenario has a check here', () => {
