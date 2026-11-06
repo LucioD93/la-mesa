@@ -134,6 +134,27 @@ function parchisBoard(match, opts, pieces, dice) {
 
 // ---- the list ---------------------------------------------------------------------
 
+// ---- cochina: a run to steal ------------------------------------------------------
+
+/** A number seat 0 holds exactly one of. */
+const loneNumber = (r) => r.hands[0].find((c) => cardsOf(r.hands[0], c[0]).length === 1)?.[0];
+
+/**
+ * Move the other three cards of seat 0's lone number onto the top of the rivals' cochina,
+ * each trading places with the card that was there, so the deck stays whole.
+ */
+function stackRivals(r) {
+  const n = loneNumber(r);
+  const places = [r.deck, r.table, ...r.hands.slice(1), ...r.piles];
+  const pile = r.piles[1];
+  const others = places.flatMap((list) => cardsOf(list, n));
+  others.forEach((card, i) => {
+    const list = places.find((l) => l.includes(card));
+    const at = pile.length - 1 - i;
+    [list[list.indexOf(card)], pile[at]] = [pile[at], card];
+  });
+}
+
 const domMoves = (r, seat) => domino.legalMoves(r, seat);
 const cardsOf = (hand, n) => hand.filter((c) => c[0] === n);
 const fitsTable = (r, card) => r.melds.some((m) => rummy.layoffFit(m, card));
@@ -289,6 +310,14 @@ export const SCENARIOS = {
     about: "Seat 0's turn, and it holds the number on top of the rivals' cochina.",
     setup: (match, opts) =>
       search(match, 'cochina', opts, (r) => r.turn === 0 && !r.grab && r.piles[1].length > 0 && cardsOf(r.hands[0], r.piles[1].at(-1)[0]).length > 0),
+  },
+  'cochina-steal-run': {
+    game: 'cochina',
+    about: "Seat 0's turn, the rivals' cochina has three cards of one number on top, and seat 0 holds the fourth: steal all three, one tap each.",
+    setup(match, opts) {
+      search(match, 'cochina', opts, (r) => r.turn === 0 && !r.grab && r.piles[1].length >= 4 && loneNumber(r) != null);
+      stackRivals(match.round);
+    },
   },
   'cochina-grab': {
     game: 'cochina',

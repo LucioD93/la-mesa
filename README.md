@@ -401,7 +401,7 @@ curl -X PATCH localhost:3000/api/dev/match/demo -d '{"scores": [23, 23]}'
 - Truco: `truco-flor`, `truco-reservada`, `truco-envido`, `truco-answer`
 - Caída: `caida-ronda` (`kind`: `ronda`, `patrulla` or `tolete`), `caida-caida`, `caida-mesa-limpia`
 - Parchís: `parchis-home`, `parchis-capture`, `parchis-leave`. Each rigs seat 0's next roll.
-- Cochina: `cochina-steal`, `cochina-grab`
+- Cochina: `cochina-steal`, `cochina-steal-run` (three of a number on the rivals' cochina), `cochina-grab`
 - Rummy: `rummy-take`, `rummy-meld`, `rummy-layoff`, `rummy-out`, `rummy-last-card`
 
 `GET /api/dev` describes each one.

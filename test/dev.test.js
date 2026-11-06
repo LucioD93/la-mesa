@@ -114,6 +114,10 @@ const PROMISES = {
   'parchis-capture': (m) => m.round.turn === 0,
   'parchis-leave': (m) => m.round.pieces.flat().every((p) => p === -1),
   'cochina-steal': (m) => m.round.hands[0].some((c) => c[0] === m.round.piles[1].at(-1)[0]),
+  'cochina-steal-run': (m) => {
+    const top = m.round.piles[1].slice(-4).map((c) => c[0]);
+    return top.slice(1).every((n) => n === top[1]) && top[0] !== top[1] && m.round.hands[0].some((c) => c[0] === top[1]);
+  },
   'cochina-grab': (m) => m.round.turn === 0,
   'rummy-take': (m) => m.round.turn === 0 && !m.round.drawn && m.round.discard.length > 0,
   'rummy-meld': (m) => m.round.turn === 0 && m.round.drawn && bestMelds(m.round.hands[0]).length > 0,
