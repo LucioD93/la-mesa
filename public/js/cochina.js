@@ -343,7 +343,8 @@ export function createView(ctx) {
     },
 
     dressGhost(ghost) {
-      ghost.className = `${ghost.className.replace('playable', '')} drag-ghost`;
+      ghost.classList.remove('hand-card', 'playable', 'dragging');
+      ghost.classList.add('drag-ghost');
     },
 
     dragOver(key, x, y) {
