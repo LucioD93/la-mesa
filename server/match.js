@@ -18,6 +18,7 @@ const BOTS = [
   { name: 'El Bachaquero', emoji: '🐜' },
 ];
 const MAX_NAME = 24;
+const MAX_TEAM_NAME = 16;
 // Same ids as public/js/reactions.js, in its order. El Manguangua is a photo, not an emoji.
 export const REACTIONS = [
   '😂', '🤣', '😭', '🥲', '😮', '😱', '😡', '🤬', '🤔', '😏', '🙄', '😴', '🤡', '🥵', '😎', '🤯',
@@ -35,11 +36,11 @@ export const THEMES = ['felt', 'pencil', 'neon', 'minimal', 'dark', 'halloween',
 export const DEFAULT_THEME = 'felt';
 const isTheme = (id) => THEMES.includes(id);
 
-const cleanName = (name) =>
-  String(name ?? '')
-    .replace(/[\u0000-\u001f]/g, '')
-    .trim()
-    .slice(0, MAX_NAME);
+const cleanName = (name, max = MAX_NAME) =>
+  [...String(name ?? '').replace(/[\u0000-\u001f]/g, '').trim()]
+    .slice(0, max)
+    .join('')
+    .trim();
 
 /** A random bot who isn't at the table yet. */
 const newBot = (seats) => {
@@ -61,6 +62,7 @@ export class Match {
     this.target = this.rules.defaultTarget;
     this.variant = this.rules.defaultVariant ?? null; // a choice the game offers: parchís's dice
     this.theme = DEFAULT_THEME;
+    this.teamNames = [null, null]; // what each team chose to be called; null shows Us / Them
     this.scores = [0, 0];
     this.history = [];
     this.round = null;
@@ -72,11 +74,12 @@ export class Match {
     this.v = 0;
     if (data) Object.assign(this, data, { id, game: this.game });
     if (!isTheme(this.theme)) this.theme = DEFAULT_THEME; // saved before themes existed
+    if (!Array.isArray(this.teamNames)) this.teamNames = [null, null]; // saved before team names existed
   }
 
   toJSON() {
-    const { id, game, theme, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, hurried, blunder, v } = this;
-    return { id, game, theme, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, hurried, blunder, v };
+    const { id, game, theme, teamNames, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, hurried, blunder, v } = this;
+    return { id, game, theme, teamNames, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, hurried, blunder, v };
   }
 
   /** The rules of the game this match is playing. */
@@ -150,6 +153,15 @@ export class Match {
         if (!name) return false;
         this.names[token] = name;
         if (seat !== -1) this.seats[seat].name = name;
+        return true;
+      }
+      case 'teamName': {
+        // Either partner names their own team, any time. It stays with the team through seat changes.
+        if (seat === -1) return false;
+        const team = teamOf(seat);
+        const name = cleanName(msg.name, MAX_TEAM_NAME) || null;
+        if (name === this.teamNames[team]) return false;
+        this.teamNames[team] = name;
         return true;
       }
       case 'sit':
@@ -332,6 +344,7 @@ export class Match {
       matchId: this.id,
       game: this.game,
       theme: this.theme,
+      teamNames: this.teamNames,
       targets: this.rules.targets,
       variants: this.rules.variants ?? null,
       variant: this.variant,

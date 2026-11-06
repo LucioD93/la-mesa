@@ -272,7 +272,9 @@ const myTeam = () => (me() === -1 ? 0 : me() % 2);
 // Position around the table relative to me: 0 bottom, 1 right, 2 top, 3 left.
 const posOf = (seat) => (seat - (me() === -1 ? 0 : me()) + 4) % 4;
 const seatAt = (pos) => ((me() === -1 ? 0 : me()) + pos) % 4;
-const teamLabel = (team) => (me() === -1 ? t('team', { n: team + 1 }) : team === myTeam() ? t('us') : t('them'));
+// A team's own name if it chose one; otherwise Us / Them, or Team 1 / 2 for spectators.
+const teamLabel = (team) =>
+  state.teamNames?.[team] ?? (me() === -1 ? t('team', { n: team + 1 }) : team === myTeam() ? t('us') : t('them'));
 const seatName = (seat) => (seat === me() ? t('you') : state.seats[seat]?.name ?? '—');
 
 let toastTimer;
@@ -392,6 +394,7 @@ function render(next) {
   view.feedback(prev);
   if (prev && prev.game !== state.game) toast(t('gameChanged', { game: t(`game.${state.game}`) }), 2400);
   else if (prev && prev.theme !== state.theme) toast(t('themeChanged', { theme: t(`theme.${state.theme}`) }), 2000);
+  else if (prev) toastTeamNames(prev);
   if (prev && hasManguangua(state) && !hasManguangua(prev)) toast(t('manguangua'), 3200);
   if (prev && state.reaction && state.reaction.n !== prev.reaction?.n) showReaction(state.reaction);
   if (prev && state.blunder && state.blunder.n !== prev.blunder?.n && state.blunder.seat !== me()) {
@@ -413,6 +416,8 @@ function renderScores() {
   const right = 1 - left;
   $('label0').textContent = teamLabel(left);
   $('label1').textContent = teamLabel(right);
+  // A chosen name is written as typed, so once either team has one, both labels drop the capitals.
+  $('scoreBtn').classList.toggle('named', state.teamNames?.some(Boolean) ?? false);
   const scores = view.liveScores?.() ?? state.scores;
   $('score0').textContent = scores[left];
   $('score1').textContent = scores[right];
@@ -425,7 +430,7 @@ function renderScores() {
 function renderLobby() {
   const show = state.phase === 'lobby';
   $('lobby').hidden = !show;
-  if (!show) return ($('gamesSheet').hidden = $('stylesSheet').hidden = true);
+  if (!show) return ($('gamesSheet').hidden = $('stylesSheet').hidden = $('teamSheet').hidden = true);
   $('matchCode').textContent = matchId;
   $('inviteUrl').value = inviteUrl();
   if (document.activeElement !== $('nameInput')) $('nameInput').value = myName;
@@ -448,7 +453,7 @@ function renderLobby() {
         }
         return `<button class="lobby-seat ${cells[i]}" data-team="${i % 2}" data-sit="${i}" ${
           mine ? 'aria-current="true"' : ''
-        }><span class="team-tag">${t('team', { n: (i % 2) + 1 })}</span>${body}</button>`;
+        }>${teamTag(i % 2)}${body}</button>`;
       })
       .join('') + `<div class="lobby-felt"></div>`;
 
@@ -470,6 +475,47 @@ function renderLobby() {
   $('botsBtn').disabled = full;
   $('startBtn').disabled = !full || me() === -1;
   $('startBtn').textContent = me() === -1 ? t('takeSeatToStart') : full ? t('start') : t('waitingFor4');
+}
+
+/** A lobby seat's team name. Your own team's opens the sheet to rename it. */
+function teamTag(team) {
+  const name = state.teamNames?.[team] ?? t('team', { n: team + 1 });
+  const cls = `team-tag${state.teamNames?.[team] ? ' named' : ''}`;
+  if (me() === -1 || team !== myTeam()) return `<span class="${cls}"><span>${esc(name)}</span></span>`;
+  return `<span class="${cls} editable" role="button" tabindex="0" data-team-edit aria-label="${esc(t('aria.teamName', { name }))}"><span>${esc(name)}</span><svg viewBox="0 0 24 24" width="10" height="10" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/></svg></span>`;
+}
+
+// Quick picks for a team name. Venezuelan table talk reads the same in both languages.
+const TEAM_IDEAS = ['Los Panas', 'Los Chamos', 'La Pava', 'Mano Firme', 'Puro Tranque', 'Los Duros'];
+
+function openTeamSheet() {
+  const team = myTeam();
+  const partner = state.seats[(me() + 2) % 4];
+  const partnerName = partner && (partner.bot ? `${partner.emoji ?? '🤖'} ${partner.name}` : partner.name);
+  $('teamForm').dataset.team = team;
+  $('teamWho').textContent = partnerName ? t('teamName.with', { partner: partnerName }) : t('teamName.alone');
+  $('teamInput').value = state.teamNames?.[team] ?? '';
+  $('teamInput').placeholder = t('team', { n: team + 1 });
+  $('teamClear').hidden = !state.teamNames?.[team];
+  paintTeamIdeas();
+  $('teamSheet').hidden = false;
+  $('teamInput').focus({ preventScroll: true });
+}
+
+function paintTeamIdeas() {
+  const v = $('teamInput').value.trim();
+  $('teamCount').textContent = `${[...$('teamInput').value].length}/${$('teamInput').maxLength}`;
+  $('teamIdeas').innerHTML = TEAM_IDEAS.map((n) => `<button type="button" data-idea="${esc(n)}" aria-pressed="${n === v}">${esc(n)}</button>`).join('');
+}
+
+/** Tell the table when a team picks a name. Clearing it is quiet: the scoreboard says enough. */
+function toastTeamNames(prev) {
+  for (const team of [0, 1]) {
+    const name = state.teamNames?.[team];
+    if (!name || name === prev.teamNames?.[team]) continue;
+    if (me() === -1) toast(t('teamRenamed.n', { n: team + 1, name }), 2400);
+    else toast(t(team === myTeam() ? 'teamRenamed.mine' : 'teamRenamed.other', { name }), 2400);
+  }
 }
 
 /** The menu of games, with the one being played marked. */
@@ -1064,8 +1110,9 @@ window.addEventListener('pointerup', onDragEnd);
 window.addEventListener('pointercancel', onDragEnd);
 
 document.body.addEventListener('click', (e) => {
-  const el = e.target.closest('[data-botify],[data-sit],[data-remove],[data-stand],[data-act],[data-close],[data-target],[data-variant],[data-pick],[data-theme-pick],[data-rules]');
+  const el = e.target.closest('[data-botify],[data-sit],[data-remove],[data-stand],[data-act],[data-close],[data-target],[data-variant],[data-pick],[data-theme-pick],[data-rules],[data-team-edit]');
   if (!el) return;
+  if ('teamEdit' in el.dataset) return openTeamSheet();
   if (el.dataset.botify) return send({ t: 'botify', seat: Number(el.dataset.botify) });
   if (el.dataset.remove) {
     e.stopPropagation();
@@ -1126,6 +1173,29 @@ $('stylesSheet').addEventListener('click', (e) => e.target === $('stylesSheet') 
 $('styleCard').onclick = () => {
   paintStyles();
   $('stylesSheet').hidden = false;
+};
+$('teamSheet').addEventListener('click', (e) => e.target === $('teamSheet') && ($('teamSheet').hidden = true));
+$('lobbySeats').addEventListener('keydown', (e) => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.closest('[data-team-edit]')) {
+    e.preventDefault();
+    openTeamSheet();
+  }
+});
+$('teamInput').addEventListener('input', paintTeamIdeas);
+$('teamIdeas').addEventListener('click', (e) => {
+  const idea = e.target.closest('[data-idea]')?.dataset.idea;
+  if (!idea) return;
+  $('teamInput').value = idea;
+  paintTeamIdeas();
+});
+$('teamForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  send({ t: 'teamName', name: $('teamInput').value });
+  $('teamSheet').hidden = true;
+});
+$('teamClear').onclick = () => {
+  send({ t: 'teamName', name: '' });
+  $('teamSheet').hidden = true;
 };
 $('inviteBtn').onclick = invite;
 $('botsBtn').onclick = () => send({ t: 'addBots' });
