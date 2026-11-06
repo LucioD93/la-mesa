@@ -12,7 +12,7 @@ import { GAME_IDS } from '../server/games/index.js';
 import { diceValues, devTools, rig, seededRng, timeScale } from '../server/dev/config.js';
 import { SCENARIOS, applyScenario, playUntil } from '../server/dev/scenarios.js';
 import { merge } from '../server/dev/tools.js';
-import { florType, envidoValue } from '../server/games/truco.js';
+import { NUMBERS, florType, envidoValue } from '../server/games/truco.js';
 import { cantoOf } from '../server/games/caida.js';
 
 /** Set env vars for one test. */
@@ -116,6 +116,11 @@ const PROMISES = {
   'cochina-steal-run': (m) => {
     const top = m.round.piles[1].slice(-4).map((c) => c[0]);
     return top.slice(1).every((n) => n === top[1]) && top[0] !== top[1] && m.round.hands[0].some((c) => c[0] === top[1]);
+  },
+  'cochina-run': (m) => {
+    const [n] = m.round.piles[1].at(-1);
+    const next = NUMBERS.slice(NUMBERS.indexOf(n) + 1, NUMBERS.indexOf(n) + 3);
+    return PROMISES['cochina-steal-run'](m) && next.every((k) => m.round.table.some((c) => c[0] === k)) && !m.round.table.some((c) => c[0] === n);
   },
   'cochina-grab': (m) => m.round.turn === 0,
 };
