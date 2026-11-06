@@ -118,7 +118,7 @@
               <input id="nameInput" maxlength="24" autocomplete="nickname" enterkeyhint="done" />
             </label>
           </div>
-          <button type="button" class="game-card style-card" id="styleCard" aria-haspopup="dialog"></button>
+          <button type="button" class="game-card team-card" id="teamCard" aria-haspopup="dialog"></button>
           <button type="button" class="game-card" id="gameCard" aria-haspopup="dialog"></button>
           <div class="field">
             <span data-i18n="playTo">Play to</span>
@@ -162,6 +162,26 @@
         </div>
         <div class="game-list" id="styleList"></div>
       </div>
+    </section>
+
+    <!-- Naming your own team -->
+    <section class="sheet" id="teamSheet" hidden>
+      <form class="sheet-body team-form" id="teamForm" data-team="0">
+        <div class="sheet-head">
+          <h2 data-i18n="teamName.title">Name your team</h2>
+          <button type="button" class="icon-btn" data-close aria-label="Close" data-i18n-aria="aria.close">✕</button>
+        </div>
+        <p class="team-who" id="teamWho"></p>
+        <label class="field team-field">
+          <span><span data-i18n="teamName.label">Team name</span><small id="teamCount"></small></span>
+          <input id="teamInput" maxlength="16" autocomplete="off" enterkeyhint="done" />
+        </label>
+        <div class="team-ideas" id="teamIdeas"></div>
+        <div class="team-actions">
+          <button type="button" class="btn ghost" id="teamClear" data-i18n="teamName.clear">Remove name</button>
+          <button type="submit" class="btn primary" data-i18n="teamName.save">Save</button>
+        </div>
+      </form>
     </section>
 
     <!-- Score history -->

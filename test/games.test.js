@@ -56,6 +56,23 @@ test('nobody is hurried while a bot is thinking', () => {
   assert.equal(m.waitingOn(), null);
 });
 
+test('a player names their own team, and the name stays with the team', () => {
+  const m = new Match('teams', { game: 'domino' });
+  for (const t of ['a', 'b', 'c']) m.join(t, t); // a and c are partners, seats 0 and 2
+  assert.equal(m.handle('a', { t: 'teamName', name: '  Los Panas\u0007 ' }, new Set()), true);
+  assert.deepEqual(m.stateFor('b', new Set()).teamNames, ['Los Panas', null]);
+  assert.equal(m.handle('c', { t: 'teamName', name: 'Los Panas' }, new Set()), false, 'same name, nothing changes');
+  assert.equal(m.handle('b', { t: 'teamName', name: 'Los Invencibles del Zulia' }, new Set()), true);
+  assert.equal(m.teamNames[1], 'Los Invencibles', 'cut to 16 characters');
+  m.handle('a', { t: 'stand' }, new Set());
+  assert.equal(m.handle('a', { t: 'teamName', name: 'Nope' }, new Set()), false, 'spectators name no team');
+  assert.equal(m.teamNames[0], 'Los Panas', 'kept after a seat change');
+  assert.equal(m.handle('c', { t: 'teamName', name: '   ' }, new Set()), true);
+  assert.equal(m.teamNames[0], null, 'a blank name goes back to Us / Them');
+  assert.deepEqual(new Match('teams', JSON.parse(JSON.stringify(m))).teamNames, [null, 'Los Invencibles']);
+  assert.deepEqual(new Match('old', { game: 'domino', teamNames: undefined }).teamNames, [null, null]);
+});
+
 test('the server accepts exactly the reactions the picker offers', () => {
   assert.deepEqual(REACTIONS, PICKER_REACTIONS);
   assert.equal(new Set(REACTIONS).size, REACTIONS.length, 'no reaction twice');
