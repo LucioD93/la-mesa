@@ -6,11 +6,11 @@
     <meta name="theme-color" content="#0b3a2c" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>La Mesa</title>
-    <meta name="description" content="Dominoes, Venezuelan truco, caída, parchís or rummy for 4 players, 2 vs 2. No sign-up: send the link and play." />
+    <meta name="description" content="Dominoes, Venezuelan truco, caída, parchís, roba la cochina or rummy for 4 players, 2 vs 2. No sign-up: send the link and play." />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="La Mesa" />
     <meta property="og:title" content="Come play with me at La Mesa" />
-    <meta property="og:description" content="Dominoes, Venezuelan truco, caída, parchís or rummy for 4 players, 2 vs 2. No sign-up: send the link and play." />
+    <meta property="og:description" content="Dominoes, Venezuelan truco, caída, parchís, roba la cochina or rummy for 4 players, 2 vs 2. No sign-up: send the link and play." />
     <meta property="og:image" content="https://domino-ten-theta.vercel.app/og-image.png" />
     <meta property="og:image:secure_url" content="https://domino-ten-theta.vercel.app/og-image.png" />
     <meta property="og:image:type" content="image/png" />
@@ -18,8 +18,12 @@
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="A domino tile and a Spanish playing card on a green felt table, with the words La Mesa" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="icon" href="/icon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- Paint in the last theme right away; the match's own arrives with its state. -->
+    <script>document.documentElement.dataset.theme = localStorage.getItem('domino.theme') || 'felt';</script>
     <link rel="stylesheet" href="/css/style.css" />
   </head>
   <body class="game">
@@ -36,6 +40,8 @@
         <button id="shareBtn" class="icon-btn" aria-label="Invite" data-i18n-aria="aria.invite">
           <svg viewBox="0 0 24 24" width="22" height="22"><path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </button>
+        <button id="themeBtn" class="icon-btn" aria-label="Change table style" data-i18n-aria="aria.theme" title="Change table style">🎨</button>
+        <button id="lobbyBtn" class="icon-btn" data-act="lobby" aria-label="Back to the lobby" data-i18n-aria="backToLobby" title="Back to the lobby">⌂</button>
       </header>
 
       <main class="table">
@@ -77,6 +83,7 @@
           <button data-emoji="😡">😡</button>
           <button data-emoji="🔥">🔥</button>
           <button data-emoji="👋">👋</button>
+          <button data-emoji="manguangua" aria-label="El Manguangua"><img src="/img/manguangua.jpg" alt="" /></button>
         </div>
         <div class="actions" id="actions"></div>
         <div class="hand" id="hand"></div>
@@ -118,6 +125,7 @@
               <input id="nameInput" maxlength="24" autocomplete="nickname" enterkeyhint="done" />
             </label>
           </div>
+          <button type="button" class="game-card style-card" id="styleCard" aria-haspopup="dialog"></button>
           <button type="button" class="game-card" id="gameCard" aria-haspopup="dialog"></button>
           <div class="field">
             <span data-i18n="playTo">Play to</span>
@@ -149,6 +157,17 @@
           <button class="icon-btn" data-close aria-label="Close" data-i18n-aria="aria.close">✕</button>
         </div>
         <div class="game-list" id="gameList"></div>
+      </div>
+    </section>
+
+    <!-- Every style the table can take -->
+    <section class="sheet" id="stylesSheet" hidden>
+      <div class="sheet-body">
+        <div class="sheet-head">
+          <h2 data-i18n="chooseStyle">Choose a style</h2>
+          <button class="icon-btn" data-close aria-label="Close" data-i18n-aria="aria.close">✕</button>
+        </div>
+        <div class="game-list" id="styleList"></div>
       </div>
     </section>
 

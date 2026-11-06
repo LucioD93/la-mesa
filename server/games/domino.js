@@ -179,6 +179,11 @@ export function botMove(round, seat) {
   return best;
 }
 
+const momentKey = (match) => {
+  const r = match.round;
+  return `${match.roundNo}:${r.line.length}:${r.turn}:${r.lastAction?.type ?? ''}`;
+};
+
 export const game = {
   id: 'domino',
   targets: [50, 75, 100],
@@ -208,9 +213,11 @@ export const game = {
     if (!isBot && !stuck) return null;
     return {
       delay: !isBot ? STUCK_PLAYER_DELAY_MS : stuck ? AUTO_PASS_DELAY_MS : BOT_DELAY_MS,
-      key: `${match.roundNo}:${r.line.length}:${r.turn}:${r.lastAction?.type ?? ''}`,
+      key: momentKey(match),
     };
   },
+
+  waitingOn: (match) => ({ seat: match.round.turn, key: momentKey(match) }),
 
   runAuto(match, rng) {
     const r = match.round;

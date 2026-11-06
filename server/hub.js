@@ -3,9 +3,10 @@
 // store, so players on different instances still share a match.
 import { createHash, randomBytes } from 'node:crypto';
 import { MoveError } from './games/common.js';
-import { publicId } from './match.js';
+import { SLOW_TURN_MS, publicId } from './match.js';
 import { PRESENCE_REFRESH_MS, LEAVE_GRACE_MS } from './store.js';
 import { createUsage } from './usage.js';
+import { timeScale } from './dev/config.js';
 
 // Voice chat is peer-to-peer WebRTC; the server only relays the signaling
 // (offers, answers, ICE candidates) between connections in the same match.
@@ -28,7 +29,7 @@ export function iceServers() {
 }
 
 export function createHub(store) {
-  /** id -> { conns: Set<{ws, token, peer}>, ready, unsub, timer, autoKey, onlineKey } */
+  /** id -> { conns: Set<{ws, token, peer}>, ready, unsub, timer, autoKey, hurryTimer, hurryKey, onlineKey } */
   const rooms = new Map();
   const usage = createUsage(store);
 
@@ -44,7 +45,7 @@ export function createHub(store) {
   function room(id) {
     let r = rooms.get(id);
     if (!r) {
-      r = { conns: new Set(), unsub: null, timer: null, autoKey: null, onlineKey: '' };
+      r = { conns: new Set(), unsub: null, timer: null, autoKey: null, hurryTimer: null, hurryKey: null, onlineKey: '' };
       r.ready = store
         .subscribe(
           id,
@@ -68,6 +69,7 @@ export function createHub(store) {
       else send(c.ws, match.stateFor(c.token, online));
     }
     scheduleAuto(id, match);
+    scheduleHurry(id, match);
   }
 
   // Voice signaling and photos: to one peer (`to`) or everyone else in the match.
@@ -96,7 +98,19 @@ export function createHub(store) {
     r.timer = setTimeout(() => {
       r.autoKey = null;
       store.update(id, (m) => m.runAuto(p.key)).catch(log(id));
-    }, p.delay);
+    }, p.delay * timeScale());
+  }
+
+  // A human taking too long gets mocked by the table. Like automatic moves,
+  // every instance may schedule it and the moment key keeps it to once.
+  function scheduleHurry(id, match) {
+    const r = rooms.get(id);
+    const w = match.waitingOn();
+    if ((w?.key ?? null) === r.hurryKey) return; // reactions and presence don't restart the clock
+    clearTimeout(r.hurryTimer);
+    r.hurryKey = w?.key ?? null;
+    if (!w || match.hurried === w.key) return;
+    r.hurryTimer = setTimeout(() => store.update(id, (m) => m.hurry(w.key)).catch(log(id)), SLOW_TURN_MS * timeScale());
   }
 
   // Keep presence fresh, notice players that dropped, and free their lobby seats.
@@ -172,7 +186,7 @@ export function createHub(store) {
         }
         if (msg.inVoice) setInVoice(true); // a handover doesn't join voice again
         await store.setPresence(id, conn.token);
-        await store.update(id, (m) => m.join(conn.token, msg.name, msg.game));
+        await store.update(id, (m) => m.join(conn.token, msg.name, msg.game, msg.theme));
         send(ws, { t: 'voiceConfig', peer: conn.peer, iceServers: iceServers() });
         return;
       }
@@ -219,6 +233,7 @@ export function createHub(store) {
           if (!r.conns.size && rooms.get(id) === r) {
             rooms.delete(id);
             clearTimeout(r.timer);
+            clearTimeout(r.hurryTimer);
             await r.unsub?.();
             await usage.flush(); // this instance may stop soon after its last socket
           }

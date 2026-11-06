@@ -2,12 +2,14 @@
   "name": "la-mesa",
   "version": "1.0.0",
   "private": true,
-  "description": "Mobile-first 4-player dominoes, Venezuelan truco, caída, parchís and rummy. No login: share /play/<match id> and play.",
+  "description": "Mobile-first 4-player dominoes, Venezuelan truco, caída, parchís, roba la cochina and rummy. No login: share /play/<match id> and play.",
   "type": "module",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
+    "dev:tools": "DEV_TOOLS=1 node --watch server/index.js",
+    "sim": "node scripts/sim.js",
     "test": "node --test test/"
   },
   "engines": {

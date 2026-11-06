@@ -305,6 +305,8 @@ export const game = {
     return { delay: r.drawn ? STEP_MS : BOT_DELAY_MS, key: `${match.roundNo}:${r.seq}` };
   },
 
+  waitingOn: (match) => ({ seat: match.round.turn, key: `${match.roundNo}:${match.round.seq}` }),
+
   runAuto(match, rng) {
     const r = match.round;
     const seat = r.turn;

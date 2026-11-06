@@ -1,9 +1,11 @@
 // The game page: connection, lobby, seats, voice, photos, reactions and the frame of
-// the result. What's on the table belongs to the game's view (domino.js, truco.js, caida.js, parchis.js, rummy.js).
+// the result. What's on the table belongs to the game's view (domino.js, truco.js, caida.js,
+// parchis.js, cochina.js, rummy.js).
 import { createView as createDominoView } from './domino.js';
 import { createView as createTrucoView } from './truco.js';
 import { createView as createCaidaView } from './caida.js';
 import { createView as createParchisView } from './parchis.js';
+import { createView as createCochinaView } from './cochina.js';
 import { createView as createRummyView } from './rummy.js';
 import { RULES } from './rules.js';
 import { GAMES, gameIcon } from './games.js';
@@ -14,14 +16,22 @@ import * as i18n from './i18n.js';
 import { t } from './i18n.js';
 import { createVoice } from './voice.js';
 import * as avatar from './avatar.js';
+import * as theme from './theme.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const matchId = decodeURIComponent(location.pathname.split('/')[2] || '').toLowerCase();
 
+const params = new URLSearchParams(location.search);
 // A link can ask for a game (old Trucazo links). A match that exists already ignores it.
-const gameHint = new URLSearchParams(location.search).get('game');
-if (gameHint) history.replaceState(null, '', location.pathname);
+const gameHint = params.get('game');
+// For testing: `?as=<token>` plays as that token in this tab (`?as=p0` takes the seat a
+// dev scenario set up), and leaves this device's own identity, name and photo alone.
+const playAs = params.get('as')?.slice(0, 64) || null;
+if (gameHint) {
+  params.delete('game');
+  history.replaceState(null, '', location.pathname + (params.toString() ? `?${params}` : ''));
+}
 
 // ---- identity (no login: a random token kept on this device) ----------------
 
@@ -29,11 +39,11 @@ function randomHex(bytes) {
   // crypto.randomUUID needs a secure context; plain LAN http:// does not have one.
   return [...crypto.getRandomValues(new Uint8Array(bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
-const token = localStorage.getItem('domino.token') || randomHex(16);
-localStorage.setItem('domino.token', token);
-let myName = localStorage.getItem('domino.name') || t('player', { n: Math.floor(Math.random() * 90 + 10) });
-localStorage.setItem('domino.name', myName);
-let myPhoto = avatar.load();
+const token = playAs || localStorage.getItem('domino.token') || randomHex(16);
+if (!playAs) localStorage.setItem('domino.token', token);
+let myName = playAs ? params.get('name') || playAs : localStorage.getItem('domino.name') || t('player', { n: Math.floor(Math.random() * 90 + 10) });
+if (!playAs) localStorage.setItem('domino.name', myName);
+let myPhoto = playAs ? null : avatar.load();
 const photos = {}; // the other players' photos by seat `pid`, for this page only
 
 // ---- connection -------------------------------------------------------------
@@ -54,6 +64,9 @@ const ROTATE_MS = 240000;
 const ROTATE_JITTER_MS = 30000;
 const ROTATE_RETRY_MS = 10000; // the replacement failed; there is still time to try again
 
+const HEARD_MAX = 50;
+const heard = []; // the last messages from the server, for window.__laMesa
+
 let ws;
 let standby = null; // replacement socket that isn't in use yet
 let standbyTimer;
@@ -66,7 +79,7 @@ let bannerTimer;
 
 const dial = () => new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/ws?match=${encodeURIComponent(matchId)}`);
 // `games` tells the server what this page can draw, since a tab can stay open across deploys.
-const hello = () => ({ t: 'hello', token, name: myName, session: voiceSession, inVoice: voice.joined, games: Object.keys(views), game: gameHint });
+const hello = () => ({ t: 'hello', token, name: myName, session: voiceSession, inVoice: voice.joined, games: Object.keys(views), game: gameHint, theme: theme.saved() });
 const scheduleRotation = () => (rotateAt = Date.now() + ROTATE_MS + Math.random() * ROTATE_JITTER_MS);
 
 function connect() {
@@ -91,6 +104,10 @@ function adopt(sock) {
     retry = 0; // only count a connection as good once the server talks back
     setConnected(true);
     const msg = JSON.parse(e.data);
+    if (msg.t !== 'pong') {
+      heard.push(msg);
+      if (heard.length > HEARD_MAX) heard.shift();
+    }
     if (msg.t === 'state') render(msg);
     else if (msg.t === 'error') toast(t(msg.message));
     else if (msg.t === 'voice') voice.receive(msg.from, msg.data);
@@ -347,6 +364,7 @@ function render(next) {
   const prev = state && state.game !== next.game ? { ...state, round: null, roundNo: 0 } : state;
   state = next;
   useGame(state.game);
+  theme.use(state.theme);
   const r = state.round;
 
   renderScores();
@@ -366,6 +384,7 @@ function render(next) {
   // Feedback for what just happened.
   view.feedback(prev);
   if (prev && prev.game !== state.game) toast(t('gameChanged', { game: t(`game.${state.game}`) }), 2400);
+  else if (prev && prev.theme !== state.theme) toast(t('themeChanged', { theme: t(`theme.${state.theme}`) }), 2000);
   if (prev && hasManguangua(state) && !hasManguangua(prev)) toast(t('manguangua'), 3200);
   if (prev && state.reaction && state.reaction.n !== prev.reaction?.n) showReaction(state.reaction);
   if (prev && state.blunder && state.blunder.n !== prev.blunder?.n && state.blunder.seat !== me()) {
@@ -399,7 +418,9 @@ function renderScores() {
 function renderLobby() {
   const show = state.phase === 'lobby';
   $('lobby').hidden = !show;
-  if (!show) return ($('gamesSheet').hidden = true);
+  $('themeBtn').hidden = show;
+  $('lobbyBtn').hidden = show || me() === -1;
+  if (!show) return ($('gamesSheet').hidden = $('stylesSheet').hidden = true);
   $('matchCode').textContent = matchId;
   $('inviteUrl').value = inviteUrl();
   if (document.activeElement !== $('nameInput')) $('nameInput').value = myName;
@@ -426,9 +447,13 @@ function renderLobby() {
       })
       .join('') + `<div class="lobby-felt"></div>`;
 
-  $('gameCard').innerHTML = `${gameIcon(state.game)}<span class="game-text"><small>${t('game')}</small><b>${t(`game.${state.game}`)}</b></span><span class="game-change" aria-hidden="true">▾</span>`;
+  const gameName = t(`game.${state.game}`);
+  $('gameCard').innerHTML = `${gameIcon(state.game)}<span class="game-text"><small>${t('game')}</small><b class="${gameName.length > 10 ? 'long' : ''}">${gameName}</b></span><span class="game-change" aria-hidden="true">▾</span>`;
   $('gameCard').setAttribute('aria-label', t('aria.changeGame', { game: t(`game.${state.game}`) }));
   if (!$('gamesSheet').hidden) paintGames();
+  $('styleCard').innerHTML = `${swatch(state.theme)}<span class="game-text"><small>${t('style')}</small><b data-theme-name="${state.theme}">${t(`theme.${state.theme}`)}</b></span><span class="game-change" aria-hidden="true">▾</span>`;
+  $('styleCard').setAttribute('aria-label', t('aria.changeStyle', { style: t(`theme.${state.theme}`) }));
+  if (!$('stylesSheet').hidden) paintStyles();
   $('targetPicker').innerHTML = state.targets
     .map((n) => `<button data-target="${n}" class="${n === state.target ? 'on' : ''}">${n}</button>`)
     .join('');
@@ -449,6 +474,20 @@ function paintGames() {
       ${gameIcon(id)}<span class="game-text"><b>${t(`game.${id}`)}</b><small>${t(`gameDesc.${id}`)}</small></span>
       ${id === state.game ? '<span class="game-check" aria-hidden="true">✓</span>' : ''}</button>`,
   ).join('');
+}
+
+/** A style's two colors in a circle. */
+const swatch = (id) => `<span class="swatch" data-sw="${id}" aria-hidden="true"></span>`;
+
+/** The menu of styles, each name lettered like its style, with the table's marked. */
+function paintStyles() {
+  $('styleList').innerHTML = Object.keys(theme.THEMES)
+    .map(
+      (id) => `<button class="game-opt" data-theme-pick="${id}" aria-pressed="${id === state.theme}">
+      ${swatch(id)}<span class="game-text"><b data-theme-name="${id}">${t(`theme.${id}`)}</b><small>${t(`themeDesc.${id}`)}</small></span>
+      ${id === state.theme ? '<span class="game-check" aria-hidden="true">✓</span>' : ''}</button>`,
+    )
+    .join('');
 }
 
 const photoOf = (seat) => (seat === me() ? myPhoto : photos[state.seats[seat]?.pid]);
@@ -675,12 +714,24 @@ function laughAtMe() {
 
 // ---- reactions ----------------------------------------------------------------
 
+// El Manguangua's reaction is a photo of his face (Henrique Capriles, 2022, CC0 via Wikimedia Commons).
+const FACE = '/img/manguangua.jpg';
+new Image().src = FACE; // so the first one doesn't pop in empty
+
+function fillReaction(el, emoji) {
+  if (emoji !== 'manguangua') return void (el.textContent = emoji);
+  const img = document.createElement('img');
+  img.src = FACE;
+  img.alt = '';
+  el.append(img);
+}
+
 function floatEmoji(seat, emoji) {
   const anchor = seatEl(seat);
   const rect = anchor.getBoundingClientRect();
   const el = document.createElement('span');
   el.className = 'reaction';
-  el.textContent = emoji;
+  fillReaction(el, emoji);
   el.style.left = `${rect.left + rect.width / 2}px`;
   el.style.top = `${rect.top + rect.height / 2}px`;
   el.addEventListener('animationend', () => el.remove());
@@ -693,7 +744,7 @@ function crowdEmoji(emoji, crowd) {
   const rect = $('board').getBoundingClientRect();
   const el = document.createElement('span');
   el.className = 'reaction-crowd';
-  el.textContent = emoji;
+  fillReaction(el, emoji);
   el.style.left = `${rect.left + rect.width / 2}px`;
   el.style.top = `${rect.top + rect.height / 2}px`;
   el.style.setProperty('--crowd', crowd);
@@ -701,10 +752,18 @@ function crowdEmoji(emoji, crowd) {
   document.body.append(el);
 }
 
-function showReaction({ seat, emoji, crowd }) {
+function showReaction({ seat, emoji, crowd, slow }) {
+  if (slow != null) {
+    // Someone is taking too long: the rest of the table sends it together.
+    [0, 1, 2, 3].filter((s) => s !== slow).forEach((s, i) => setTimeout(() => floatEmoji(s, emoji), i * 150));
+    if (slow === me()) buzz([80, 60, 80]);
+    return crowdEmoji(emoji, crowd); // silent: it mocks, it doesn't need to shout
+  }
   floatEmoji(seat, emoji);
-  if (crowd > 1) crowdEmoji(emoji, crowd);
-  sound.play('react');
+  if (crowd <= 1) return sound.play('react');
+  crowdEmoji(emoji, crowd);
+  if (emoji === 'manguangua') sound.playClip('manguangua'); // his catchphrase, as when the bot says it
+  else sound.play('crowd');
 }
 
 // ---- voice chat ---------------------------------------------------------------
@@ -884,7 +943,10 @@ function buildResult(fresh) {
         `<button class="btn primary" data-act="rematch">${t('rematch')}</button>`,
         `<button class="btn" data-act="lobby">${t('backToLobby')}</button>`,
       );
-    else actions.push(`<button class="btn primary" data-act="next">${t('nextRound')}</button>`);
+    else actions.push(
+      `<button class="btn primary" data-act="next">${t('nextRound')}</button>`,
+      `<button class="btn" data-act="lobby">${t('backToLobby')}</button>`,
+    );
   } else actions.push(`<p class="muted">${t('waitingPlayers')}…</p>`);
   actions.push(`<button class="btn ghost" data-act="peek">${t('seeBoard')}</button>`);
   $('resultActions').innerHTML = actions.join('');
@@ -948,7 +1010,7 @@ window.addEventListener('pointerup', onDragEnd);
 window.addEventListener('pointercancel', onDragEnd);
 
 document.body.addEventListener('click', (e) => {
-  const el = e.target.closest('[data-botify],[data-sit],[data-remove],[data-stand],[data-act],[data-close],[data-target],[data-variant],[data-pick],[data-rules]');
+  const el = e.target.closest('[data-botify],[data-sit],[data-remove],[data-stand],[data-act],[data-close],[data-target],[data-variant],[data-pick],[data-theme-pick],[data-rules]');
   if (!el) return;
   if (el.dataset.botify) return send({ t: 'botify', seat: Number(el.dataset.botify) });
   if (el.dataset.remove) {
@@ -966,6 +1028,10 @@ document.body.addEventListener('click', (e) => {
   if (el.dataset.pick) {
     $('gamesSheet').hidden = true;
     return el.dataset.pick !== state.game && send({ t: 'game', game: el.dataset.pick });
+  }
+  if (el.dataset.themePick) {
+    $('stylesSheet').hidden = true;
+    return el.dataset.themePick !== state.theme && send({ t: 'theme', theme: el.dataset.themePick });
   }
   if ('close' in el.dataset) return (el.closest('.sheet').hidden = true);
   if ('rules' in el.dataset) {
@@ -996,12 +1062,22 @@ $('result').addEventListener('click', (e) => {
 });
 
 $('scoreBtn').onclick = () => state && state.phase !== 'lobby' && ($('scoreSheet').hidden = false);
+$('themeBtn').onclick = () => {
+  if (!state || state.phase === 'lobby') return;
+  paintStyles();
+  $('stylesSheet').hidden = false;
+};
 $('scoreSheet').addEventListener('click', (e) => e.target === $('scoreSheet') && ($('scoreSheet').hidden = true));
 $('rulesSheet').addEventListener('click', (e) => e.target === $('rulesSheet') && ($('rulesSheet').hidden = true));
 $('gamesSheet').addEventListener('click', (e) => e.target === $('gamesSheet') && ($('gamesSheet').hidden = true));
 $('gameCard').onclick = () => {
   paintGames();
   $('gamesSheet').hidden = false;
+};
+$('stylesSheet').addEventListener('click', (e) => e.target === $('stylesSheet') && ($('stylesSheet').hidden = true));
+$('styleCard').onclick = () => {
+  paintStyles();
+  $('stylesSheet').hidden = false;
 };
 $('shareBtn').onclick = share;
 $('copyBtn').onclick = copyInvite;
@@ -1039,7 +1115,7 @@ $('nameInput').addEventListener('input', (e) => {
     const v = e.target.value.trim().slice(0, e.target.maxLength);
     if (!v) return;
     myName = v;
-    localStorage.setItem('domino.name', v);
+    if (!playAs) localStorage.setItem('domino.name', v);
     send({ t: 'rename', name: v });
   }, 300);
 });
@@ -1078,7 +1154,32 @@ const views = {
   truco: createTrucoView(ctx),
   caida: createCaidaView(ctx),
   parchis: createParchisView(ctx),
+  cochina: createCochinaView(ctx),
   rummy: createRummyView(ctx),
+};
+
+// For tests and the console: what this tab knows, and its way to talk to the server.
+// It's what the page already holds, so it's there in production too.
+window.__laMesa = {
+  get state() {
+    return state;
+  },
+  heard,
+  send,
+  matchId,
+  token,
+};
+
+// For tests and the console: what this tab knows, and its way to talk to the server.
+// It's what the page already holds, so it's there in production too.
+window.__laMesa = {
+  get state() {
+    return state;
+  },
+  heard,
+  send,
+  matchId,
+  token,
 };
 
 connect();
