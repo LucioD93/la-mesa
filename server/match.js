@@ -4,6 +4,7 @@
 import { createHash } from 'node:crypto';
 import { MoveError, teamOf } from './games/common.js';
 import { DEFAULT_GAME, gameRules, isGame } from './games/index.js';
+import { matchRng } from './dev/config.js';
 
 // Venezuelan memes.
 const BOTS = [
@@ -227,7 +228,7 @@ export class Match {
         this.round = null;
         return true;
       default:
-        if (this.phase !== 'playing' || seat === -1 || !this.rules.handle(this.round, seat, msg)) return false;
+        if (this.phase !== 'playing' || seat === -1 || !this.rules.handle(this.round, seat, msg, matchRng(this, 'move'))) return false;
         this.afterMove();
         return true;
     }
@@ -259,7 +260,7 @@ export class Match {
     this.nextStarter = null;
   }
 
-  startRound(rng = Math.random) {
+  startRound(rng = matchRng(this, 'deal')) {
     this.round = this.rules.newRound(this, rng);
     this.roundNo += 1;
     this.phase = 'playing';
@@ -279,7 +280,7 @@ export class Match {
   }
 
   /** Run the pending automatic move, but only if it is still the same moment. */
-  runAuto(key, rng = Math.random) {
+  runAuto(key, rng = matchRng(this, 'auto')) {
     const p = this.pendingAuto();
     if (!p || p.key !== key) return false;
     this.rules.runAuto(this, rng);
@@ -295,7 +296,7 @@ export class Match {
   }
 
   /** Still the same slow moment: everyone else at the table sends the same mocking reaction at once. */
-  hurry(key, rng = Math.random) {
+  hurry(key, rng = matchRng(this, 'hurry')) {
     const w = this.waitingOn();
     if (!w || w.key !== key || this.hurried === key) return false;
     this.hurried = key;

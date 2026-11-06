@@ -19,7 +19,7 @@ function savedDominoMatch() {
 }
 
 test('a slow human gets mocked by everyone else, once per moment, in every game', () => {
-  for (const game of ['domino', 'truco', 'caida', 'parchis']) {
+  for (const game of GAME_IDS) {
     const m = new Match('slow', { game });
     for (const t of ['a', 'b', 'c', 'd']) m.join(t, t);
     assert.equal(m.waitingOn(), null, `${game}: nobody is waited on in the lobby`);
