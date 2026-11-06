@@ -297,8 +297,8 @@ export const game = {
     return newRound({ starter, dice: match.variant });
   },
 
-  handle(round, seat, msg) {
-    if (msg.t === 'roll') roll(round, seat);
+  handle(round, seat, msg, rng) {
+    if (msg.t === 'roll') roll(round, seat, rng);
     else if (msg.t === 'move') move(round, seat, msg.color, msg.piece, msg.steps);
     else return false;
     return true;

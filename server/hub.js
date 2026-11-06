@@ -6,6 +6,7 @@ import { MoveError } from './games/common.js';
 import { SLOW_TURN_MS, publicId } from './match.js';
 import { PRESENCE_REFRESH_MS, LEAVE_GRACE_MS } from './store.js';
 import { createUsage } from './usage.js';
+import { timeScale } from './dev/config.js';
 
 // Voice chat is peer-to-peer WebRTC; the server only relays the signaling
 // (offers, answers, ICE candidates) between connections in the same match.
@@ -97,7 +98,7 @@ export function createHub(store) {
     r.timer = setTimeout(() => {
       r.autoKey = null;
       store.update(id, (m) => m.runAuto(p.key)).catch(log(id));
-    }, p.delay);
+    }, p.delay * timeScale());
   }
 
   // A human taking too long gets mocked by the table. Like automatic moves,
@@ -109,7 +110,7 @@ export function createHub(store) {
     clearTimeout(r.hurryTimer);
     r.hurryKey = w?.key ?? null;
     if (!w || match.hurried === w.key) return;
-    r.hurryTimer = setTimeout(() => store.update(id, (m) => m.hurry(w.key)).catch(log(id)), SLOW_TURN_MS);
+    r.hurryTimer = setTimeout(() => store.update(id, (m) => m.hurry(w.key)).catch(log(id)), SLOW_TURN_MS * timeScale());
   }
 
   // Keep presence fresh, notice players that dropped, and free their lobby seats.
