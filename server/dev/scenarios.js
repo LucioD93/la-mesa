@@ -5,6 +5,7 @@
 // the moment comes up, so what's left in the hands and the deck stays consistent.
 import { Match } from '../match.js';
 import { nextSeat, shuffle } from '../games/common.js';
+import { NUMBERS } from '../games/truco.js';
 import * as domino from '../games/domino.js';
 import * as truco from '../games/truco.js';
 import * as caida from '../games/caida.js';
@@ -153,6 +154,25 @@ function stackRivals(r) {
     const at = pile.length - 1 - i;
     [list[list.indexOf(card)], pile[at]] = [pile[at], card];
   });
+}
+
+/**
+ * A card of each of the two numbers after seat 0's lone one goes on the table, trading
+ * places with a table card outside the run. False when the table has no room for it.
+ */
+function runOnTable(r) {
+  const n = loneNumber(r);
+  const run = NUMBERS.slice(NUMBERS.indexOf(n) + 1, NUMBERS.indexOf(n) + 3);
+  const places = [r.deck, ...r.hands.slice(1), ...r.piles];
+  for (const m of run) {
+    if (cardsOf(r.table, m).length) continue;
+    const slot = r.table.findIndex((c) => c[0] !== n && !run.includes(c[0]));
+    if (slot === -1) return false;
+    const list = places.find((l) => cardsOf(l, m).length);
+    const card = cardsOf(list, m)[0];
+    [list[list.indexOf(card)], r.table[slot]] = [r.table[slot], card];
+  }
+  return true;
 }
 
 const domMoves = (r, seat) => domino.legalMoves(r, seat);
@@ -317,6 +337,19 @@ export const SCENARIOS = {
     setup(match, opts) {
       search(match, 'cochina', opts, (r) => r.turn === 0 && !r.grab && r.piles[1].length >= 4 && loneNumber(r) != null);
       stackRivals(match.round);
+    },
+  },
+  'cochina-run': {
+    game: 'cochina',
+    about: "Like cochina-steal-run, plus a card of each of the next two numbers on the table: steal the three, then grab along the run (escalera).",
+    setup(match, opts) {
+      const ok = (r) => r.turn === 0 && !r.grab && r.piles[1].length >= 4 && r.table.length >= 2 && loneNumber(r) != null && loneNumber(r) < 11;
+      const seed = opts.seed ?? Math.random().toString(36).slice(2);
+      for (let i = 0; ; i++) {
+        search(match, 'cochina', { ...opts, seed: `${seed}:${i}` }, ok);
+        stackRivals(match.round);
+        if (runOnTable(match.round)) return;
+      }
     },
   },
   'cochina-grab': {

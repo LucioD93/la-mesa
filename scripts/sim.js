@@ -132,7 +132,7 @@ const STRATEGY = {
   cochina: (st) => {
     const r = st.round;
     if (r.options.grab) {
-      const n = r.grab.card[0];
+      const n = r.grab.num ?? r.grab.card[0]; // a run (escalera) moves on to the next numbers
       const top = r.tops[1 - (st.you % 2)];
       if (top?.[0] === n) return { t: 'grab', pile: true };
       const card = r.table.find((c) => c[0] === n && !sameCard(c, r.grab.card));
