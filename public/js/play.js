@@ -21,9 +21,16 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const matchId = decodeURIComponent(location.pathname.split('/')[2] || '').toLowerCase();
 
+const params = new URLSearchParams(location.search);
 // A link can ask for a game (old Trucazo links). A match that exists already ignores it.
-const gameHint = new URLSearchParams(location.search).get('game');
-if (gameHint) history.replaceState(null, '', location.pathname);
+const gameHint = params.get('game');
+// For testing: `?as=<token>` plays as that token in this tab (`?as=p0` takes the seat a
+// dev scenario set up), and leaves this device's own identity, name and photo alone.
+const playAs = params.get('as')?.slice(0, 64) || null;
+if (gameHint) {
+  params.delete('game');
+  history.replaceState(null, '', location.pathname + (params.toString() ? `?${params}` : ''));
+}
 
 // ---- identity (no login: a random token kept on this device) ----------------
 
@@ -31,11 +38,11 @@ function randomHex(bytes) {
   // crypto.randomUUID needs a secure context; plain LAN http:// does not have one.
   return [...crypto.getRandomValues(new Uint8Array(bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
-const token = localStorage.getItem('domino.token') || randomHex(16);
-localStorage.setItem('domino.token', token);
-let myName = localStorage.getItem('domino.name') || t('player', { n: Math.floor(Math.random() * 90 + 10) });
-localStorage.setItem('domino.name', myName);
-let myPhoto = avatar.load();
+const token = playAs || localStorage.getItem('domino.token') || randomHex(16);
+if (!playAs) localStorage.setItem('domino.token', token);
+let myName = playAs ? params.get('name') || playAs : localStorage.getItem('domino.name') || t('player', { n: Math.floor(Math.random() * 90 + 10) });
+if (!playAs) localStorage.setItem('domino.name', myName);
+let myPhoto = playAs ? null : avatar.load();
 const photos = {}; // the other players' photos by seat `pid`, for this page only
 
 // ---- connection -------------------------------------------------------------
@@ -55,6 +62,9 @@ const CONNECT_MS = 8000; // give up on a handshake that hangs
 const ROTATE_MS = 240000;
 const ROTATE_JITTER_MS = 30000;
 const ROTATE_RETRY_MS = 10000; // the replacement failed; there is still time to try again
+
+const HEARD_MAX = 50;
+const heard = []; // the last messages from the server, for window.__laMesa
 
 let ws;
 let standby = null; // replacement socket that isn't in use yet
@@ -93,6 +103,10 @@ function adopt(sock) {
     retry = 0; // only count a connection as good once the server talks back
     setConnected(true);
     const msg = JSON.parse(e.data);
+    if (msg.t !== 'pong') {
+      heard.push(msg);
+      if (heard.length > HEARD_MAX) heard.shift();
+    }
     if (msg.t === 'state') render(msg);
     else if (msg.t === 'error') toast(t(msg.message));
     else if (msg.t === 'voice') voice.receive(msg.from, msg.data);
@@ -1094,7 +1108,7 @@ $('nameInput').addEventListener('input', (e) => {
     const v = e.target.value.trim().slice(0, e.target.maxLength);
     if (!v) return;
     myName = v;
-    localStorage.setItem('domino.name', v);
+    if (!playAs) localStorage.setItem('domino.name', v);
     send({ t: 'rename', name: v });
   }, 300);
 });
@@ -1125,6 +1139,18 @@ const views = {
   caida: createCaidaView(ctx),
   parchis: createParchisView(ctx),
   cochina: createCochinaView(ctx),
+};
+
+// For tests and the console: what this tab knows, and its way to talk to the server.
+// It's what the page already holds, so it's there in production too.
+window.__laMesa = {
+  get state() {
+    return state;
+  },
+  heard,
+  send,
+  matchId,
+  token,
 };
 
 connect();
