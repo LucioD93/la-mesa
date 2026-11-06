@@ -389,7 +389,7 @@ curl -X PATCH localhost:3000/api/dev/match/demo -d '{"scores": [23, 23]}'
 
 **From the console.** `window.__laMesa` has the tab's latest `state`, the last 50 messages it `heard` from the server, and `send(msg)`.
 
-**Simulating matches.** `npm run sim -- <game>` plays a whole match over real WebSockets. Headless players make random choices from what their own state allows, and bots take any seats left. The run fails if the server refuses a move or the match stalls. By default it starts its own server with `TIME_SCALE=0.02`. With `--url` it plays on a running server, so you can watch it as a spectator.
+**Simulating matches.** `npm run sim -- <game>` plays a whole match over real WebSockets. Headless players make random choices from what their own state allows, and bots take any seats left. The run fails if the server refuses a move, the match stalls, or (when the sim started the server) the server throws an error. By default it starts its own server with `TIME_SCALE=0.02`. With `--url` it plays on a running server, so you can watch it as a spectator.
 
 ```sh
 npm run sim -- truco --seed 7                  # repeats exactly with the same seed
