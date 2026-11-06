@@ -50,7 +50,7 @@ function flightPose(t) {
  * the table can reflow or rebuild during the flight. `fit(rect)` sizes the flier to the
  * target and returns [width, height].
  */
-export function launch({ seat, avatar, flier, target, fit, onImpact, onDone }) {
+export function launch({ seat, avatar, flier, target, fit, rotation = 0, onImpact, onDone }) {
   const a = avatar.getBoundingClientRect();
   const x0 = a.left + a.width / 2;
   const y0 = a.top + a.height / 2;
@@ -86,7 +86,7 @@ export function launch({ seat, avatar, flier, target, fit, onImpact, onDone }) {
     const x = lerp(lerp(x0, cx, p), lerp(cx, x1, p), p);
     const y = lerp(lerp(y0, cy, p), lerp(cy, y1, p), p);
     const [width, height] = fit(r);
-    flier.style.transform = `translate(${x - width / 2}px, ${y - height / 2}px) rotate(${spin}deg) perspective(500px) rotateY(${flip}deg) scale(${scale})`;
+    flier.style.transform = `translate(${x - width / 2}px, ${y - height / 2}px) rotate(${spin + rotation * p}deg) perspective(500px) rotateY(${flip}deg) scale(${scale})`;
     back.hidden = flip < 90;
     if (!hit && t >= IMPACT_AT) {
       hit = true;
