@@ -8,6 +8,8 @@ import { WebSocketServer } from 'ws';
 import { createAdminHandler } from './admin.js';
 import { createHub } from './hub.js';
 import { createStore } from './store.js';
+import { devTools } from './dev/config.js';
+import { createDevHandler } from './dev/tools.js';
 
 const PUBLIC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../public');
 export const MATCH_ID = /^[a-z0-9-]{3,40}$/;
@@ -75,9 +77,13 @@ function matchIdFrom(reqUrl) {
 export function createApp({ store: storeOverride } = {}) {
   const storeReady = storeOverride ? Promise.resolve(storeOverride) : createStore();
   const admin = createAdminHandler(storeReady);
-  const server = http.createServer((req, res) =>
-    new URL(req.url, 'http://x').pathname === '/api/admin' ? admin(req, res) : serveStatic(req, res),
-  );
+  const dev = devTools() ? createDevHandler(storeReady, MATCH_ID) : null;
+  const server = http.createServer((req, res) => {
+    const p = new URL(req.url, 'http://x').pathname;
+    if (p === '/api/admin') return admin(req, res);
+    if (dev && (p === '/api/dev' || p.startsWith('/api/dev/'))) return dev(req, res);
+    serveStatic(req, res);
+  });
   const wss = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024 });
   const hubReady = storeReady.then(createHub);
 

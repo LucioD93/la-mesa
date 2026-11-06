@@ -101,9 +101,83 @@ test('a steal and a table capture can come from the same card, in any order', ()
   G.grab(r, 1, { pile: true }, NOW + 100);
   assert.ok(r.grab);
   G.grab(r, 1, { card: [5, 'b'] }, NOW + 200);
+  // One card at a time: the 5 comes over, and the rivals keep the 9 under it.
   assert.deepEqual(r.piles[0], [[9, 'c']]);
   assert.deepEqual(r.piles[1], [[5, 'o'], [5, 'b'], [5, 'e']]);
   assert.equal(r.grab, null);
+});
+
+test('with all of a number grabbed, the run goes on to the next number, and the next', () => {
+  const r = dealt({
+    table: [[5, 'b'], [6, 'c'], [6, 'o'], [2, 'o']],
+    hands: [rest(), [[4, 'e'], [1, 'b']], rest(), rest()],
+    piles: [[[12, 'o'], [4, 'c'], [4, 'b']], []],
+  });
+  G.play(r, 1, [4, 'e'], NOW);
+  assert.equal(r.grab.num, 4);
+  assert.throws(() => G.grab(r, 1, { card: [5, 'b'] }, NOW + 50), /does not match/); // the 4s first
+  G.grab(r, 1, { pile: true }, NOW + 100);
+  G.grab(r, 1, { pile: true }, NOW + 200);
+  assert.equal(r.grab.num, 5); // the rivals show a 12 now, and there are no 4s left
+  assert.throws(() => G.grab(r, 1, { pile: true }, NOW + 250), /not yours to steal/);
+  G.grab(r, 1, { card: [5, 'b'] }, NOW + 300);
+  assert.equal(r.grab.num, 6);
+  G.grab(r, 1, { card: [6, 'o'] }, NOW + 400);
+  assert.ok(r.grab, 'one 6 is still there');
+  G.grab(r, 1, { card: [6, 'c'] }, NOW + 500);
+  assert.equal(r.grab, null); // no 7 on the table
+  assert.deepEqual(r.table, [[2, 'o']]);
+  assert.deepEqual(r.piles[0], [[12, 'o']]);
+  assert.deepEqual(r.piles[1], [[4, 'b'], [4, 'c'], [5, 'b'], [6, 'o'], [6, 'c'], [4, 'e']]);
+  assert.equal(r.steals[1], 2);
+});
+
+test("a run stops at a missing number, goes from 7 to 10, and can steal the next number", () => {
+  const gap = dealt({ table: [[3, 'b'], [5, 'c']], hands: [rest(), [[3, 'e'], [1, 'b']], rest(), rest()] });
+  G.play(gap, 1, [3, 'e'], NOW);
+  G.grab(gap, 1, { card: [3, 'b'] }, NOW + 100);
+  assert.equal(gap.grab, null); // no 4, so the 5 stays
+  assert.deepEqual(gap.table, [[5, 'c']]);
+
+  const seven = dealt({ table: [[7, 'b'], [10, 'c']], hands: [rest(), [[7, 'e'], [1, 'b']], rest(), rest()] });
+  G.play(seven, 1, [7, 'e'], NOW);
+  G.grab(seven, 1, { card: [7, 'b'] }, NOW + 100);
+  assert.equal(seven.grab.num, 10);
+  G.grab(seven, 1, { card: [10, 'c'] }, NOW + 200);
+  assert.equal(seven.grab, null);
+
+  const steal = dealt({ table: [[2, 'b']], hands: [rest(), [[2, 'e'], [1, 'b']], rest(), rest()], piles: [[[6, 'c'], [3, 'o']], []] });
+  G.play(steal, 1, [2, 'e'], NOW);
+  G.grab(steal, 1, { card: [2, 'b'] }, NOW + 100);
+  assert.equal(steal.grab.num, 3);
+  G.grab(steal, 1, { pile: true }, NOW + 200);
+  assert.equal(steal.grab, null); // the 6 they show now is not a 4
+  assert.deepEqual(steal.piles[0], [[6, 'c']]);
+
+  const end = dealt({ table: [[12, 'b']], hands: [rest(), [[12, 'e'], [1, 'b']], rest(), rest()], piles: [[[1, 'c']], []] });
+  G.play(end, 1, [12, 'e'], NOW);
+  G.grab(end, 1, { card: [12, 'b'] }, NOW + 100);
+  assert.equal(end.grab, null); // the 12 ends a run: the 1 doesn't follow it
+});
+
+test('time up in a run: the rest stays, and the miss counts the number the window was on', () => {
+  const r = dealt({ table: [[4, 'b'], [5, 'c'], [5, 'o']], hands: [rest(), [[4, 'e'], [1, 'b']], rest(), rest()] });
+  G.play(r, 1, [4, 'e'], NOW);
+  G.grab(r, 1, { card: [4, 'b'] }, NOW + 100);
+  G.grab(r, 1, { card: [5, 'c'] }, NOW + 200);
+  G.closeGrab(r);
+  assert.deepEqual(r.table, [[5, 'o']]);
+  assert.equal(r.missed[1], 1);
+  assert.equal(r.lastAction.got, 2);
+});
+
+test('a window saved before runs keeps grabbing its own number', () => {
+  const r = dealt({ table: [[4, 'b'], [5, 'c']], hands: [rest(), [[4, 'e'], [1, 'b']], rest(), rest()] });
+  G.play(r, 1, [4, 'e'], NOW);
+  delete r.grab.num;
+  const saved = JSON.parse(JSON.stringify(r));
+  G.grab(saved, 1, { card: [4, 'b'] }, NOW + 100);
+  assert.equal(saved.grab.num, 5);
 });
 
 test('only the right things can be grabbed, by the player whose window it is, in time', () => {
@@ -116,71 +190,6 @@ test('only the right things can be grabbed, by the player whose window it is, in
   assert.throws(() => G.grab(r, 2, { card: [7, 'c'] }, NOW), /Nothing to grab/);
   assert.throws(() => G.grab(r, 1, { card: [7, 'c'] }, NOW + G.GRAB_MS + 1), /Too late/);
   assert.deepEqual(r.table, [[7, 'c'], [3, 'e'], [7, 'o']]);
-});
-
-test('each grab reaches the next number up: a 1 opens the 2s, a 2 opens the 3s', () => {
-  const r = dealt({ table: [[1, 'c'], [2, 'e'], [3, 'b'], [5, 'o']], hands: [rest(), [[1, 'o'], [6, 'b']], rest(), rest()] });
-  G.play(r, 1, [1, 'o'], NOW);
-  assert.deepEqual(G.reach(r.grab), [1]);
-  assert.throws(() => G.grab(r, 1, { card: [2, 'e'] }, NOW), /does not match/); // grab the 1 first
-  G.grab(r, 1, { card: [1, 'c'] }, NOW + 100);
-  assert.ok(r.grab, 'the 2 is next');
-  assert.deepEqual(G.reach(r.grab), [1, 2]);
-  assert.throws(() => G.grab(r, 1, { card: [3, 'b'] }, NOW + 150), /does not match/);
-  G.grab(r, 1, { card: [2, 'e'] }, NOW + 200);
-  G.grab(r, 1, { card: [3, 'b'] }, NOW + 300);
-  assert.deepEqual(r.piles[1], [[1, 'c'], [2, 'e'], [3, 'b'], [1, 'o']]);
-  assert.deepEqual(r.table, [[5, 'o']], 'no 4, so the 5 stays');
-  assert.equal(r.grab, null);
-  assert.equal(r.turn, 2);
-});
-
-test('the chain goes on to the rivals cochina, and from a steal to the table, and 7 is followed by 10', () => {
-  const r = dealt({
-    table: [[10, 'c'], [11, 'e']],
-    hands: [rest(), [[6, 'o'], [1, 'b']], rest(), rest()],
-    piles: [[[3, 'c'], [7, 'e'], [6, 'c']], []],
-  });
-  G.play(r, 1, [6, 'o'], NOW);
-  G.grab(r, 1, { pile: true }, NOW + 100); // the 6 on top
-  assert.deepEqual(G.reach(r.grab), [6, 7]);
-  G.grab(r, 1, { pile: true }, NOW + 200); // the 7 under it
-  G.grab(r, 1, { card: [10, 'c'] }, NOW + 300);
-  G.grab(r, 1, { card: [11, 'e'] }, NOW + 400);
-  assert.deepEqual(r.piles[0], [[3, 'c']]);
-  assert.deepEqual(r.piles[1], [[6, 'c'], [7, 'e'], [10, 'c'], [11, 'e'], [6, 'o']]);
-  assert.deepEqual(r.steals, [0, 2]);
-  assert.deepEqual(r.table, []);
-  assert.equal(r.grab, null);
-});
-
-test('a card with only the next number on the table opens nothing', () => {
-  const r = dealt({ table: [[2, 'c']], hands: [rest(), [[1, 'o'], [6, 'b']], rest(), rest()] });
-  G.play(r, 1, [1, 'o'], NOW);
-  assert.equal(r.grab, null);
-  assert.deepEqual(r.table, [[2, 'c'], [1, 'o']]);
-});
-
-test('too slow in a chain: the next numbers left behind count as missed', () => {
-  const r = dealt({ table: [[4, 'c'], [5, 'e'], [5, 'b']], hands: [rest(), [[4, 'o'], [6, 'b']], rest(), rest()] });
-  G.play(r, 1, [4, 'o'], NOW);
-  G.grab(r, 1, { card: [4, 'c'] }, NOW);
-  G.closeGrab(r);
-  assert.deepEqual(r.table, [[5, 'e'], [5, 'b']]);
-  assert.deepEqual(r.missed, [0, 2]);
-});
-
-test('the bot follows the chain in its window', () => {
-  const r = dealt({ table: [[3, 'c'], [4, 'e']], hands: [rest(), [[3, 'o'], [1, 'b']], rest(), rest()] });
-  G.play(r, 1, [3, 'o'], NOW);
-  assert.deepEqual(G.botMove(r, 1), { type: 'grab', card: [3, 'c'] });
-  G.grab(r, 1, { card: [3, 'c'] }, NOW);
-  assert.deepEqual(G.botMove(r, 1), { type: 'grab', card: [4, 'e'] });
-});
-
-test('the bot counts the chain when it picks a card', () => {
-  const r = dealt({ table: [[2, 'c'], [3, 'e'], [4, 'b'], [12, 'c'], [12, 'e']], hands: [[], [[2, 'o'], [12, 'o'], [6, 'b']], [], []] });
-  assert.deepEqual(G.botMove(r, 1).card, [2, 'o']);
 });
 
 test('partners never steal from their own cochina', () => {
@@ -293,6 +302,19 @@ test('dropping, the bot plays a number it holds twice, so it can win it back', (
   assert.deepEqual(G.botMove(r, 1).card[0], 3);
 });
 
+test('the bot counts a run when it picks a card, and grabs along it', () => {
+  const r = dealt({ table: [[5, 'b'], [6, 'c'], [2, 'o']], hands: [rest(), [[2, 'e'], [4, 'e']], rest(), rest()] });
+  r.table.push([4, 'c']);
+  assert.deepEqual(G.botMove(r, 1).card, [4, 'e']); // 4, 5, 6 beats the lone 2
+  G.play(r, 1, [4, 'e'], NOW);
+  for (const want of [[4, 'c'], [5, 'b'], [6, 'c']]) {
+    const m = G.botMove(r, 1);
+    assert.deepEqual(m.card, want);
+    G.grab(r, 1, m, r.grab.until);
+  }
+  assert.equal(r.grab, null);
+});
+
 test('in its window the bot grabs the cochina first, then the table', () => {
   const r = dealt({ table: [[5, 'b']], hands: [rest(), [[5, 'e'], [1, 'b']], rest(), rest()], piles: [[[9, 'c'], [5, 'o']], []] });
   G.play(r, 1, [5, 'e'], NOW);
@@ -403,7 +425,7 @@ test('an open window shows how long is left, not the server clock', () => {
   sevenUp(m);
   G.play(m.round, 1, [7, 'o']);
   const { grab } = m.stateFor('nobody', new Set()).round;
-  assert.deepEqual(Object.keys(grab).sort(), ['card', 'left', 'n', 'nums', 'seat']);
-  assert.deepEqual(grab.nums, [7]);
+  assert.deepEqual(Object.keys(grab).sort(), ['card', 'left', 'n', 'num', 'seat']);
+  assert.equal(grab.num, 7);
   assert.ok(grab.left > 0 && grab.left <= G.GRAB_MS);
 });

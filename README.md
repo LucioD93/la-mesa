@@ -122,6 +122,7 @@ Roba la cochina (also *roba montón*, *steal the pile*) is a children's capture 
 - **Playing.** Play one card; only its number counts. With no match it stays on the table and the turn moves on.
 - **Grabbing.** A card that matches something opens a 3-second window, shown as a bar, and what you can grab glows. Tap each card of that number on the table to take it onto your cochina; your card goes on top with the first one. Nothing is taken for you: what you don't grab in time stays, and if you grabbed nothing your card stays on the table too. Tapping the wrong thing gets you laughed at.
 - **Stealing.** If your card matches the top card of the other team's cochina, tap to steal that card. The next card is exposed; keep tapping while its number matches to steal more. The same card can take from the table too.
+- **Runs (escalera).** Once every card of your number is taken, from the table and their cochina, the window moves on to the next number: play a 4, grab the 4s, then the 5s, then the 6s, until a number is missing. As in caída, the 7 is followed by the 10, and the 12 ends it. The window stays 3 seconds for the whole run.
 - **Bots** grab one thing at a time, the cochina first, and fit four grabs in the window. One time in ten they look away and miss the rest.
 - **End of the round.** The last capture takes what's left on the table, slipped under the cochina. The team with more cards wins the round and scores 1, and equal cochinas score nothing.
 - **Winning.** First team to win 1, 3 or 5 rounds, picked in the lobby.
@@ -154,6 +155,10 @@ server/
   admin.js         Password check and the report behind the admin page
   metered.js       TURN usage from Metered's API
   match.js         A match as serializable state: game, table style, seats, lobby, reactions, per-player views
+  dev/
+    config.js      Testing knobs (DEV_TOOLS, TIME_SCALE, SEED), seeded and rigged random numbers
+    tools.js       /api/dev: read, rewrite and drive any match
+    scenarios.js   Ready-made moments to test in each game
   games/
     index.js       The list of games, and what a game has to provide
     common.js      Seats and teams, shuffling, MoveError, bot pacing, the catchphrase odds
@@ -191,7 +196,8 @@ public/
   js/admin.js      Admin page: sign-in and usage
   css/style.css    Styles, then each table style's overrides at the end
   fonts/           Patrick Hand (pencil), Orbitron and Chakra Petch (neon), Creepster (halloween), Mountains of Christmas (christmas)
-test/              Rules of both games, match, board layout, game and style choice, voice relay and admin tests
+scripts/sim.js     Plays whole matches over WebSockets with headless players
+test/              Rules of every game, match, board layout, game and style choice, voice relay, admin and dev tools tests
 vercel.json        Rewrites /play/:id → /play.html and /admin → /admin.html
 ```
 
@@ -199,7 +205,7 @@ vercel.json        Rewrites /play/:id → /play.html and /admin → /admin.html
 
 ### How a game plugs in
 
-A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto`, `waitingOn` and `roundView`.
+A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto`, `waitingOn` and `roundView`. The testing tools need two lines per game too: how a bot plays any seat (`STEP` in `server/dev/scenarios.js`) and how a headless player chooses (`STRATEGY` in `scripts/sim.js`).
 
 On the client, `play.js` keeps one view per game (`domino.js`, `truco.js`, `caida.js`, `parchis.js`, `cochina.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
 
@@ -298,7 +304,7 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `call` | `what: "canto"` | Caída, when `options.canto` is set |
 | `order` | `dir: 1 \| -1` | Caída, you are dealing and the table is not laid yet |
 | `roll` | | Parchís, when `options.roll` is set |
-| `grab` | `card: [number, suit]` or `pile: true` | Roba la cochina, while `options.grab` is set: a table card of the number you played, or the rivals' cochina |
+| `grab` | `card: [number, suit]` or `pile: true` | Roba la cochina, while `options.grab` is set: a table card of the number the window is on (`round.grab.num`: the one you played, then the next ones of a run), or the rivals' cochina |
 | `move` | `color`, `piece`, `steps?` | Parchís, one of `options.moves`. `steps` picks which die or bonus to use. |
 | `next` / `rematch` / `lobby` | | After a round or match ends |
 | `botify` | `seat` | Replace a disconnected player with a bot |
@@ -335,6 +341,9 @@ Open http://localhost:3000. On startup the server also prints a LAN address so p
 | `ICE_SERVERS` | Google STUN | JSON array of [`RTCIceServer`](https://developer.mozilla.org/docs/Web/API/RTCIceServer)s for voice chat. Add a TURN server so voice works for players behind strict NATs (common on mobile data). |
 | `ADMIN_PASSWORD` | unset | Shared password for `/admin`. The admin data is refused until it's set. |
 | `METERED_APP`, `METERED_SECRET_KEY` | unset | Metered app name (`<app>.metered.live`) and secret key. When set, `/admin` shows the TURN usage Metered reports for the billing cycle. |
+| `DEV_TOOLS` | unset | `1` turns on [`/api/dev`](#testing-tools). Ignored on Vercel. |
+| `TIME_SCALE` | `1` | Multiplies every wait the server schedules: bot moves, forced passes, closing a cochina grab, the slow-player mocking. `0.1` makes bots ten times faster (the client's animations don't speed up). Ignored on Vercel. |
+| `SEED` | unset | Deals, dice and bot choices follow this seed, so the same moves in a match with the same id replay the same game. Ignored on Vercel. |
 
 Health check: `GET /healthz` → `ok` (local server).
 
@@ -343,6 +352,53 @@ Health check: `GET /healthz` → `ok` (local server).
 ```sh
 npm test
 ```
+
+### Testing tools
+
+Reaching a particular moment by playing to it takes a while, so there are tools to jump there. They're for your own machine: everything below is off unless you turn it on, and none of it works on Vercel.
+
+**Changing a match while it's open.** Start the server with `npm run dev:tools` (`DEV_TOOLS=1`). Then `/api/dev` reads and rewrites any match. Changes go through the store like a move does, so every open tab redraws right away. Anyone who can reach the server can see every hand, phones on your Wi-Fi included.
+
+| Route | Does |
+| --- | --- |
+| `GET /api/dev` | Lists the routes and scenarios |
+| `GET /api/dev/match/<id>` | The whole match, every hand included, with `auto` (the pending automatic move) and `waitingOn` |
+| `PUT /api/dev/match/<id>` | Replaces the match. `{}` is a fresh lobby. |
+| `PATCH /api/dev/match/<id>` | Merges into the match. Arrays are replaced, or patched by index: `{"round": {"hands": {"0": [[6, 6]]}}}` |
+| `POST /api/dev/match/<id>/scenario/<name>` | Sets up a scenario. Body (all optional): `game`, `humans` (default 1), `seed`, `target`, `variant`, `kind` |
+| `POST /api/dev/match/<id>/send` | `{ "as": "p1", "msg": { "t": "roll" } }`: a message from that player, as if sent from their tab. An illegal move answers 409. |
+| `POST /api/dev/match/<id>/auto` | Plays the pending bot move or forced pass now |
+| `POST /api/dev/match/<id>/hurry` | Mocks the player the table is waiting on now |
+| `POST /api/dev/match/<id>/rig` | `{ "dice": [6, 6] }` or `{ "values": [0.1] }`: the match's next random draws |
+
+```sh
+curl -X POST localhost:3000/api/dev/match/demo/scenario/truco-flor
+curl -X PATCH localhost:3000/api/dev/match/demo -d '{"scores": [23, 23]}'
+```
+
+**Scenarios** seat players `p0`, `p1`… from seat 0 and bots in the rest. Seat 0 is the one the moment is about. Most of them deal real rounds and let bots play every seat until the moment comes, so the hands and the deck stay consistent. `seed` repeats the same one. These work for any game (`game` in the body, or the match's current one): `lobby`, `deal`, `match-point`, `round-end`, `match-end`. Then there's one per moment worth testing in each game:
+
+- Dominoes: `domino-opening`, `domino-last-tile`, `domino-stuck`, `domino-block`
+- Truco: `truco-flor`, `truco-reservada`, `truco-envido`, `truco-answer`
+- Caída: `caida-ronda` (`kind`: `ronda`, `patrulla` or `tolete`), `caida-caida`, `caida-mesa-limpia`
+- Parchís: `parchis-home`, `parchis-capture`, `parchis-leave`. Each rigs seat 0's next roll.
+- Cochina: `cochina-steal`, `cochina-steal-run` (three of a number on the rivals' cochina), `cochina-run` (the same, then the next two numbers on the table), `cochina-grab`
+
+`GET /api/dev` describes each one.
+
+**Playing as anyone.** `/play/<id>?as=p0` plays as the token `p0` in that tab, without touching the device's own token, name or photo. Add `&name=` to name the player. A few tabs with `?as=p0` … `?as=p3` seat a whole table in one browser. This works without `DEV_TOOLS`, since it only needs a token the player already has.
+
+**From the console.** `window.__laMesa` has the tab's latest `state`, the last 50 messages it `heard` from the server, and `send(msg)`.
+
+**Simulating matches.** `npm run sim -- <game>` plays a whole match over real WebSockets. Headless players make random choices from what their own state allows, and bots take any seats left. The run fails if the server refuses a move, the match stalls, or (when the sim started the server) the server throws an error. By default it starts its own server with `TIME_SCALE=0.02`. With `--url` it plays on a running server, so you can watch it as a spectator.
+
+```sh
+npm run sim -- truco --seed 7                  # repeats exactly with the same seed
+npm run sim -- cochina --bots 2 --rounds 3
+npm run sim -- domino --url http://localhost:3000 --match demo --pace 600   # watch at /play/demo
+```
+
+`npm run sim -- --help` lists the options.
 
 ## Deployment
 
