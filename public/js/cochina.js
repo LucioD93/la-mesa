@@ -21,6 +21,8 @@ export function createView(ctx) {
   const myGrab = () => ctx.state?.phase === 'playing' && !!ctx.state.round?.options.grab;
   /** In your own window, the number you can grab and the card you played; otherwise null. */
   const grabbing = (r) => (myGrab() ? r.grab : null);
+  /** The number the window is on: the played card's, then the next ones of a run. */
+  const grabNum = (g) => g.num ?? g.card[0];
 
   // ---- table talk -------------------------------------------------------------
 
@@ -63,7 +65,7 @@ export function createView(ctx) {
   function tapBoard(target) {
     if (!myGrab()) return;
     const r = ctx.state.round;
-    const n = r.grab.card[0];
+    const n = grabNum(r.grab);
     const theirs = 1 - myTeamNow();
     const item = target.closest('.loose-item');
     const pile = target.closest('.cochina');
@@ -130,7 +132,7 @@ export function createView(ctx) {
 
   function paintTable(r, la, isNew) {
     const g = grabbing(r);
-    const sig = JSON.stringify([ctx.state.roundNo, r.table, la?.n, g?.n, i18n.lang]);
+    const sig = JSON.stringify([ctx.state.roundNo, r.table, la?.n, g?.n, g && grabNum(g), i18n.lang]);
     if (sig === tableSig) return;
     tableSig = sig;
     const played = la?.type === 'play' ? la : null;
@@ -141,7 +143,7 @@ export function createView(ctx) {
         const flying = justPlayed && (isFlying(played.seat) || (isNew && played.seat !== me() && canFly()));
         const motion = flying ? 'incoming' : justPlayed && isNew ? 'fresh' : '';
         const label = t('aria.card', { n: card[0], suit: card[1] });
-        const glow = g && card[0] === g.card[0] && !sameCard(card, g.card) ? 'grabbable' : '';
+        const glow = g && card[0] === grabNum(g) && !sameCard(card, g.card) ? 'grabbable' : '';
         return `<button type="button" class="loose-item ${motion} ${glow}" data-key="${key}" data-team="${la ? la.seat % 2 : 0}" aria-label="${label}">${cardHTML(card)}</button>`;
       })
       .join('');
@@ -150,7 +152,7 @@ export function createView(ctx) {
   /** Our cochina on the left, theirs on the right: the top card and how many under it. */
   function paintPiles(r) {
     const g = grabbing(r);
-    const sig = JSON.stringify([r.piles, r.tops, me(), g?.n, i18n.lang]);
+    const sig = JSON.stringify([r.piles, r.tops, me(), g?.n, g && grabNum(g), i18n.lang]);
     if (sig === pilesSig) return;
     pilesSig = sig;
     const team = myTeamNow();
@@ -161,7 +163,7 @@ export function createView(ctx) {
         const edges = top ? '<i class="edge"></i>'.repeat(Math.max(stack - 1, 0)) : '';
         const face = top ? cardHTML(top) : '<span class="card place"></span>';
         const label = t('aria.cochina', { team: teamLabel(tm), n: r.piles[tm] });
-        const glow = g && tm !== team && top?.[0] === g.card[0] ? 'grabbable' : '';
+        const glow = g && tm !== team && top?.[0] === grabNum(g) ? 'grabbable' : '';
         return `<button type="button" class="cochina ${glow}" data-team="${tm}" data-pile="${tm}" aria-label="${esc(label)}">
           <span class="pile">${edges}${face}</span>
           <span class="pile-info"><small>${esc(teamLabel(tm))}</small><b>${r.piles[tm]}</b></span>
