@@ -71,11 +71,17 @@ if (!GAME_IDS.includes(game)) {
 let rng = Math.random;
 const pick = (list) => list[Math.floor(rng() * list.length)];
 
+const logError = console.error;
 let base = opt.url;
 let server;
 if (!base) {
   const { createApp } = await import('../server/app.js');
   ({ server } = createApp());
+  // The server logs an exception and play goes on; here it fails the run.
+  console.error = (...args) => {
+    logError(...args);
+    done(1, '✖ the server threw an error (above)');
+  };
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   base = `http://127.0.0.1:${server.address().port}`;
 }
@@ -189,7 +195,7 @@ let finished = false;
 function done(code, message) {
   if (finished) return;
   finished = true;
-  if (message) (code ? console.error : console.log)(message);
+  if (message) (code ? logError : console.log)(message);
   for (const p of players) p.ws.close();
   server?.close();
   server?.closeAllConnections?.();
