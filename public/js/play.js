@@ -500,10 +500,7 @@ const TEAM_IDEAS = ['Los Panas', 'Los Chamos', 'La Pava', 'Mano Firme', 'Puro Tr
 
 function openTeamSheet() {
   const team = myTeam();
-  const partner = state.seats[(me() + 2) % 4];
-  const partnerName = partner && (partner.bot ? `${partner.emoji ?? '🤖'} ${partner.name}` : partner.name);
   $('teamForm').dataset.team = team;
-  $('teamWho').textContent = partnerName ? t('teamName.with', { partner: partnerName }) : t('teamName.alone');
   $('teamInput').value = state.teamNames?.[team] ?? '';
   $('teamInput').placeholder = t('team', { n: team + 1 });
   $('teamClear').hidden = !state.teamNames?.[team];
@@ -514,7 +511,6 @@ function openTeamSheet() {
 
 function paintTeamIdeas() {
   const v = $('teamInput').value.trim();
-  $('teamCount').textContent = `${[...$('teamInput').value].length}/${$('teamInput').maxLength}`;
   $('teamIdeas').innerHTML = TEAM_IDEAS.map((n) => `<button type="button" data-idea="${esc(n)}" aria-pressed="${n === v}">${esc(n)}</button>`).join('');
 }
 
