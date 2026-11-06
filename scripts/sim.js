@@ -12,7 +12,7 @@ import { parseArgs } from 'node:util';
 import { WebSocket } from 'ws';
 
 const USAGE = `usage: node scripts/sim.js [game] [options]
-  game              domino, truco, caida, parchis or cochina (default domino)
+  game              domino, truco, caida, parchis, cochina or rummy (default domino)
   --bots <n>        seats for bots, 0-3 (default 0); headless players take the rest from seat 0
   --seed <s>        repeat the same deals, dice and choices (its own server only)
   --target <n>      the match's target, one of the game's choices
@@ -63,6 +63,7 @@ if (!opt.url) {
 }
 const { GAME_IDS } = await import('../server/games/index.js');
 const { seededRng } = await import('../server/dev/config.js');
+const { candidateMelds, layoffFit } = await import('../server/games/rummy.js');
 if (!GAME_IDS.includes(game)) {
   console.error(`unknown game ${game}\n\n${USAGE}`);
   process.exit(2);
@@ -139,6 +140,28 @@ const STRATEGY = {
     }
     return r.options.play ? { t: 'play', card: pick(r.hand) } : null;
   },
+  rummy: (st) => {
+    const r = st.round;
+    const fits = (card) => r.melds.some((m) => layoffFit(m, card));
+    if (r.options.draw) {
+      const top = r.discard.at(-1);
+      const useful = top && (fits(top) || candidateMelds([...r.hand, top]).some((cards) => cards.includes(top)));
+      return { t: 'draw', from: top && (useful || rng() < 0.1) ? 'discard' : 'stock' };
+    }
+    if (!r.options.play) return null;
+    // Put down whatever it can, in a random order: a team that holds cards back loses points
+    // every round, and the match would never reach its target.
+    const melds = candidateMelds(r.hand);
+    if (melds.length) return { t: 'meld', cards: pick(melds) };
+    const offs = r.hand.flatMap((card) => r.melds.flatMap((m, meld) => (layoffFit(m, card) ? [{ card, meld }] : [])));
+    if (offs.length) return { t: 'layoff', ...pick(offs) };
+    // Throw any card that isn't close to a meld; the one just taken can't go straight back, unless it's the last.
+    const free = r.hand.filter((c) => r.hand.length === 1 || !r.taken || !sameCard(c, r.taken));
+    const close = (c) => r.hand.some((d) => d !== c && (d[0] === c[0] || (d[1] === c[1] && Math.abs(d[0] - c[0]) <= 2)));
+    const loose = free.filter((c) => !close(c));
+    return { t: 'discard', card: pick(loose.length ? loose : free) };
+  },
+
 };
 
 // Cochina's grab window can close between our seeing it and our grab landing; that's the game, not a bug.
@@ -164,6 +187,14 @@ const DESCRIBE = {
     if (a.type === 'play') return `plays ${card(a.card)}`;
     if (a.type === 'grab') return a.stolen ? 'steals the cochina' : `grabs ${a.cards.map(card).join(' ')}`;
     return `lets go (${a.missed} missed)`;
+  },
+  rummy: (r) => {
+    const a = r.lastAction;
+    if (!a) return null;
+    if (a.type === 'draw') return a.from === 'stock' ? 'draws from the deck' : `takes ${card(a.card)}`;
+    if (a.type === 'meld') return `melds ${a.cards.map(card).join(' ')}`;
+    if (a.type === 'layoff') return `lays ${card(a.card)} off on meld ${a.meld}`;
+    return `discards ${card(a.card)}`;
   },
 };
 const ACTORS = { truco: ['lastCall', 'lastAction'], caida: ['lastCall', 'lastAction'], parchis: ['lastRoll', 'lastAction'] };

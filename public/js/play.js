@@ -1,11 +1,12 @@
 // The game page: connection, lobby, seats, voice, photos, reactions and the frame of
 // the result. What's on the table belongs to the game's view (domino.js, truco.js, caida.js,
-// parchis.js, cochina.js).
+// parchis.js, cochina.js, rummy.js).
 import { createView as createDominoView } from './domino.js';
 import { createView as createTrucoView } from './truco.js';
 import { createView as createCaidaView } from './caida.js';
 import { createView as createParchisView } from './parchis.js';
 import { createView as createCochinaView } from './cochina.js';
+import { createView as createRummyView } from './rummy.js';
 import { RULES } from './rules.js';
 import { GAMES, gameIcon } from './games.js';
 import { reduceMotion, whenLanded } from './flight.js';
@@ -285,6 +286,7 @@ function toast(text, ms = 1800) {
 const buzz = (pattern) => navigator.vibrate?.(pattern);
 
 const seatEl = (seat) => $(SEAT_IDS[posOf(seat)]);
+const signed = (n) => (n < 0 ? `−${-n}` : `+${n}`); // a rummy round can cost points
 
 let wakeLock = null;
 async function requestWakeLock() {
@@ -527,10 +529,15 @@ function renderSeats() {
   }
 }
 
-/** Keep my arrangement as pieces get played; one I haven't seen means a new deal. */
+/**
+ * Keep my arrangement as pieces get played; one I haven't seen means a new deal, unless
+ * the game draws cards mid-round (rummy), where new ones go at the end.
+ */
 function syncHandOrder(hand) {
   const keys = view.handKeys(hand);
-  handOrder = keys.every((k) => handOrder.includes(k)) ? handOrder.filter((k) => keys.includes(k)) : keys;
+  if (keys.every((k) => handOrder.includes(k))) handOrder = handOrder.filter((k) => keys.includes(k));
+  else if (view.keepsOrder?.(state.round)) handOrder = [...handOrder.filter((k) => keys.includes(k)), ...keys.filter((k) => !handOrder.includes(k))];
+  else handOrder = keys;
 }
 
 function renderHand() {
@@ -899,7 +906,7 @@ function buildResult(fresh) {
     ({ title, sub } = res.tie);
   } else {
     emoji = !mine ? res.emoji : weWon ? '🎉' : '😬';
-    title = `${teamLabel(winTeam)} +${res.gained[winTeam]}`;
+    title = `${teamLabel(winTeam)} ${signed(res.gained[winTeam])}`;
     sub = res.sub;
   }
 
@@ -908,7 +915,7 @@ function buildResult(fresh) {
   $('resultTitle').textContent = title;
   $('resultSub').textContent = sub;
 
-  const plus = (team) => (res.gained[team] ? `<em>+${res.gained[team]}</em>` : '');
+  const plus = (team) => (res.gained[team] ? `<em>${signed(res.gained[team])}</em>` : '');
   const order = [myTeam(), 1 - myTeam()];
   $('resultScores').innerHTML = order
     .map(
@@ -1132,6 +1139,15 @@ const ctx = {
   send,
   laughAtMe,
   within,
+  /** Paint the table and hand again after a change only this page knows about. */
+  redraw() {
+    view.renderBoard(state);
+    renderHand();
+  },
+  sortHand(compare) {
+    handOrder.sort(compare);
+    renderHand();
+  },
 };
 const views = {
   domino: createDominoView(ctx),
@@ -1139,6 +1155,7 @@ const views = {
   caida: createCaidaView(ctx),
   parchis: createParchisView(ctx),
   cochina: createCochinaView(ctx),
+  rummy: createRummyView(ctx),
 };
 
 // For tests and the console: what this tab knows, and its way to talk to the server.

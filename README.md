@@ -2,13 +2,13 @@
 
 # La Mesa
 
-Mobile-first, four-player games (2 vs 2) you play in the browser: partner dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, parchís in pairs, and roba la cochina. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
+Mobile-first, four-player games (2 vs 2) you play in the browser: partner dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, parchís in pairs, roba la cochina, and partnership rummy. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
 
 Created in [T3 Code](https://t3.codes).
 
 ## Features
 
-- **Five games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, truco, caída, parchís and roba la cochina, and everyone there sees the change. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again.
+- **Six games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, truco, caída, parchís, roba la cochina and rummy, and everyone there sees the change. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again.
 - **Table styles.** Anyone in the lobby can pick how the table looks for everyone in the match: Felt (the green table), Pencil (graphite on graph paper, with hatched card backs and colored-pencil teams) Neon (dark glass tiles with lit pips and a glowing grid) Minimal (flat white, hairlines, no shadows) Dark (graphite, charcoal tiles with white pips, amber highlights), Halloween (a moonlit purple night with bats and pumpkin tiles) or Christmas (a red table under falling snow, snow-white tiles with red pips and candy-cane card backs). A new match starts in the style its first player saw last. The fonts are served from `public/fonts/` (all SIL Open Font License).
 - **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches.
 - **Player photos.** Take a picture or choose a file on the home page or in the lobby and it becomes your avatar. A picture taken here never reaches the device's gallery. It is saved only in your browser's `localStorage`; the server passes it to the others in the match and never stores it.
@@ -18,7 +18,7 @@ Created in [T3 Code](https://t3.codes).
 - **Reconnects.** Reloading or briefly losing the connection puts you back in your seat with your hand. Sockets are replaced before the host's time limit ends them, so games and voice calls carry on without a drop. The client notices dead connections within seconds, reconnects with backoff, and retries right away when the network or the tab comes back. If you were swapped for a bot while away, rejoining gives you your seat back.
 - **Voice chat.** Everyone in a match (players and spectators) can join the room's voice chat with the mic button, from the lobby or the table, mute themselves, or hang up. Audio goes peer to peer over WebRTC; the server only relays the connection setup. Seated players in voice get a mic badge on their avatar and a green ring while they talk. Without a microphone (blocked, missing, or a plain-`http` LAN page) you join as a listener.
 - **Reactions and sound.** Emoji reactions shown at the table (👏 😂 😮 😡 🔥 👋, plus El Manguangua's face with his catchphrase), sound effects, and a pass animation. When players send the same emoji within 3 seconds, a big one pops over the table. A player who takes more than a minute over a move gets mocked by everyone else at once, silently, with a reaction picked at random (🐢 🐌 🦥 😴 🥱 💤 ⏳ or El Manguangua).
-- **Your hand, your order.** Drag a tile or card to a new slot in your hand at any point.
+- **Your hand, your order.** Drag a tile or card to a new slot in your hand at any point. In rummy, a drawn card joins the end of your hand without undoing your order, and a button sorts by suit or by rank.
 - **Rules at the table.** The book icon, in the lobby and at the table, opens the rules of the game being played.
 - **English and Spanish.** The language follows the browser, and the EN/ES button switches it (saved in `localStorage`). Truco's calls (¡Truco!, Quiero…) and caída's (¡Caída!, ¡Ronda!…) stay in Spanish in both.
 - **Traditional suits.** The oros, copas, espadas and bastos use public-domain drawings of the Spanish deck by [Florixc on Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Seme_denari_carte_spagnole.svg), lightly cleaned up in `public/suits/`.
@@ -129,6 +129,19 @@ Roba la cochina (also *roba montón*, *steal the pile*) is a children's capture 
 
 **Not implemented:** stacking a card onto your own cochina when it matches your top card, and individual piles for 2 or 3 players.
 
+### Rummy rules
+
+Rummy has many versions. This is a partnership game scored like Rummy 500, kept simple: no jokers, and you only ever take the top discard.
+
+- One 52-card French deck, 7 cards each, 2 vs 2. One card starts the discard pile. The player after the dealer goes first, and the deal rotates each round.
+- **A turn.** Draw the top card of the deck or of the discard pile. Then meld, lay off, both, or neither, and discard one card. A card just taken from the discard pile can't go straight back.
+- **Melds.** A set is 3 or 4 of a rank. A run is 3 or more in a row of one suit. The ace goes low (A-2-3) or high (Q-K-A), but a run doesn't wrap (K-A-2). Melds belong to nobody: anyone can lay off on any of them.
+- **End of the round.** Someone runs out of cards (melding, laying off or discarding the last one), or the deck is empty after a discard.
+- **Scoring.** 2 to 9 are worth 5, tens and faces 10, aces 15 (1 at the bottom of A-2-3). Each team scores what it melded and laid off, less what is still in both partners' hands, so a round can cost points. First to the target (150 or 300) wins.
+- **At the table.** Tap cards to pick them, then Meld, Discard, or tap a meld to lay off on it. Or drag one card onto the discard pile or a meld. Trying a meld or lay-off that isn't legal plays nothing, and the table laughs at you.
+
+**Not implemented:** jokers and wild cards, picking up deeper into the discard pile, and a bonus for going out.
+
 ## Stack
 
 | Layer    | Tech |
@@ -167,6 +180,7 @@ server/
     caida.js       Pure caída rules and bot AI, plus the `game` object
     parchis.js     Pure parchís rules and bot AI, plus the `game` object
     cochina.js     Pure roba la cochina rules and bot AI, plus the `game` object
+    rummy.js       Pure rummy rules and bot AI, plus the `game` object
 public/
   index.html       Landing page (new match / join by code)
   play.html        Game table
@@ -177,12 +191,14 @@ public/
   js/caida.js      Caída table: loose cards, the dealer's count, captures, how a round reads
   js/parchis.js    Parchís table: the board, hopping pieces, the die, how a game reads
   js/cochina.js    Roba la cochina table: loose cards, both cochinas, steals, how a round reads
+  js/rummy.js      Rummy table: deck, discard pile, melds, picking cards, how a round reads
   js/rules.js      The full rules of each game, for the rules sheet
   js/games.js      The lobby's menu of games and their icons (a new game goes here too)
   js/flight.js     Throwing a tile or card from a seat to the table
   js/board.js      Lays out the line of tiles on the table
   js/tiles.js      Tile markup
-  js/cards.js      Card markup (SVG, placing the suit drawings)
+  js/cards.js      Spanish card markup (SVG, placing the suit drawings)
+  js/french.js     French card markup for rummy (SVG)
   suits/           Traditional suit drawings (public domain)
   icon.svg         Favicon (a domino on the felt); favicon.ico, apple-touch-icon.png and icon-*.png are it rendered to PNG
   sounds/          El Manguangua's catchphrase
@@ -207,7 +223,7 @@ vercel.json        Rewrites /play/:id → /play.html and /admin → /admin.html
 
 A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto`, `waitingOn` and `roundView`. The testing tools need two lines per game too: how a bot plays any seat (`STEP` in `server/dev/scenarios.js`) and how a headless player chooses (`STRATEGY` in `scripts/sim.js`).
 
-On the client, `play.js` keeps one view per game (`domino.js`, `truco.js`, `caida.js`, `parchis.js`, `cochina.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
+On the client, `play.js` keeps one view per game (`domino.js`, `truco.js`, `caida.js`, `parchis.js`, `cochina.js`, `rummy.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
 
 The `domino:` prefix on Redis keys and the `domino.*` browser storage keys predate truco and cover every game. Renaming them would lose live matches, the usage counters, and players' names, seats and photos. Matches saved without a `game` load as dominoes.
 
@@ -293,8 +309,8 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `rename` | `name` | Any time |
 | `sit` / `stand` | `seat` | Lobby. `sit` also lets a spectator take over a bot mid-game. |
 | `addBots` / `removeBot` | `seat` | Lobby |
-| `game` | `game: "domino" \| "truco" \| "caida" \| "parchis" \| "cochina"` | Lobby. Resets the target to the game's default. |
-| `target` | `50 \| 75 \| 100`, `12 \| 24 \| 32`, `12 \| 24`, `1 \| 2 \| 3` or `1 \| 3 \| 5` | Lobby, from the current game's list |
+| `game` | `game: "domino" \| "truco" \| "caida" \| "parchis" \| "cochina" \| "rummy"` | Lobby. Resets the target to the game's default. |
+| `target` | `50 \| 75 \| 100`, `12 \| 24 \| 32`, `12 \| 24`, `1 \| 2 \| 3`, `1 \| 3 \| 5` or `150 \| 300` | Lobby, from the current game's list |
 | `variant` | `1 \| 2` | Lobby, a game that offers a choice: parchís's dice |
 | `theme` | `theme: "felt" \| "pencil" \| "neon" \| "minimal" \| "dark" \| "halloween" \| "christmas"` | Lobby. Everyone in the match sees it. |
 | `start` | | Lobby, once all 4 seats are filled |
@@ -306,6 +322,10 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `roll` | | Parchís, when `options.roll` is set |
 | `grab` | `card: [number, suit]` or `pile: true` | Roba la cochina, while `options.grab` is set: a table card of the number the window is on (`round.grab.num`: the one you played, then the next ones of a run), or the rivals' cochina |
 | `move` | `color`, `piece`, `steps?` | Parchís, one of `options.moves`. `steps` picks which die or bonus to use. |
+| `draw` | `from: "stock" \| "discard"` | Rummy, your turn, before you have drawn |
+| `meld` | `cards: [[rank, suit], …]` | Rummy, after drawing. Rank 1 to 13, suit `S`, `H`, `D` or `C`. |
+| `layoff` | `card: [rank, suit]`, `meld` (index on the table) | Rummy, after drawing |
+| `discard` | `card: [rank, suit]` | Rummy, after drawing. Ends your turn. |
 | `next` / `rematch` / `lobby` | | After a round or match ends |
 | `botify` | `seat` | Replace a disconnected player with a bot |
 | `react` | `emoji` | Seated players (600 ms cooldown) |
@@ -383,6 +403,7 @@ curl -X PATCH localhost:3000/api/dev/match/demo -d '{"scores": [23, 23]}'
 - Caída: `caida-ronda` (`kind`: `ronda`, `patrulla` or `tolete`), `caida-caida`, `caida-mesa-limpia`
 - Parchís: `parchis-home`, `parchis-capture`, `parchis-leave`. Each rigs seat 0's next roll.
 - Cochina: `cochina-steal`, `cochina-steal-run` (three of a number on the rivals' cochina), `cochina-run` (the same, then the next two numbers on the table), `cochina-grab`
+- Rummy: `rummy-take`, `rummy-meld`, `rummy-layoff`, `rummy-out`, `rummy-last-card`
 
 `GET /api/dev` describes each one.
 

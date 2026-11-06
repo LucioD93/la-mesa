@@ -11,6 +11,7 @@ import * as truco from '../games/truco.js';
 import * as caida from '../games/caida.js';
 import * as parchis from '../games/parchis.js';
 import * as cochina from '../games/cochina.js';
+import * as rummy from '../games/rummy.js';
 import { baseRng, diceValues, rig, seededRng, unrig } from './config.js';
 
 const ATTEMPTS = 3000; // deals to try before giving up on a moment that comes up by chance
@@ -63,6 +64,9 @@ const STEP = {
   cochina(r) {
     if (r.grab) cochina.grab(r, r.turn, cochina.botMove(r, r.turn), r.grab.until);
     else cochina.play(r, r.turn, cochina.botMove(r, r.turn).card);
+  },
+  rummy(r) {
+    rummy.applyMove(r, r.turn, rummy.botMove(r, r.turn));
   },
 };
 
@@ -173,6 +177,10 @@ function runOnTable(r) {
 
 const domMoves = (r, seat) => domino.legalMoves(r, seat);
 const cardsOf = (hand, n) => hand.filter((c) => c[0] === n);
+const fitsTable = (r, card) => r.melds.some((m) => rummy.layoffFit(m, card));
+const meldsWith = (hand, card) => rummy.candidateMelds([...hand, card]).some((cards) => cards.some((c) => rummy.sameCard(c, card)));
+/** Cards left in hand after putting down the best melds. */
+const leftAfterMelds = (hand) => hand.length - rummy.bestMelds(hand).reduce((n, m) => n + m.cards.length, 0);
 const blocksWith = (r, m) => {
   const after = structuredClone(r);
   domino.play(after, 0, m.tile, m.end);
@@ -349,6 +357,37 @@ export const SCENARIOS = {
     about: "Seat 0's turn, and one of its cards matches two or more on the table.",
     setup: (match, opts) =>
       search(match, 'cochina', opts, (r) => r.turn === 0 && !r.grab && r.hands[0].some((c) => cardsOf(r.table, c[0]).length >= 2)),
+  },
+
+  'rummy-take': {
+    game: 'rummy',
+    about: "Seat 0's turn to draw, and the top of the discard pile melds with its hand or fits a meld on the table.",
+    setup: (match, opts) =>
+      search(match, 'rummy', opts, (r) => {
+        const top = r.discard.at(-1);
+        return r.turn === 0 && !r.drawn && !!top && (meldsWith(r.hands[0], top) || fitsTable(r, top));
+      }),
+  },
+  'rummy-meld': {
+    game: 'rummy',
+    about: 'Seat 0 has drawn and holds a meld to put down.',
+    setup: (match, opts) => search(match, 'rummy', opts, (r) => r.turn === 0 && r.drawn && rummy.bestMelds(r.hands[0]).length > 0),
+  },
+  'rummy-layoff': {
+    game: 'rummy',
+    about: 'Seat 0 has drawn, and a card in its hand fits a meld on the table.',
+    setup: (match, opts) => search(match, 'rummy', opts, (r) => r.turn === 0 && r.drawn && r.hands[0].some((c) => fitsTable(r, c))),
+  },
+  'rummy-out': {
+    game: 'rummy',
+    about: 'Seat 0 has drawn and can go out: meld its whole hand, then discard the card left, if any.',
+    setup: (match, opts) =>
+      search(match, 'rummy', opts, (r) => r.turn === 0 && r.drawn && r.hands[0].length > 1 && leftAfterMelds(r.hands[0]) <= 1),
+  },
+  'rummy-last-card': {
+    game: 'rummy',
+    about: 'Seat 0 drew the last card of the deck: its discard ends the round.',
+    setup: (match, opts) => search(match, 'rummy', opts, (r) => r.turn === 0 && r.drawn && !r.stock.length),
   },
 };
 
