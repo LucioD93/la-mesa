@@ -329,18 +329,21 @@ async function copy(text) {
 let copiedTimer;
 async function copyInvite() {
   if (!(await copy(inviteUrl()))) return;
-  const btn = $('copyBtn');
-  btn.dataset.i18n = 'copied';
-  btn.textContent = t('copied');
-  btn.classList.add('done');
+  const label = $('inviteLabel');
+  label.dataset.i18n = 'copied';
+  label.textContent = t('copied');
+  $('inviteBtn').classList.add('done');
   buzz(15);
   clearTimeout(copiedTimer);
   copiedTimer = setTimeout(() => {
-    btn.dataset.i18n = 'copy';
-    btn.textContent = t('copy');
-    btn.classList.remove('done');
+    label.dataset.i18n = 'inviteFriends';
+    label.textContent = t('inviteFriends');
+    $('inviteBtn').classList.remove('done');
   }, 1800);
 }
+
+/** The lobby's invite button: the share sheet where there is one, else copy the link. */
+const invite = () => (navigator.share ? share() : copyInvite());
 
 // ---- render -----------------------------------------------------------------
 
@@ -380,6 +383,9 @@ function render(next) {
   if (!$('rulesSheet').hidden) paintRules();
   $('reactBtn').hidden = me() === -1 || state.phase === 'lobby';
   if ($('reactBtn').hidden) $('reactBar').hidden = true;
+  paintMenu();
+  // Someone else ended the game first: nothing left to confirm.
+  if (state.phase === 'lobby' || state.phase === 'matchEnd') $('confirmLobby').hidden = true;
 
   // Feedback for what just happened.
   view.feedback(prev);
@@ -418,8 +424,6 @@ function renderScores() {
 function renderLobby() {
   const show = state.phase === 'lobby';
   $('lobby').hidden = !show;
-  $('themeBtn').hidden = show;
-  $('lobbyBtn').hidden = show || me() === -1;
   if (!show) return ($('gamesSheet').hidden = $('stylesSheet').hidden = true);
   $('matchCode').textContent = matchId;
   $('inviteUrl').value = inviteUrl();
@@ -1033,17 +1037,16 @@ document.body.addEventListener('click', (e) => {
     $('stylesSheet').hidden = true;
     return el.dataset.themePick !== state.theme && send({ t: 'theme', theme: el.dataset.themePick });
   }
-  if ('close' in el.dataset) return (el.closest('.sheet').hidden = true);
-  if ('rules' in el.dataset) {
-    if (!state) return;
-    paintRules();
-    $('rulesBody').scrollTop = 0;
-    return ($('rulesSheet').hidden = false);
-  }
+  if ('close' in el.dataset) return (el.closest('.sheet, .confirm').hidden = true);
+  if ('rules' in el.dataset) return openRules();
   const act = el.dataset.act;
   if (act === 'peek') return $('result').classList.add('peek');
   if (act === 'unpeek') return $('result').classList.remove('peek');
+  // Back to the lobby ends the game for all four and resets the score, so it asks first.
+  // After the match there is nothing left to lose.
+  if (act === 'lobby' && !el.closest('#confirmLobby') && state.phase !== 'matchEnd') return void ($('confirmLobby').hidden = false);
   if (act) {
+    $('confirmLobby').hidden = true;
     fx.stop();
     document.body.classList.remove('sad');
     send({ t: act });
@@ -1062,11 +1065,6 @@ $('result').addEventListener('click', (e) => {
 });
 
 $('scoreBtn').onclick = () => state && state.phase !== 'lobby' && ($('scoreSheet').hidden = false);
-$('themeBtn').onclick = () => {
-  if (!state || state.phase === 'lobby') return;
-  paintStyles();
-  $('stylesSheet').hidden = false;
-};
 $('scoreSheet').addEventListener('click', (e) => e.target === $('scoreSheet') && ($('scoreSheet').hidden = true));
 $('rulesSheet').addEventListener('click', (e) => e.target === $('rulesSheet') && ($('rulesSheet').hidden = true));
 $('gamesSheet').addEventListener('click', (e) => e.target === $('gamesSheet') && ($('gamesSheet').hidden = true));
@@ -1079,8 +1077,7 @@ $('styleCard').onclick = () => {
   paintStyles();
   $('stylesSheet').hidden = false;
 };
-$('shareBtn').onclick = share;
-$('copyBtn').onclick = copyInvite;
+$('inviteBtn').onclick = invite;
 $('botsBtn').onclick = () => send({ t: 'addBots' });
 $('startBtn').onclick = () => send({ t: 'start' });
 
@@ -1092,21 +1089,78 @@ $('reactBar').addEventListener('click', (e) => {
   $('reactBar').hidden = true;
 });
 
-const paintSound = () => {
-  $('soundBtn').textContent = sound.isMuted() ? '🔇' : '🔊';
-  $('soundBtn').setAttribute('aria-pressed', String(sound.isMuted()));
-};
-$('soundBtn').onclick = () => {
-  sound.setMuted(!sound.isMuted());
-  paintSound();
-};
-paintSound();
+// ---- the ⋯ menu ---------------------------------------------------------------
+
+function openRules() {
+  if (!state) return;
+  paintRules();
+  $('rulesBody').scrollTop = 0;
+  $('rulesSheet').hidden = false;
+}
+
+/** What the menu offers right now, and the current value beside each setting. */
+function paintMenu() {
+  $('menuSound').textContent = t(sound.isMuted() ? 'off' : 'on');
+  if (!state) return;
+  $('menuStyleName').textContent = t(`theme.${state.theme}`);
+  $('menuStyle').hidden = state.phase === 'lobby'; // the lobby has its own style card
+  $('menuLobby').hidden = state.phase === 'lobby' || me() === -1;
+}
+
+let menuOpener = null;
+/** Open the menu under the button that asked for it, right-aligned with it. */
+function openMenu(btn) {
+  paintMenu();
+  const r = btn.getBoundingClientRect();
+  // The panel is zoomed like the rest of the page on large screens, and so are its offsets.
+  const z = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--z')) || 1;
+  const panel = $('menuPanel');
+  panel.style.top = `${(r.bottom + 6) / z}px`;
+  panel.style.right = `${Math.max(8, innerWidth - r.right) / z}px`;
+  $('menu').hidden = false;
+  menuOpener = btn;
+  btn.setAttribute('aria-expanded', 'true');
+  panel.querySelector('button:not([hidden])')?.focus({ preventScroll: true });
+}
+
+function closeMenu() {
+  if ($('menu').hidden) return;
+  $('menu').hidden = true;
+  menuOpener?.setAttribute('aria-expanded', 'false');
+  menuOpener = null;
+}
+
+document.querySelectorAll('[data-menu-open]').forEach((btn) => (btn.onclick = () => openMenu(btn)));
+$('menu').addEventListener('click', (e) => {
+  if (e.target === $('menu')) return closeMenu();
+  const item = e.target.closest('[data-menu]')?.dataset.menu;
+  if (!item) return;
+  if (item === 'sound') {
+    sound.setMuted(!sound.isMuted());
+    return paintMenu(); // a setting: the menu stays open to show it changed
+  }
+  if (item === 'lang') {
+    i18n.cycle();
+    if (state) render(state);
+    return paintMenu();
+  }
+  closeMenu();
+  if (item === 'invite') share();
+  else if (item === 'rules') openRules();
+  else if (item === 'style' && state) {
+    paintStyles();
+    $('stylesSheet').hidden = false;
+  } else if (item === 'lobby' && state) {
+    if (state.phase !== 'matchEnd') return void ($('confirmLobby').hidden = false);
+    fx.stop();
+    document.body.classList.remove('sad');
+    send({ t: 'lobby' });
+  }
+});
+document.addEventListener('keydown', (e) => e.key === 'Escape' && closeMenu());
 
 i18n.apply();
-$('langBtn').onclick = () => {
-  i18n.cycle();
-  if (state) render(state);
-};
+paintMenu();
 
 let nameTimer;
 $('nameInput').addEventListener('input', (e) => {

@@ -77,6 +77,7 @@ body[data-game='rummy'] { --accent: #7c3aed; --accent-glow: rgba(124, 58, 237, 0
 .btn:disabled { opacity: 0.45; pointer-events: none; }
 .btn.primary { background: var(--accent); color: var(--on-color); box-shadow: 0 6px 18px var(--accent-glow); }
 .btn.ghost { background: transparent; box-shadow: none; color: var(--muted); }
+.btn.danger { color: color-mix(in srgb, #ef4444 60%, var(--ink)); }
 .btn.block { display: block; width: 100%; }
 .icon-btn {
   display: grid;
@@ -128,7 +129,10 @@ body[data-game='rummy'] { --accent: #7c3aed; --accent-glow: rgba(124, 58, 237, 0
 }
 .bar { flex: none; background: rgba(0, 0, 0, 0.28); }
 .tile.v .bar { height: 1.5px; margin: 0 14%; }
-.tile.h .bar { width: 1.5px; margin: 14% 0; }
+/* Percent padding is measured on the tile's width, twice a half's on a horizontal tile:
+   half the percentage gives its halves the same pips as a vertical tile's. */
+.tile.h .half { padding: 7%; }
+.tile.h .bar { width: 1.5px; margin: 7% 0; }
 
 /* ---- landing ------------------------------------------------------------ */
 body.landing { display: grid; place-items: center; min-height: 100dvh; padding: 24px; }
@@ -151,7 +155,10 @@ body.landing { display: grid; place-items: center; min-height: 100dvh; padding: 
   box-shadow: inset 0 0 0 1px var(--edge);
   font-size: 16px; /* avoids iOS zoom on focus */
 }
-.hint { color: var(--muted); font-size: 13px; margin-top: 24px; }
+.hint { color: var(--muted); font-size: 13px; margin-top: 14px; }
+.game-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin: 22px 0 0; padding: 0; list-style: none; }
+.game-chips li { display: flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 999px; background: var(--well); box-shadow: inset 0 0 0 1px var(--edge); font-size: 13px; font-weight: 600; }
+.game-chips i { width: 8px; height: 8px; border-radius: 50%; background: var(--g); }
 .name-field { margin: 0 0 16px; text-align: left; }
 .identity { display: flex; align-items: flex-end; gap: 10px; min-width: 0; }
 .identity .field { flex: 1; min-width: 0; margin-top: 0; }
@@ -169,6 +176,7 @@ body.landing { display: grid; place-items: center; min-height: 100dvh; padding: 
   font-size: 20px;
 }
 .photo-btn.has-photo span { display: none; }
+.photo-btn span { display: grid; color: var(--muted); }
 .photo-clear {
   position: absolute;
   top: -6px;
@@ -230,16 +238,17 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
   justify-content: space-between;
   min-width: 0;
   height: 48px;
-  padding: 0 14px;
+  padding: 0 12px;
   border: 0;
   border-radius: 999px;
   background: var(--well);
   box-shadow: inset 0 0 0 1px var(--edge);
 }
-.scoreboard .team { display: flex; align-items: baseline; gap: 6px; }
-.scoreboard .label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--team); }
-.scoreboard .pts { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; }
-.scoreboard .meta { display: flex; flex-direction: column; align-items: center; font-size: 12px; color: var(--muted); line-height: 1.1; }
+.scoreboard .team { display: flex; align-items: baseline; gap: 5px; }
+.scoreboard .label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--team); }
+.scoreboard .pts { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; }
+/* "to 300 / Round 12" stays on two lines even with three-digit scores either side. */
+.scoreboard .meta { display: flex; flex: none; flex-direction: column; align-items: center; padding: 0 8px; font-size: 12px; color: var(--muted); line-height: 1.1; white-space: nowrap; }
 .scoreboard .meta b { color: var(--ink); }
 
 .table {
@@ -366,7 +375,7 @@ body[data-game='domino'] .backs i { display: block; width: 7px; height: 14px; bo
 .me-row { display: flex; align-items: center; gap: 10px; min-height: 44px; }
 .me-row .seat.me .avatar { width: 34px; height: 34px; font-size: 15px; }
 .me-row .seat.me { flex: none; } /* "You" never gives way to a long name in the status */
-.status { min-width: 0; font-size: 13px; font-weight: 600; line-height: 1.15; color: var(--muted); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; overflow-wrap: anywhere; }
+.status { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; line-height: 1.15; color: var(--muted); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: break-word; }
 .status.mine { color: var(--gold); animation: blink 1.4s ease-in-out infinite; }
 @keyframes blink { 50% { opacity: 0.6; } }
 .me-tools { display: flex; gap: 6px; margin-left: auto; }
@@ -666,9 +675,18 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .impact
 @keyframes fade { from { opacity: 0; } }
 @keyframes up { from { transform: translateY(40%); } }
 
-.invite { display: flex; gap: 8px; }
-.invite input { font-size: 13px; color: var(--muted); }
-.invite .btn { flex: none; min-width: 104px; }
+.invite { position: relative; display: flex; }
+/* Kept only so copying can fall back to selecting it. */
+.invite input { position: absolute; width: 1px; height: 1px; min-height: 0; padding: 0; opacity: 0; pointer-events: none; }
+.invite .btn {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  background: color-mix(in srgb, var(--gold) 14%, var(--panel-2));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 45%, transparent);
+}
 .invite .btn.done { background: #16a34a; color: var(--on-color); }
 .field { display: flex; flex-direction: column; gap: 6px; margin-top: 16px; }
 .field span, .section-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
@@ -696,6 +714,7 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .impact
 [data-g='caida'] { --g: #b45309; }
 [data-g='parchis'] { --g: #7c3aed; }
 [data-g='cochina'] { --g: #be185d; }
+[data-g='rummy'] { --g: #4f46e5; }
 .game-card, .game-opt {
   display: flex;
   align-items: center;
@@ -706,7 +725,7 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .impact
   color: var(--ink);
   text-align: left;
 }
-.game-card { padding: 6px 10px 6px 8px; background: color-mix(in srgb, var(--accent) 22%, var(--panel-2)); box-shadow: inset 0 0 0 1.5px var(--accent); }
+.game-card { padding: 6px 10px 6px 8px; background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--edge); }
 .game-card:active, .game-opt:active { transform: scale(0.98); }
 .game-text { display: flex; flex-direction: column; flex: 1; min-width: 0; line-height: 1.2; }
 .game-text b { font-size: 17px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -762,7 +781,7 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .impact
 .lobby-seat.right { grid-area: right; }
 .lobby-seat.bottom { grid-area: bottom; }
 .lobby-seat .team-tag { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--team); }
-.lobby-seat .name { font-weight: 700; font-size: 14px; max-width: 100%; }
+.lobby-seat .name { font-weight: 700; font-size: 14px; max-width: 100%; overflow-wrap: normal; }
 .lobby-seat .name.long { font-size: 12px; }
 .lobby-seat .bot-name { font-size: 13px; line-height: 1.1; white-space: normal; }
 .lobby-photo { width: 18px; height: 18px; margin-right: 4px; border-radius: 50%; object-fit: cover; vertical-align: -4px; }
@@ -858,20 +877,34 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .impact
 }
 @keyframes sink { 50% { transform: translateY(6px); } }
 
-.result-scores { display: flex; align-items: center; justify-content: center; gap: 14px; margin: 18px 0 10px; }
-.rs { display: flex; flex-direction: column; align-items: center; min-width: 90px; padding: 10px; border-radius: 14px; background: var(--well); }
+.result-scores { display: flex; align-items: stretch; justify-content: center; gap: 12px; margin: 18px 0 22px; }
+.rs { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 108px; padding: 12px 10px 16px; border-radius: 14px; background: var(--well); }
 .rs span { font-size: 12px; font-weight: 800; text-transform: uppercase; color: var(--team); }
 .rs b { font-size: 32px; font-variant-numeric: tabular-nums; }
-.rs em { font-style: normal; font-weight: 800; color: var(--gold); animation: pop 0.5s 0.3s both cubic-bezier(0.2, 1.6, 0.4, 1); }
-.rs-target { font-size: 12px; color: var(--muted); }
+/* The points just won hang off the bottom edge, so both score boxes keep one height. */
+.rs em {
+  position: absolute;
+  left: 50%;
+  bottom: -11px;
+  translate: -50% 0;
+  padding: 1px 9px;
+  border-radius: 999px;
+  background: var(--gold-fill);
+  color: #2a2000;
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 800;
+  animation: pop 0.5s 0.3s both cubic-bezier(0.2, 1.6, 0.4, 1);
+}
+.rs-target { align-self: center; font-size: 12px; color: var(--muted); }
 
 .result-hands { display: grid; gap: 6px; margin: 8px 0 14px; text-align: left; }
 .rh { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; background: var(--well-soft); border-left: 3px solid var(--team); }
-.rh-name { width: 72px; flex: none; font-size: 13px; font-weight: 600; }
+.rh-name { width: 100px; flex: none; font-size: 13px; font-weight: 600; }
 .rh-name.long { font-size: 11.5px; }
 .rh-tiles { display: flex; flex-wrap: wrap; gap: 4px; font-size: 13px; }
 .tile.mini { --u: 15px; width: 30px; height: 15px; border-radius: 3px; }
-.tile.mini .half { padding: 10%; }
+.tile.mini .half { padding: 5%; }
 .tile.mini .bar { width: 1px; }
 .result-awards:empty { display: none; }
 
@@ -881,7 +914,46 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .impact
 .overlay.peek .result-card { display: none; }
 .overlay.peek .peek-btn { display: block; pointer-events: auto; }
 
-#fx { position: fixed; inset: 0; z-index: 50; width: 100%; height: 100%; pointer-events: none; }
+/* Confetti and rain fall behind the result card, not over its buttons. */
+#fx { position: fixed; inset: 0; z-index: 39; width: 100%; height: 100%; pointer-events: none; }
+
+/* Asking before the lobby ends the game for everyone; above the result card it can come from. */
+.overlay.confirm { z-index: 45; }
+.confirm .result-card { max-width: 340px; }
+.confirm .result-emoji { font-size: 40px; }
+.confirm p { margin-bottom: 18px; }
+
+/* ---- the ⋯ menu ----------------------------------------------------------- */
+.menu-layer { position: fixed; inset: 0; z-index: 55; background: rgba(0, 0, 0, 0.35); animation: fade 0.15s; }
+.menu {
+  position: fixed;
+  width: 240px;
+  padding: 6px;
+  border-radius: 18px;
+  background: var(--panel);
+  box-shadow: inset 0 0 0 1px var(--edge), 0 18px 50px rgba(0, 0, 0, 0.5);
+  animation: pop 0.2s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.menu :is(button, a) {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 46px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+}
+.menu :is(button, a):active, .menu :is(button, a):focus-visible { background: var(--well-soft); outline: none; }
+.menu svg { flex: none; color: var(--muted); }
+.menu small { margin-left: auto; color: var(--muted); font-size: 14px; font-weight: 500; }
+.menu hr { height: 1px; margin: 4px 8px; border: 0; background: var(--edge); }
+.menu .leave, .menu .leave svg { color: color-mix(in srgb, #ef4444 60%, var(--ink)); }
 
 /* ---- cards -------------------------------------------------------------- */
 .card {
@@ -1102,13 +1174,18 @@ body[data-game='domino'] .actions { display: none; }
   box-shadow: inset 0 0 0 1px var(--edge);
 }
 .call:active { transform: scale(0.96); }
-.call:is(.yes, .no, .truco, .envido) { color: var(--on-color); }
-.call.yes { background: #15803d; }
-.call.no { background: #b91c1c; }
-.call.truco { background: var(--accent); }
-.call.envido { background: #6d28d9; }
+/* Truco's calls rank by weight: answering is solid, raising is tinted, folding is a link. */
+.call.yes { background: #16a34a; color: var(--on-color); }
+.call.no { background: transparent; color: color-mix(in srgb, #ef4444 60%, var(--ink)); box-shadow: inset 0 0 0 1.5px #ef4444; }
+.call.envido { background: color-mix(in srgb, #8b5cf6 20%, transparent); color: color-mix(in srgb, #8b5cf6 45%, var(--ink)); box-shadow: inset 0 0 0 1.5px #8b5cf6; }
+.call.truco { background: color-mix(in srgb, #0891b2 22%, transparent); color: color-mix(in srgb, #22d3ee 45%, var(--ink)); box-shadow: inset 0 0 0 1.5px #0891b2; }
+body[data-game='truco'] .actions { gap: 8px; }
+body[data-game='truco'] .call { min-height: 44px; }
+body[data-game='truco'] .call:is(.yes, .no) { flex: 1 1 40%; }
+body[data-game='truco'] .call:is(.envido, .truco) { flex: 1 1 26%; }
+body[data-game='truco'] .call.flor { flex: 1 1 100%; }
 .call.flor { background: var(--gold-fill); color: #2a2000; animation: flor-pulse 1s ease-in-out infinite; }
-.call.mazo { background: transparent; color: var(--muted); }
+.call.mazo { flex: 1 1 100%; min-height: 28px; padding: 2px; background: transparent; box-shadow: none; color: var(--muted); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 @keyframes flor-pulse { 50% { box-shadow: 0 0 0 6px rgba(252, 211, 77, 0.25); } }
 
 .shout {
@@ -1181,8 +1258,8 @@ body[data-game='rummy'] .board { --cw: min(13vw, 9dvh, 64px); --mw: min(10vw, 7d
 .rm-discard .card.top.fresh { animation: card-drop 0.3s cubic-bezier(0.2, 1.4, 0.4, 1); }
 .rm-stock.ready .card, .rm-discard.ready .card.top { box-shadow: 0 0 0 3px var(--gold), 0 0 16px rgba(252, 211, 77, 0.55); animation: flor-pulse 1.2s ease-in-out infinite; }
 .rm-discard.target .card.top, .rm-discard.drop-hover .card.top { box-shadow: 0 0 0 3px var(--gold), 0 0 18px var(--gold); }
-.rm-melded { display: flex; flex-direction: column; align-items: center; font-size: 11px; color: var(--muted); }
-.rm-melded b { color: var(--team); font-size: 16px; }
+.rm-melded { display: flex; align-items: baseline; gap: 5px; font-size: 12px; color: var(--muted); white-space: nowrap; }
+.rm-melded b { color: var(--team); font-size: 18px; }
 .rm-melds {
   position: relative;
   flex: 1;
@@ -1240,13 +1317,39 @@ body[data-game='rummy'] .rh-cards .card + .card { margin-left: -16px; } /* up to
   .call { padding: 6px 9px; font-size: 13px; }
 }
 
+/* ---- phones: the lobby takes the whole screen --------------------------- */
+@media (max-width: 699px) {
+  .lobby-body { display: flex; flex-direction: column; min-height: calc(100dvh - 64px - var(--safe-t)); }
+  .lobby-seats { flex: 1; display: flex; flex-direction: column; }
+  .lobby-table { flex: 1; grid-auto-rows: minmax(clamp(50px, 9dvh, 74px), 1fr); gap: 6px; }
+}
+
 /* ---- larger screens ------------------------------------------------------ */
 @media (min-width: 700px) {
   #app { max-width: 900px; margin: 0 auto; }
   .table { grid-template-columns: 90px 1fr 90px; }
   .seat.left .name, .seat.right .name { max-width: 84px; }
   .seat.left .bot-name, .seat.right .bot-name { font-size: 12px; }
+  /* Sheets open as dialogs in the middle, not from the bottom edge. */
+  .sheet { align-items: center; }
+  .sheet-body { border-radius: 22px; }
+  /* The hand's shade runs edge to edge instead of stopping at the column. */
+  .hand-area { background: none; border-image: linear-gradient(to bottom, transparent, var(--hand-shade) 30%) fill 0 / / 0 100vmax; }
+  .actions { max-width: 560px; margin-inline: auto; }
 }
+
+/* Tablets and big windows: the phone layout, scaled up. Board units, cards and the hand
+   all stop at sizes in px, so without this an iPad gets a phone-sized game mid-screen.
+   WebKit and Chrome both scale viewport units inside a zoomed element, hence the divisions. */
+:root { --z: 1; }
+@media (min-width: 1000px) and (min-height: 700px) { :root { --z: 1.2; } }
+@media (min-width: 700px) and (min-height: 1000px) { :root { --z: 1.4; } }
+@media (min-width: 1000px) and (min-height: 1300px) { :root { --z: 1.6; } }
+#app { zoom: var(--z); height: calc(100dvh / var(--z)); }
+.landing-card, .sheet-body, .result-card, .menu { zoom: var(--z); }
+.sheet-body { max-height: calc(94dvh / var(--z)); }
+.lobby-body { max-height: calc(100dvh / var(--z)); }
+.result-card { max-height: calc(92dvh / var(--z)); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
@@ -1525,6 +1628,7 @@ body[data-game='rummy'] .rh-cards .card + .card { margin-left: -16px; } /* up to
 
 /* Tiles and cards: white with a hairline, flat pips; a played or playable piece gets a plain ring. */
 :where([data-theme='minimal']) :is(.tile, .card) { background: #fff; box-shadow: inset 0 0 0 1px var(--edge); }
+:where([data-theme='minimal']) .tile { box-shadow: inset 0 0 0 1px rgba(24, 24, 27, 0.3); }
 :where([data-theme='minimal']) .card { font-family: var(--font); }
 :where([data-theme='minimal']) .half i { width: 64%; background: var(--pip); }
 :where([data-theme='minimal']) .bar { background: var(--edge); }
