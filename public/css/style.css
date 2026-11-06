@@ -1192,10 +1192,6 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .hand {
 @font-face { font-family: 'Creepster'; src: url(/fonts/creepster.woff2) format('woff2'); font-display: swap; }
 @font-face { font-family: 'Mountains of Christmas'; src: url(/fonts/mountains-of-christmas-700.woff2) format('woff2'); font-weight: 700; font-display: swap; }
 
-.lobby-options .theme-field { grid-column: 1 / -1; }
-/* Each choice is lettered like its theme. */
-[data-theme-pick='pencil'] { font-family: 'Patrick Hand', cursive; font-size: 18px; font-weight: 400 !important; }
-[data-theme-pick='neon'] { font-family: 'Orbitron', sans-serif; font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
 
 /* ---- pencil: graphite on graph paper ---- */
 :root[data-theme='pencil'] {
@@ -1433,7 +1429,6 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .hand {
   --on-color: #ffffff;
   --hand-shade: transparent;
 }
-[data-theme-pick='minimal'] { font-weight: 400 !important; letter-spacing: 0.02em; }
 :where([data-theme='minimal']) :is(.landing h1, .scoreboard .pts, .result-card h2, .rs b) { font-weight: 600; letter-spacing: -0.03em; }
 
 /* No shadows or gradients: a hairline where a box needs an edge. */
@@ -1611,14 +1606,32 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .hand {
 :where([data-theme='christmas']) .bar { background: rgba(200, 16, 46, 0.35); }
 [data-theme='christmas'] body .backs i { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.7); }
 
-/* Seven styles: the picker takes two rows, each lettered like its style. */
-.theme-field .segmented { display: grid; grid-template-columns: repeat(4, 1fr); }
-.lobby-options .theme-field .segmented button { min-height: 36px; padding: 0 2px; font-size: 14px; }
-.lobby-options .theme-field [data-theme-pick='pencil'] { font-size: 17px; }
-.lobby-options .theme-field [data-theme-pick='neon'] { font-size: 12px; }
-[data-theme-pick='halloween'] { font-family: 'Creepster', cursive; font-weight: 400 !important; letter-spacing: 0.04em; color: #ff8a2a !important; }
-[data-theme-pick='christmas'] { font-family: 'Mountains of Christmas', cursive; color: #e23b4a !important; }
-.lobby-options .theme-field :is([data-theme-pick='halloween'], [data-theme-pick='christmas']) { font-size: 16px; }
+/* The table's style, above the game; tapping it opens the menu of styles, each a swatch of its
+   two colors with its name lettered like the style. */
+.lobby-options .style-card { grid-column: 1 / -1; padding-block: 4px; }
+.style-card { background: var(--panel-2); box-shadow: inset 0 0 0 1.5px var(--edge); }
+.swatch {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  margin: 3px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--sw-a) 50%, var(--sw-b) 50%);
+  box-shadow: inset 0 0 0 1px rgba(127, 127, 127, 0.45);
+}
+[data-sw='felt'] { --sw-a: #0d4a37; --sw-b: #e11d48; }
+[data-sw='pencil'] { --sw-a: #fbf9f3; --sw-b: #2e2d2b; }
+[data-sw='neon'] { --sw-a: #0d1638; --sw-b: #22d3ee; }
+[data-sw='minimal'] { --sw-a: #ffffff; --sw-b: #18181b; }
+[data-sw='dark'] { --sw-a: #1a1a1d; --sw-b: #f2c14e; }
+[data-sw='halloween'] { --sw-a: #2b1442; --sw-b: #ff8a2a; }
+[data-sw='christmas'] { --sw-a: #a5191f; --sw-b: #0f6b45; }
+.game-opt[data-theme-pick][aria-pressed='true'] { background: var(--panel-2); box-shadow: inset 0 0 0 1.5px var(--gold); }
+.game-text b[data-theme-name='pencil'] { font-family: 'Patrick Hand', cursive; font-size: 20px; font-weight: 400; }
+.game-text b[data-theme-name='neon'] { font-family: 'Orbitron', sans-serif; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; }
+.game-text b[data-theme-name='minimal'] { font-weight: 400; letter-spacing: 0.02em; }
+.game-text b[data-theme-name='halloween'] { font-family: 'Creepster', cursive; font-weight: 400; letter-spacing: 0.04em; color: #ff8a2a; }
+.game-text b[data-theme-name='christmas'] { font-family: 'Mountains of Christmas', cursive; color: #e23b4a; }
 
 /* The themes' .tile and .card rules weigh as much as these states, so they are restated last. */
 :is(.tile, .card).drag-ghost:not(.rejected) { box-shadow: 0 0 0 3px var(--gold), 0 14px 28px rgba(0, 0, 0, 0.55); }
