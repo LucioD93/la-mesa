@@ -6,6 +6,7 @@ import * as i18n from './i18n.js';
 import { t } from './i18n.js';
 
 const GLIDE_MS = 380; // a grabbed card sliding onto the cochina
+const NUMBERS = [1, 2, 3, 4, 5, 6, 7, 10, 11, 12]; // in order: grab a 7 and the 10s are next
 
 export function createView(ctx) {
   const { $, esc, me, seatName, seatEl, seatAvatar, toast, buzz, shake, send, laughAtMe, within, teamLabel } = ctx;
@@ -15,12 +16,25 @@ export function createView(ctx) {
   let barFor = null; // the grab window the countdown bar is showing
   let sent = new Set(); // grabs sent and not answered yet, so a double tap sends one
   let sentAt = null; // the moment those were sent in
+  let sentHigh = 0; // the highest number among those grabs
 
   const cardHTML = (card, cls = '') => `<span class="card ${cls}">${cardSVG(card)}</span>`;
   const myTeamNow = () => (me() === -1 ? 0 : me() % 2);
   const myGrab = () => ctx.state?.phase === 'playing' && !!ctx.state.round?.options.grab;
-  /** In your own window, the number you can grab and the card you played; otherwise null. */
+  /** In your own window, the numbers you can grab and the card you played; otherwise null. */
   const grabbing = (r) => (myGrab() ? r.grab : null);
+
+  /** The numbers in reach, counting grabs sent that haven't come back yet: each one reaches a number further. */
+  function inReach(g) {
+    const to = Math.max(NUMBERS.indexOf(g.nums.at(-1)), sentHigh ? NUMBERS.indexOf(sentHigh) + 1 : -1);
+    return NUMBERS.slice(NUMBERS.indexOf(g.nums[0]), to + 1);
+  }
+
+  function sending(key, n, msg) {
+    sent.add(key);
+    sentHigh = Math.max(sentHigh, n);
+    send(msg);
+  }
 
   // ---- table talk -------------------------------------------------------------
 
@@ -63,22 +77,21 @@ export function createView(ctx) {
   function tapBoard(target) {
     if (!myGrab()) return;
     const r = ctx.state.round;
-    const n = r.grab.card[0];
+    const nums = inReach(r.grab);
     const theirs = 1 - myTeamNow();
     const item = target.closest('.loose-item');
     const pile = target.closest('.cochina');
     if (item) {
       const card = parseKey(item.dataset.key);
       if (sameCard(card, r.grab.card)) return; // your own card comes along by itself
-      if (card[0] !== n) return miss(item);
+      if (!nums.includes(card[0])) return miss(item);
       if (sent.has(item.dataset.key)) return;
-      sent.add(item.dataset.key);
-      send({ t: 'grab', card });
+      sending(item.dataset.key, card[0], { t: 'grab', card });
     } else if (pile) {
-      if (Number(pile.dataset.pile) !== theirs || r.tops[theirs]?.[0] !== n) return miss(pile);
+      const top = r.tops[theirs]?.[0];
+      if (Number(pile.dataset.pile) !== theirs || !nums.includes(top)) return miss(pile);
       if (sent.has('pile')) return;
-      sent.add('pile');
-      send({ t: 'grab', pile: true });
+      sending('pile', top, { t: 'grab', pile: true });
     } else return;
     buzz(12);
   }
@@ -130,7 +143,7 @@ export function createView(ctx) {
 
   function paintTable(r, la, isNew) {
     const g = grabbing(r);
-    const sig = JSON.stringify([ctx.state.roundNo, r.table, la?.n, g?.n, i18n.lang]);
+    const sig = JSON.stringify([ctx.state.roundNo, r.table, la?.n, g?.n, g?.nums, i18n.lang]);
     if (sig === tableSig) return;
     tableSig = sig;
     const played = la?.type === 'play' ? la : null;
@@ -141,7 +154,7 @@ export function createView(ctx) {
         const flying = justPlayed && (isFlying(played.seat) || (isNew && played.seat !== me() && canFly()));
         const motion = flying ? 'incoming' : justPlayed && isNew ? 'fresh' : '';
         const label = t('aria.card', { n: card[0], suit: card[1] });
-        const glow = g && card[0] === g.card[0] && !sameCard(card, g.card) ? 'grabbable' : '';
+        const glow = g?.nums.includes(card[0]) && !sameCard(card, g.card) ? 'grabbable' : '';
         return `<button type="button" class="loose-item ${motion} ${glow}" data-key="${key}" data-team="${la ? la.seat % 2 : 0}" aria-label="${label}">${cardHTML(card)}</button>`;
       })
       .join('');
@@ -150,7 +163,7 @@ export function createView(ctx) {
   /** Our cochina on the left, theirs on the right: the top card and how many under it. */
   function paintPiles(r) {
     const g = grabbing(r);
-    const sig = JSON.stringify([r.piles, r.tops, me(), g?.n, i18n.lang]);
+    const sig = JSON.stringify([r.piles, r.tops, me(), g?.n, g?.nums, i18n.lang]);
     if (sig === pilesSig) return;
     pilesSig = sig;
     const team = myTeamNow();
@@ -161,7 +174,7 @@ export function createView(ctx) {
         const edges = top ? '<i class="edge"></i>'.repeat(Math.max(stack - 1, 0)) : '';
         const face = top ? cardHTML(top) : '<span class="card place"></span>';
         const label = t('aria.cochina', { team: teamLabel(tm), n: r.piles[tm] });
-        const glow = g && tm !== team && top?.[0] === g.card[0] ? 'grabbable' : '';
+        const glow = g && tm !== team && g.nums.includes(top?.[0]) ? 'grabbable' : '';
         return `<button type="button" class="cochina ${glow}" data-team="${tm}" data-pile="${tm}" aria-label="${esc(label)}">
           <span class="pile">${edges}${face}</span>
           <span class="pile-info"><small>${esc(teamLabel(tm))}</small><b>${r.piles[tm]}</b></span>
@@ -260,6 +273,7 @@ export function createView(ctx) {
       if (r?.lastAction?.n !== sentAt) {
         sent = new Set();
         sentAt = r?.lastAction?.n;
+        sentHigh = 0;
       }
       if (!r) {
         $('dealInfo').innerHTML = $('loose').innerHTML = $('cochinas').innerHTML = '';
@@ -341,7 +355,8 @@ export function createView(ctx) {
     },
 
     dressGhost(ghost) {
-      ghost.className = `${ghost.className.replace('playable', '')} drag-ghost`;
+      ghost.classList.remove('hand-card', 'playable', 'dragging');
+      ghost.classList.add('drag-ghost');
     },
 
     dragOver(key, x, y) {

@@ -1,12 +1,13 @@
 // Pure round logic for 4-player roba la cochina (40-card Spanish deck). Partners share
 // one pile, the cochina, face up so its top card shows. A card lands on the table, and
 // then its player has a moment to grab every card of that number from the table, and
-// the rivals' whole cochina if its top card matches. What they don't grab in time stays.
+// the rivals' whole cochina if its top card matches. Each grab reaches one number further:
+// grab a 1 and the 2s are fair game, grab a 2 and so are the 3s. What they don't grab in time stays.
 // Four cards on the table, then three deals of 3 cards each empty the deck. The team
 // with the bigger cochina wins the round.
 
 import { BOT_DELAY_MS, MoveError, PLAY_PHRASE_CHANCE, SEATS, isManguangua, nextSeat, shuffle, teamOf } from './common.js';
-import { HAND_SIZE, fullDeck, sameCard } from './truco.js';
+import { HAND_SIZE, NUMBERS, fullDeck, sameCard } from './truco.js';
 
 export const DEALS = 3;
 export const TABLE_CARDS = 4;
@@ -23,13 +24,23 @@ export const BOT_GRAB_MS = 550;
 export const BOT_MISS_CHANCE = 0.1; // now and then a bot looks away and misses the rest
 
 /**
- * What a card of this number could grab: the table cards of its number, and the rivals'
+ * What these numbers could grab: the table cards of those numbers, and the rivals'
  * cochina. `played` is the card itself, already on the table. Cards are compared by value,
  * since the round goes through JSON between moves.
  */
-export function targets(round, seat, [n], played = null) {
+export function targets(round, seat, nums, played = null) {
   const top = round.piles[1 - teamOf(seat)].at(-1);
-  return { taken: round.table.filter((c) => c[0] === n && !(played && sameCard(c, played))), steals: top?.[0] === n };
+  return { taken: round.table.filter((c) => nums.includes(c[0]) && !(played && sameCard(c, played))), steals: nums.includes(top?.[0]) };
+}
+
+/**
+ * The numbers an open window reaches: the played number, and once something is grabbed,
+ * every number up to the one after the highest grabbed (7 is followed by 10).
+ */
+export function reach(g) {
+  const from = NUMBERS.indexOf(g.card[0]);
+  const to = g.high == null ? from : Math.min(NUMBERS.indexOf(g.high) + 1, NUMBERS.length - 1);
+  return NUMBERS.slice(from, to + 1);
 }
 
 const hasTargets = ({ taken, steals }) => taken.length > 0 || steals;
@@ -84,15 +95,15 @@ export function play(round, seat, card, now = Date.now()) {
   round.plays += 1;
   round.seq += 1;
   round.table.push(played);
-  const open = hasTargets(targets(round, seat, played, played));
+  const open = hasTargets(targets(round, seat, [played[0]], played));
   round.lastAction = { n: round.seq, type: 'play', seat, card: played, open };
-  if (open) round.grab = { n: round.seq, seat, card: played, until: now + GRAB_MS, got: 0 };
+  if (open) round.grab = { n: round.seq, seat, card: played, until: now + GRAB_MS, got: 0, high: null };
   else endTurn(round);
   return round;
 }
 
 /**
- * Take one thing: `card`, a table card of the played number, or `pile`, the rivals'
+ * Take one thing: `card`, a table card of a number in reach, or `pile`, the rivals'
  * cochina. The played card goes on top of your cochina with the first thing you take.
  */
 export function grab(round, seat, { card, pile }, now = Date.now()) {
@@ -101,7 +112,7 @@ export function grab(round, seat, { card, pile }, now = Date.now()) {
   if (now > g.until) throw new MoveError('Too late');
   const team = teamOf(seat);
   const mine = round.piles[team];
-  const { taken, steals } = targets(round, seat, g.card, g.card);
+  const { taken, steals } = targets(round, seat, reach(g), g.card);
   let got;
   if (pile) {
     if (!steals) throw new MoveError('That cochina is not yours to steal');
@@ -121,10 +132,11 @@ export function grab(round, seat, { card, pile }, now = Date.now()) {
   }
   mine.splice(mine.length - 1, 0, ...got); // under the played card, which stays on top
   g.got += 1;
+  g.high = Math.max(g.high ?? 0, got[0][0]); // the next number up is in reach now
   round.lastCapture = seat;
   round.seq += 1;
   // Grabbing the last thing ends the window, and this grab stays the last action so the table sees it.
-  const closes = !hasTargets(targets(round, seat, g.card, g.card));
+  const closes = !hasTargets(targets(round, seat, reach(g), g.card));
   round.lastAction = { n: round.seq, type: 'grab', seat, cards: pile ? [] : got, stolen: pile ? 1 : 0, first: g.got === 1, closes };
   if (closes) shut(round);
   return round;
@@ -133,7 +145,7 @@ export function grab(round, seat, { card, pile }, now = Date.now()) {
 /** Time is up: whatever is left stays where it is, and the turn moves on. */
 export function closeGrab(round) {
   const g = round.grab;
-  const { taken, steals } = targets(round, g.seat, g.card, g.card);
+  const { taken, steals } = targets(round, g.seat, reach(g), g.card);
   const missed = taken.length + (steals ? 1 : 0);
   round.missed[teamOf(g.seat)] += missed;
   round.seq += 1;
@@ -169,16 +181,28 @@ function finish(round) {
 
 // ---- bot ----------------------------------------------------------------------
 
+/** What a card takes if every grab is made: its number, then each next number in sight. */
+function haul(round, seat, card) {
+  const nums = [card[0]];
+  if (!hasTargets(targets(round, seat, nums))) return { taken: [], steals: false };
+  const top = round.piles[1 - teamOf(seat)].at(-1);
+  for (let i = NUMBERS.indexOf(card[0]) + 1; i < NUMBERS.length; i++) {
+    if (!round.table.some((c) => c[0] === NUMBERS[i]) && top?.[0] !== NUMBERS[i]) break;
+    nums.push(NUMBERS[i]);
+  }
+  return targets(round, seat, nums);
+}
+
 /**
  * Steal the biggest cochina, take the most, and don't leave our new top card where a
  * rival may hold its number. The bot only looks at its own cards, the table and the tops.
  */
 function cardWorth(round, seat, card) {
   const team = teamOf(seat);
-  const { taken, steals } = targets(round, seat, card);
+  const { taken, steals } = haul(round, seat, card);
   const hand = round.hands[seat];
   // Copies of this number nobody at the table has seen: a rival could steal with one.
-  const seen = 1 + taken.length + hand.filter((c) => c !== card && c[0] === card[0]).length;
+  const seen = 1 + taken.filter((c) => c[0] === card[0]).length + hand.filter((c) => c !== card && c[0] === card[0]).length;
   const risk = (4 - seen) / 4;
   if (!taken.length && !steals) {
     // Dropping a card hands its number to the next rival. A twin in hand can win it back.
@@ -192,7 +216,7 @@ function cardWorth(round, seat, card) {
 /** The bot's next move: grab the cochina first (it's worth more), then the table, or play. */
 export function botMove(round, seat) {
   if (round.grab) {
-    const { taken, steals } = targets(round, seat, round.grab.card, round.grab.card);
+    const { taken, steals } = targets(round, seat, reach(round.grab), round.grab.card);
     return steals ? { type: 'grab', pile: true } : { type: 'grab', card: taken[0] };
   }
   const hand = round.hands[seat];
@@ -267,7 +291,8 @@ export const game = {
       steals: r.steals,
       missed: r.missed,
       // Time left rather than a deadline, so the client's clock doesn't matter.
-      grab: r.grab && { n: r.grab.n, seat: r.grab.seat, card: r.grab.card, left: Math.max(r.grab.until - Date.now(), 0) },
+      // The numbers in reach, which grow as the player grabs.
+      grab: r.grab && { n: r.grab.n, seat: r.grab.seat, card: r.grab.card, nums: reach(r.grab), left: Math.max(r.grab.until - Date.now(), 0) },
       leftovers: r.leftovers,
       lastCapture: r.lastCapture,
       lastAction: r.lastAction,
