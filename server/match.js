@@ -86,9 +86,9 @@ export class Match {
     return true;
   }
 
-  /** Change how the table looks (lobby only, like the game). */
+  /** Change how the table looks. Everyone in the match sees the new style. */
   setTheme(id) {
-    if (this.phase !== 'lobby' || !isTheme(id) || id === this.theme) return false;
+    if (!isTheme(id) || id === this.theme) return false;
     this.theme = id;
     return true;
   }
@@ -220,8 +220,8 @@ export class Match {
         this.startRound();
         return true;
       case 'lobby':
-        // Back to the lobby to change seats/teams after a match.
-        if (this.phase !== 'matchEnd' || seat === -1) return false;
+        // Return to the lobby at any point to change seats, teams, or game settings.
+        if (this.phase === 'lobby' || seat === -1) return false;
         this.resetScores();
         this.phase = 'lobby';
         this.round = null;

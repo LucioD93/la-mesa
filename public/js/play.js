@@ -402,6 +402,8 @@ function renderScores() {
 function renderLobby() {
   const show = state.phase === 'lobby';
   $('lobby').hidden = !show;
+  $('themeBtn').hidden = show;
+  $('lobbyBtn').hidden = show || me() === -1;
   if (!show) return ($('gamesSheet').hidden = $('stylesSheet').hidden = true);
   $('matchCode').textContent = matchId;
   $('inviteUrl').value = inviteUrl();
@@ -920,7 +922,10 @@ function buildResult(fresh) {
         `<button class="btn primary" data-act="rematch">${t('rematch')}</button>`,
         `<button class="btn" data-act="lobby">${t('backToLobby')}</button>`,
       );
-    else actions.push(`<button class="btn primary" data-act="next">${t('nextRound')}</button>`);
+    else actions.push(
+      `<button class="btn primary" data-act="next">${t('nextRound')}</button>`,
+      `<button class="btn" data-act="lobby">${t('backToLobby')}</button>`,
+    );
   } else actions.push(`<p class="muted">${t('waitingPlayers')}…</p>`);
   actions.push(`<button class="btn ghost" data-act="peek">${t('seeBoard')}</button>`);
   $('resultActions').innerHTML = actions.join('');
@@ -1036,6 +1041,11 @@ $('result').addEventListener('click', (e) => {
 });
 
 $('scoreBtn').onclick = () => state && state.phase !== 'lobby' && ($('scoreSheet').hidden = false);
+$('themeBtn').onclick = () => {
+  if (!state || state.phase === 'lobby') return;
+  paintStyles();
+  $('stylesSheet').hidden = false;
+};
 $('scoreSheet').addEventListener('click', (e) => e.target === $('scoreSheet') && ($('scoreSheet').hidden = true));
 $('rulesSheet').addEventListener('click', (e) => e.target === $('rulesSheet') && ($('rulesSheet').hidden = true));
 $('gamesSheet').addEventListener('click', (e) => e.target === $('gamesSheet') && ($('gamesSheet').hidden = true));
