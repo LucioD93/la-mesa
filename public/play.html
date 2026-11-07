@@ -256,6 +256,23 @@
       </div>
     </section>
 
+    <!-- Others are in voice chat and we aren't: offer to join them -->
+    <section class="overlay confirm voice-invite" id="voiceInvite" hidden>
+      <div class="result-card" role="alertdialog" aria-labelledby="voiceInviteTitle" aria-describedby="voiceInviteText">
+        <div class="voice-invite-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M18.5 11a6.5 6.5 0 01-13 0M12 17.5V21"/></svg>
+        </div>
+        <h2 id="voiceInviteTitle"></h2>
+        <div class="voice-invite-people" id="voiceInvitePeople"></div>
+        <p id="voiceInviteText"></p>
+        <div class="result-actions">
+          <button class="btn voice-join" id="voiceInviteJoin" data-i18n="voiceInvite.join">Join voice chat</button>
+          <button class="btn ghost" id="voiceInviteLater" data-i18n="voiceInvite.later">Not now</button>
+        </div>
+        <small class="voice-invite-hint" data-i18n="voiceInvite.hint">Your browser will ask to use the microphone.</small>
+      </div>
+    </section>
+
     <div class="conn" id="conn" hidden data-i18n="reconnecting">Reconnecting…</div>
     <canvas id="fx" hidden></canvas>
 

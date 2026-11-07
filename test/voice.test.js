@@ -4,6 +4,7 @@ import { once } from 'node:events';
 import WebSocket from 'ws';
 import { createApp } from '../server/app.js';
 import { MemoryStore } from '../server/store.js';
+import { createVoice } from '../public/js/voice.js';
 
 // Voice chat signaling: the server relays {t: 'voice'} messages between
 // connections in the same match and never leaks player tokens.
@@ -138,4 +139,36 @@ test('relays player photos without storing them', async (t) => {
   assert.ok(!b.inbox.some((m) => m.t === 'avatar'));
   assert.ok(!c.inbox.some((m) => m.t === 'avatar'));
   assert.ok(![...store.matches.values()].some((raw) => raw.includes('image/jpeg')));
+});
+
+test('follows who is in voice while out of it', () => {
+  const sent = [];
+  const kinds = [];
+  const voice = createVoice({ send: (m) => sent.push(m), onChange() {}, onJoin() {}, onRoster: (k) => kinds.push(k) });
+
+  // Connecting asks who is in voice; members answer `here`.
+  voice.setConfig({ peer: 'aaa', iceServers: [] });
+  assert.deepEqual(sent, [{ t: 'voice', to: null, data: { kind: 'who' } }]);
+  voice.receive('bbb', { kind: 'here', seat: 1, name: 'Ana', muted: false });
+  assert.deepEqual(voice.others, [{ seat: 1, name: 'Ana', muted: false }]);
+
+  // Joins, mutes and hang-ups keep the list current; others' signaling doesn't add anyone.
+  voice.receive('ccc', { kind: 'join', seat: -1, name: 'Luis', muted: false });
+  voice.receive('bbb', { kind: 'meta', seat: 1, name: 'Ana', muted: true });
+  voice.receive('ddd', { kind: 'who' });
+  voice.receive('eee', { kind: 'bye' });
+  assert.deepEqual(voice.others.map((p) => p.name), ['Ana', 'Luis']);
+  assert.deepEqual([...voice.bySeat()], [[1, { muted: true, speaking: false }]]);
+  voice.receive('ccc', { kind: 'leave' });
+  voice.receive('bbb', { kind: 'bye' });
+  assert.deepEqual(voice.others, []);
+  assert.deepEqual(kinds, ['here', 'join', 'meta', 'leave', 'bye']);
+
+  // Out of voice we don't answer `who`; a reconnect forgets everyone and asks again.
+  assert.equal(sent.length, 1);
+  voice.receive('bbb', { kind: 'here', seat: 1, name: 'Ana' });
+  voice.setConfig({ peer: 'fff', iceServers: [] });
+  assert.deepEqual(voice.others, []);
+  assert.equal(kinds.at(-1), 'reset');
+  assert.deepEqual(sent.at(-1), { t: 'voice', to: null, data: { kind: 'who' } });
 });

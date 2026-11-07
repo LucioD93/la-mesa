@@ -5,14 +5,18 @@
 // Joining broadcasts `join`; everyone already in voice answers with `hello`.
 // For each pair, only the peer with the smaller id makes the offer (and later
 // ICE restarts), so offers never collide.
+//
+// Out of voice we still follow who is in it, to offer joining: on connect we
+// broadcast `who` and everyone in voice answers `here`; after that `join`,
+// `meta`, `leave` and `bye` keep the list current.
 
 const SPEAK_LEVEL = 0.04; // RMS above this counts as talking
 const SPEAK_HOLD_MS = 350; // keep the indicator on through short pauses
 
 /**
- * @param {{ send: (msg: object) => void, onChange: () => void, onJoin: (name: string) => void }} hooks
+ * @param {{ send: (msg: object) => void, onChange: () => void, onJoin: (name: string) => void, onRoster?: (kind: string) => void }} hooks
  */
-export function createVoice({ send, onChange, onJoin }) {
+export function createVoice({ send, onChange, onJoin, onRoster = () => {} }) {
   let me = null; // my peer id for the current socket
   let iceServers = [];
   let joined = false;
@@ -20,6 +24,7 @@ export function createVoice({ send, onChange, onJoin }) {
   let stream = null; // my microphone (null when listening only)
   let meta = { seat: -1, name: '' };
   const peers = new Map(); // peer id -> peer
+  const roster = new Map(); // peer id -> { seat, name, muted } for everyone else in voice, followed even when we're out
   let audioCtx = null;
   let meter = null; // { analyser, buf, lastLoud } for my mic
   let selfSpeaking = false;
@@ -97,7 +102,9 @@ export function createVoice({ send, onChange, onJoin }) {
 
   // Handle one peer's messages in order (ICE must wait for its description).
   function receive(from, data) {
-    if (!joined || !me || !data || typeof data !== 'object') return;
+    if (!me || !data || typeof data !== 'object') return;
+    follow(from, data);
+    if (!joined || data.kind === 'who' || data.kind === 'here') return;
     if (data.kind === 'bye' || data.kind === 'leave') return closePeer(from);
     const p = peerFor(from);
     p.chain = p.chain.then(() => step(p, data)).catch((err) => console.warn('voice signal failed', err));
@@ -142,10 +149,27 @@ export function createVoice({ send, onChange, onJoin }) {
     }
   }
 
+  /** Keep the roster: only people in voice send join, hello, here and meta. */
+  function follow(from, data) {
+    const { kind } = data;
+    if (kind === 'who') {
+      if (joined) signal(from, { kind: 'here', ...myMeta() });
+      return;
+    }
+    if (kind === 'join' || kind === 'hello' || kind === 'here' || kind === 'meta') {
+      const known = roster.get(from) ?? { seat: -1, name: '', muted: false };
+      roster.set(from, setMeta(known, data));
+    } else if (kind === 'bye' || kind === 'leave') {
+      if (!roster.delete(from)) return;
+    } else return;
+    onRoster(kind);
+  }
+
   function setMeta(p, data) {
     if (Number.isInteger(data.seat)) p.seat = data.seat;
     if (typeof data.name === 'string') p.name = data.name.slice(0, 16);
     p.muted = !!data.muted;
+    return p;
   }
 
   // ---- speaking indicator ---------------------------------------------------------
@@ -192,7 +216,13 @@ export function createVoice({ send, onChange, onJoin }) {
     const moved = config.peer !== me; // a planned socket handover keeps the same id
     me = config.peer;
     iceServers = Array.isArray(config.iceServers) ? config.iceServers : [];
-    if (!joined || !moved) return;
+    if (!moved) return;
+    // We may have missed people leaving while disconnected; ask again (joining asks too).
+    if (roster.size) {
+      roster.clear();
+      onRoster('reset');
+    }
+    if (!joined) return signal(null, { kind: 'who' });
     // Our old peer id is gone; everyone hung up on it. Start over.
     for (const id of [...peers.keys()]) closePeer(id);
     signal(null, { kind: 'join', ...myMeta() });
@@ -258,10 +288,13 @@ export function createVoice({ send, onChange, onJoin }) {
     if (joined && me) signal(null, { kind: 'meta', ...myMeta() });
   }
 
-  /** seat -> { muted, speaking } for everyone in voice who is seated (me included). */
+  /** seat -> { muted, speaking } for everyone in voice who is seated (me included). Out of voice, nobody is heard talking. */
   function bySeat() {
     const out = new Map();
-    if (!joined) return out;
+    if (!joined) {
+      for (const p of roster.values()) if (p.seat >= 0) out.set(p.seat, { muted: p.muted, speaking: false });
+      return out;
+    }
     for (const p of peers.values()) {
       if (p.seat >= 0 && p.pc) out.set(p.seat, { muted: p.muted, speaking: p.speaking });
     }
@@ -285,6 +318,10 @@ export function createVoice({ send, onChange, onJoin }) {
     },
     get canTalk() {
       return !!stream;
+    },
+    /** Everyone else in voice: [{ seat, name, muted }], in the order they joined. */
+    get others() {
+      return [...roster.values()];
     },
     /** How many other people I'm connected to. */
     get count() {
