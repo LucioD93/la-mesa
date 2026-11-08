@@ -26,7 +26,7 @@ Created in [T3 Code](https://t3.codes).
 - **Traditional suits.** The oros, copas, espadas and bastos use public-domain drawings of the Spanish deck by [Florixc on Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Seme_denari_carte_spagnole.svg), lightly cleaned up in `public/suits/`.
 - **Phones and tablets.** The layout is a phone's, held upright. On tablets and big windows it's scaled up as a whole (1.2× to 1.6× with the screen), so the board, cards and hand grow with it, and sheets open as centered dialogs.
 - **Installable.** Ships a web app manifest, so it can be added to the home screen.
-- **Admin page.** `/admin`, behind one shared password, shows who is online and in voice, what Cloudflare will bill this month (each allowance used, the estimated cost, and the same at this month's pace, with every metric by day), TURN usage as reported by Metered, every usage counter the matches keep (sockets, messages, data in and out, saves, timer wake-ups, voice joins) for today, 7 days, 30 days and all time and by day, and which services are set up.
+- **Admin page.** `/admin`, behind one shared password, shows who is online and in voice, Cloudflare's numbers (today against the free plan's limits with warnings near them, or this month against Workers Paid's allowances; what the month would cost; requests, sockets, rows, storage, speed, memory and failures by day and by hour; the busiest objects; data centers; outgoing calls; static files; and, if the token allows, deployments), TURN usage as reported by Metered, every usage counter the matches keep (sockets, messages, data in and out, saves, timer wake-ups, voice joins) for today, 7 days, 30 days and all time and by day, and which services are set up.
 
 ### Domino rules
 
@@ -370,7 +370,8 @@ To run the real Worker, Durable Objects and all, on your machine: `npm run dev:w
 | `ICE_SERVERS` | Google STUN | JSON array of [`RTCIceServer`](https://developer.mozilla.org/docs/Web/API/RTCIceServer)s for voice chat. Add a TURN server so voice works for players behind strict NATs (common on mobile data). |
 | `ADMIN_PASSWORD` | unset | Shared password for `/admin`. The admin data is refused until it's set. |
 | `METERED_APP`, `METERED_SECRET_KEY` | unset | Metered app name (`<app>.metered.live`) and secret key. When set, `/admin` shows the TURN usage Metered reports for the billing cycle. |
-| `CF_ACCOUNT_ID`, `CF_API_TOKEN` | unset | Cloudflare account id and an API token with **Account Analytics: Read**. When set, `/admin` shows this month's Cloudflare usage and estimated bill. |
+| `CF_ACCOUNT_ID`, `CF_API_TOKEN` | unset | Cloudflare account id and an API token with **Account Analytics: Read**. When set, `/admin` shows Cloudflare's usage, limits and estimated bill. If the token also has **Workers Scripts: Read**, it shows deployments and class names too. |
+| `CF_PLAN` | `free` | The plan whose limits `/admin` watches: `free` or `paid`. Set in `wrangler.jsonc`. |
 | `DEV_TOOLS` | unset | `1` turns on [`/api/dev`](#testing-tools) on the local server. The Worker never mounts it. |
 | `TIME_SCALE` | `1` | Multiplies every wait the server schedules: bot moves, forced passes, closing a cochina grab, the slow-player mocking. `0.1` makes bots ten times faster (the client's animations don't speed up). Ignored in the Worker. |
 | `SEED` | unset | Deals, dice and bot choices follow this seed, so the same moves in a match with the same id replay the same game. Ignored in the Worker. |
@@ -438,10 +439,10 @@ The app is one Cloudflare Worker with no build step (`wrangler.jsonc`):
 
 - `public/` is served as static assets. Only `/api/*`, `/ws/*` and `/play/*` run the Worker.
 - `/api/ws?match=<id>` goes to the Durable Object named after the match (`MatchServer`), which holds the match's sockets.
-- `/play/<id>` serves `play.html`, and `/api/admin` reads the stats object (`StatsServer`).
+- `/play/<id>` serves `play.html`, and `/api/admin` reads the stats object (`StatsServer`), which also fetches Cloudflare's numbers, since that takes more CPU than a free-plan Worker gets for a request.
 - The Open Graph tags in `public/index.html` and `public/play.html` point at the production domain, because chat apps need an absolute image URL. Update them if the domain changes.
 
-It needs Workers Paid ($5 a month). The free plan runs Durable Objects too, but its 100,000 rows written a day cover about 70 hours of 4-player games a day.
+It runs on the free plan. Its tightest limit is 100,000 SQLite rows written a day, which covers about 70 hours of 4-player games, or roughly 200 dominó matches (an estimate). Past a limit, that kind of operation fails with an error until 00:00 UTC, so tables stop rather than a bill arriving; `/admin` warns from 80%. To lift the limits, move the account to Workers Paid ($5 a month) and set `CF_PLAN` to `paid` in `wrangler.jsonc`. No other code changes.
 
 ### Steps
 

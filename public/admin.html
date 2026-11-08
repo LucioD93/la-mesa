@@ -36,28 +36,33 @@
       </section>
 
       <section id="cloudflare" hidden>
-        <h2>Cloudflare this month (UTC), estimated</h2>
-        <div class="admin-chart">
-          <p id="cloudflareError" class="admin-error" role="alert" hidden></p>
-          <div id="cloudflareUsage">
-            <div class="admin-quota"><b id="cloudflareCost"></b><span id="cloudflarePace" class="muted"></span></div>
-            <p class="muted admin-note">Workers Paid: $5 a month, plus what goes over each allowance. The whole account counts, like the bill.</p>
+        <h2>Cloudflare</h2>
+        <p id="cloudflareError" class="admin-chart admin-error" role="alert" hidden></p>
+        <div id="cloudflareUsage">
+          <div class="admin-chart">
+            <div class="admin-quota"><b id="cloudflareHeadline"></b><span id="cloudflareDetail" class="muted"></span></div>
+            <p id="cloudflareNote" class="muted admin-note"></p>
           </div>
+          <ul id="cloudflareAlerts" class="admin-alerts"></ul>
+          <div id="cloudflareLimitsBlock">
+            <h2 class="admin-sub">Today against the free limits (UTC)</h2>
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead><tr><th></th><th>Used</th><th>Limit</th><th>Share</th><th>At this pace</th></tr></thead>
+                <tbody id="cloudflareLimits"></tbody>
+              </table>
+            </div>
+          </div>
+          <h2 id="cloudflareBillTitle" class="admin-sub"></h2>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead><tr><th></th><th>Used</th><th>Included</th><th>Cost</th><th>At this pace</th></tr></thead>
+              <tbody id="cloudflareLines"></tbody>
+            </table>
+          </div>
+          <div id="cloudflarePanels" class="admin-panels"></div>
+          <p id="cloudflareFootnote" class="muted admin-note"></p>
         </div>
-        <div class="admin-table-wrap">
-          <table class="admin-table">
-            <thead><tr><th></th><th>Used</th><th>Included</th><th>Cost</th><th>At this pace</th></tr></thead>
-            <tbody id="cloudflareLines"></tbody>
-          </table>
-        </div>
-        <h2 class="admin-sub">Cloudflare by day</h2>
-        <div class="admin-table-wrap">
-          <table class="admin-table">
-            <thead id="cloudflareDaysHead"></thead>
-            <tbody id="cloudflareDays"></tbody>
-          </table>
-        </div>
-        <p id="cloudflareTypes" class="muted admin-note"></p>
       </section>
 
       <section id="metered" hidden>

@@ -2,15 +2,24 @@
 // WebSocket, which goes to that match's Durable Object (MatchServer).
 import { MATCH_ID, matchIdFrom } from '../server/room.js';
 import { createAdmin } from '../server/admin.js';
-import { createCloudflareUsage } from '../server/cloudflare.js';
 import { createMetered } from '../server/metered.js';
 
 export { MatchServer } from './match-server.js';
 export { StatsServer } from './stats-server.js';
 
-// Kept between requests for their caches.
+// Kept between requests for its cache.
 const metered = createMetered();
-const cloudflare = createCloudflareUsage();
+
+/** Cloudflare's numbers, as the stats object fetches and caches them. */
+const cloudflareOf = (env) => ({
+  usage: (now) =>
+    env.STATS.getByName('global')
+      .cloudflareUsage(now)
+      .catch((err) => {
+        console.error('[cloudflare]', err);
+        return { ok: false, error: err.message };
+      }),
+});
 
 /** The stats object, through a new stub for each call: a stub belongs to the request that made it. */
 const statsOf = (env) => {
@@ -37,7 +46,7 @@ export default {
     }
 
     if (url.pathname === '/api/admin') {
-      const admin = createAdmin({ stats: statsOf(env), storage: 'durable-objects', metered, cloudflare });
+      const admin = createAdmin({ stats: statsOf(env), storage: 'durable-objects', metered, cloudflare: cloudflareOf(env) });
       const { status, body } = await admin({
         method: request.method,
         authorization: request.headers.get('authorization'),

@@ -8,6 +8,8 @@
   "compatibility_date": "2026-11-01",
   // node:crypto, and process.env filled from the vars and secrets
   "compatibility_flags": ["nodejs_compat"],
+  // Which limits /admin watches: "free" (a day's limits) or "paid" (Workers Paid's bill)
+  "vars": { "CF_PLAN": "free" },
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",

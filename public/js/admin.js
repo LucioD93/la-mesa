@@ -83,24 +83,277 @@ function renderDays(report) {
   $('daysEmpty').hidden = used.length > 0;
 }
 
-// Cloudflare's usage, as the bill counts it.
-const CLOUDFLARE_DAYS = [
-  ['workerRequests', 'Worker requests', count],
-  ['doRequests', 'Object requests', count],
-  ['doRequestsBilled', 'Billed as', count],
-  ['socketMessagesIn', 'Messages in', count],
-  ['socketMessagesOut', 'Messages out', count],
-  ['doDuration', 'Duration GB-s', count],
-  ['doCpuMs', 'Object CPU ms', count],
-  ['workerCpuMs', 'Worker CPU ms', count],
+// ---- Cloudflare -----------------------------------------------------------------
+
+const ms = (n) => `${n < 10 ? n.toFixed(2) : count(n)} ms`;
+const seconds = (n) => `${n < 10 ? n.toFixed(2) : count(n)} s`;
+const gbs = (n) => (n < 10 ? n.toFixed(3) : count(n));
+const shortHour = (iso) => `${shortDay(iso.slice(0, 10))} ${iso.slice(11, 16)}`;
+const clock = (at) => `${new Date(at).toISOString().slice(11, 16)} UTC`;
+const when = (iso) => (iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '');
+const plainText = (value) => String(value ?? '');
+
+// What an object's usage adds up to, for the tables that break it down.
+const OBJECT_COLUMNS = [
   ['rowsWritten', 'Rows written', count],
   ['rowsRead', 'Rows read', count],
-  ['storedBytes', 'Stored', bytes],
+  ['duration', 'Duration GB-s', gbs],
+  ['activeTime', 'Active', (n) => seconds(n / 1e6)],
+  ['cpuTime', 'CPU', (n) => ms(n / 1000)],
+  ['inboundWebsocketMsgCount', 'Messages in', count],
+  ['outboundWebsocketMsgCount', 'Messages out', count],
+  ['maxActiveWebsocketConnections', 'Most sockets', count],
+  ['maxMemoryUsageBytes', 'Most memory', bytes],
+];
+const REQUESTS = [['requests', 'Requests', count]];
+
+/** A table of `rows`, each given its own first cell, with one column per field that has data. */
+const PANELS = [
+  {
+    title: 'Worker by day',
+    rows: (cf) => cf.days,
+    first: (d) => shortDay(d.date),
+    columns: [
+      ['workerRequests', 'Requests', count],
+      ['assetRequests', 'Static files', count],
+      ['workerErrors', 'Errors', count],
+      ['clientDisconnects', 'Disconnects', count],
+      ['workerSubrequests', 'Outgoing calls', count],
+      ['workerCpuMs', 'CPU', ms],
+      ['workerWallS', 'Wall time', seconds],
+      ['workerBytes', 'Data sent', bytes],
+    ],
+  },
+  {
+    title: 'Durable Objects by day',
+    rows: (cf) => cf.days,
+    first: (d) => shortDay(d.date),
+    columns: [
+      ['doRequests', 'Requests', count],
+      ['doRequestsBilled', 'Billed as', count],
+      ['doErrors', 'Errors', count],
+      ['socketMessagesIn', 'Messages in', count],
+      ['socketMessagesOut', 'Messages out', count],
+      ['maxSockets', 'Most sockets', count],
+      ['doDuration', 'Duration GB-s', gbs],
+      ['doActiveS', 'Active', seconds],
+      ['doCpuMs', 'CPU', ms],
+      ['doWallS', 'Wall time', seconds],
+      ['doSubrequests', 'Outgoing calls', count],
+      ['doBytes', 'Data sent', bytes],
+      ['rowsWritten', 'Rows written', count],
+      ['rowsRead', 'Rows read', count],
+      ['storedBytes', 'Stored', bytes],
+    ],
+  },
+  {
+    title: 'Last 48 hours (UTC)',
+    rows: (cf) => cf.hours,
+    first: (h) => shortHour(h.hour),
+    columns: [
+      ['workerRequests', 'Worker requests', count],
+      ['workerErrors', 'Worker errors', count],
+      ['workerCpuMs', 'Worker CPU', ms],
+      ['doRequests', 'Object requests', count],
+      ['doErrors', 'Object errors', count],
+      ['socketMessagesIn', 'Messages in', count],
+      ['socketMessagesOut', 'Messages out', count],
+      ['maxSockets', 'Most sockets', count],
+      ['doDuration', 'Duration GB-s', gbs],
+      ['rowsWritten', 'Rows written', count],
+      ['rowsRead', 'Rows read', count],
+    ],
+  },
+  {
+    title: 'Speed and memory by day',
+    rows: (cf) => cf.days,
+    first: (d) => shortDay(d.date),
+    columns: [
+      ['workerCpuP50', 'Worker CPU p50', ms],
+      ['workerCpuP99', 'p99', ms],
+      ['workerCpuMax', 'Most', ms],
+      ['workerWallP50', 'Worker wall p50', ms],
+      ['workerWallP99', 'p99', ms],
+      ['workerWallMax', 'Most', ms],
+      ['workerMemoryMax', 'Worker memory', bytes],
+      ['doCpuP50', 'Object CPU p50', ms],
+      ['doCpuP99', 'p99', ms],
+      ['doWallP50', 'Object wall p50', ms],
+      ['doWallP99', 'p99', ms],
+      ['doWallMax', 'Most', ms],
+      ['doMemoryP50', 'Object memory p50', bytes],
+      ['doMemoryP99', 'p99', bytes],
+      ['doMemoryMax', 'Most', bytes],
+    ],
+  },
+  {
+    title: 'Failures by day',
+    rows: (cf) => cf.days,
+    first: (d) => shortDay(d.date),
+    columns: [
+      ['workerErrors', 'Worker errors', count],
+      ['clientDisconnects', 'Disconnects', count],
+      ['doErrors', 'Object errors', count],
+      ['exceededCpu', 'CPU limit hit', count],
+      ['exceededMemory', 'Memory limit hit', count],
+      ['fatalErrors', 'Internal failures', count],
+    ],
+  },
+  { title: 'Busiest objects', recent: true, rows: (cf) => cf.breakdowns.matches, first: (r) => r.name || '(unnamed)', columns: OBJECT_COLUMNS },
+  { title: 'Objects by class', recent: true, rows: (cf) => cf.breakdowns.classes, first: (r) => r.class, columns: OBJECT_COLUMNS },
+  { title: 'Object data centers', recent: true, rows: (cf) => cf.breakdowns.objectColos, first: (r) => r.coloCode, columns: OBJECT_COLUMNS },
+  {
+    title: 'Object requests by kind (30 days)',
+    rows: (cf) => Object.entries(cf.requestTypes || {}).sort((a, b) => b[1] - a[1]).map(([type, requests]) => ({ type, requests })),
+    first: (r) => r.type,
+    columns: REQUESTS,
+  },
+  { title: 'How object requests ended', recent: true, rows: (cf) => cf.breakdowns.objectStatus, first: (r) => r.status, columns: REQUESTS },
+  {
+    title: 'Worker scripts',
+    recent: true,
+    rows: (cf) => cf.breakdowns.scripts,
+    first: (r) => r.scriptName,
+    columns: [
+      ['requests', 'Requests', count],
+      ['errors', 'Errors', count],
+      ['subrequests', 'Outgoing calls', count],
+      ['cpuTimeUs', 'CPU', (n) => ms(n / 1000)],
+      ['responseBodySize', 'Data sent', bytes],
+    ],
+  },
+  {
+    title: 'Worker versions',
+    recent: true,
+    rows: (cf) => cf.breakdowns.versions,
+    first: (r) => `${r.scriptName} ${(r.scriptVersion || '').slice(0, 8)}`,
+    columns: [...REQUESTS, ['errors', 'Errors', count]],
+  },
+  { title: 'How Worker requests ended', recent: true, rows: (cf) => cf.breakdowns.workerStatus, first: (r) => r.status, columns: REQUESTS },
+  { title: 'Worker data centers', recent: true, rows: (cf) => cf.breakdowns.workerColos, first: (r) => r.coloCode, columns: [...REQUESTS, ['errors', 'Errors', count]] },
+  {
+    title: 'Static files',
+    recent: true,
+    rows: ({ breakdowns: b }) => [
+      ...(b.assetStatus ?? []).map((r) => ({ label: `Status ${r.statusCode}`, requests: r.requests })),
+      ...(b.assetCache ?? []).map((r) => ({ label: `Cache: ${r.cacheStatus || 'none'}`, requests: r.requests })),
+      ...(b.assetHosts ?? []).map((r) => ({ label: r.hostname, requests: r.requests })),
+      ...(b.assetColos ?? []).map((r) => ({ label: `Data center ${r.coloCode}`, requests: r.requests })),
+    ],
+    first: (r) => r.label,
+    columns: REQUESTS,
+  },
+  {
+    title: 'Outgoing calls',
+    recent: true,
+    rows: (cf) => [...(cf.breakdowns.calls ?? []), ...(cf.breakdowns.callOutcomes ?? [])],
+    first: (r) => r.hostname ?? `Outcome: ${r.requestOutcome}`,
+    columns: [
+      ['subrequests', 'Calls', count],
+      ['requestBodySize', 'Sent', bytes],
+      ['responseBodySize', 'Received', bytes],
+      ['timeToResponseUs', 'Average answer', (n, r) => ms(n / 1000 / (r.subrequests || 1))],
+    ],
+  },
+  {
+    title: 'Deployments',
+    rows: (cf) => cf.deployment.deployments,
+    first: (d) => when(d.createdOn),
+    columns: [
+      ['source', 'How', plainText],
+      ['versions', 'Versions', (versions) => versions.map((v) => `${v.id.slice(0, 8)} ${v.percentage}%`).join(', ')],
+      ['message', 'Message', plainText],
+    ],
+  },
+  {
+    title: 'Scripts on the account',
+    rows: (cf) => cf.deployment.scripts,
+    first: (s) => s.name,
+    columns: [
+      ['modifiedOn', 'Changed', when],
+      ['createdOn', 'Created', when],
+      ['usageModel', 'Usage model', plainText],
+    ],
+  },
+  {
+    title: 'Durable Object classes',
+    rows: (cf) => cf.deployment.namespaces,
+    first: (n) => n.class,
+    columns: [
+      ['script', 'Script', plainText],
+      ['sqlite', 'SQLite', (yes) => (yes ? 'Yes' : 'No')],
+    ],
+  },
 ];
 
+/** The panels stay put between refreshes, so one left open stays open. */
+const panelViews = new Map();
+
+function panelView(panel) {
+  if (panelViews.has(panel)) return panelViews.get(panel);
+  const details = document.createElement('details');
+  details.className = 'admin-more';
+  const summary = document.createElement('summary');
+  const wrap = document.createElement('div');
+  wrap.className = 'admin-table-wrap';
+  const table = document.createElement('table');
+  table.className = 'admin-table';
+  const head = document.createElement('thead');
+  const body = document.createElement('tbody');
+  table.append(head, body);
+  wrap.append(table);
+  details.append(summary, wrap);
+  $('cloudflarePanels').append(details);
+  const view = { details, summary, head, body };
+  panelViews.set(panel, view);
+  return view;
+}
+
+function renderPanels(cf) {
+  for (const panel of PANELS) {
+    const view = panelView(panel);
+    const source = panel.rows(cf) ?? [];
+    const rows = source === cf.days || source === cf.hours ? source.slice().reverse() : source; // newest first
+    const columns = panel.columns.filter(([k]) => rows.some((r) => r[k] != null));
+    view.details.hidden = !rows.length || !columns.length;
+    view.summary.textContent = panel.recent ? `${panel.title} (${cf.recentDays} days)` : panel.title;
+    view.head.replaceChildren(row('th', ['', ...columns.map(([, label]) => label)]));
+    view.body.replaceChildren(
+      ...rows.map((r) => row('td', [panel.first(r), ...columns.map(([k, , format]) => (r[k] == null ? '–' : format(r[k], r)))])),
+    );
+  }
+}
+
 function amount(n, unit) {
-  if (unit === 'GB-month') return `${n.toFixed(n < 1 ? 4 : 2)} GB-month`;
+  if (n == null) return '–';
+  if (unit === 'GB-month' || unit === 'GB') return `${n.toFixed(n < 1 ? 4 : 2)} ${unit}`;
   return unit ? `${count(n)} ${unit}` : count(n);
+}
+
+/** Share of a limit, with its bar. */
+function shareCell(share) {
+  const td = document.createElement('td');
+  if (share == null) {
+    td.textContent = '–';
+    return td;
+  }
+  const meter = document.createElement('div');
+  meter.className = 'admin-meter admin-meter-small';
+  const bar = document.createElement('i');
+  bar.style.width = `${Math.min(share, 1) * 100}%`;
+  bar.classList.toggle('near', share >= 0.8);
+  bar.classList.toggle('full', share >= 1);
+  meter.append(bar);
+  td.append(`${share < 0.01 && share > 0 ? '<1' : Math.floor(share * 100)}%`, meter);
+  return td;
+}
+
+function limitRow(l) {
+  const tr = row('td', [l.label, amount(l.used, l.unit), amount(l.limit, l.unit)]);
+  tr.append(shareCell(l.share));
+  const pace = l.runsOutAt ? `runs out ${clock(l.runsOutAt)}` : amount(l.projected, l.unit);
+  tr.append(cell('td', pace));
+  return tr;
 }
 
 function renderCloudflare(cf) {
@@ -109,24 +362,38 @@ function renderCloudflare(cf) {
   $('cloudflareError').hidden = cf.ok;
   $('cloudflareError').textContent = cf.ok ? '' : `Could not get usage from Cloudflare${cf.error ? `: ${cf.error}` : ''}.`;
   $('cloudflareUsage').hidden = !cf.ok;
-  if (!cf.ok) {
-    for (const id of ['cloudflareLines', 'cloudflareDaysHead', 'cloudflareDays']) $(id).replaceChildren();
-    $('cloudflareTypes').textContent = '';
-    return;
+  if (!cf.ok) return;
+  const free = cf.plan === 'free';
+  const pace = `about ${dollars(cf.projectedCost)} for ${cf.month} at this pace (day ${Math.ceil(cf.elapsedDays)} of ${cf.daysInMonth})`;
+  if (free) {
+    const top = cf.limits.filter((l) => l.share != null).sort((a, b) => b.share - a.share)[0];
+    $('cloudflareHeadline').textContent = 'Free plan';
+    $('cloudflareDetail').textContent = top ? `closest to a limit: ${top.label}, ${Math.floor(top.share * 100)}% used` : '';
+    $('cloudflareNote').textContent = `Each limit resets at 00:00 UTC. On Workers Paid this month would be ${dollars(cf.cost)} so far, ${pace}.`;
+  } else {
+    $('cloudflareHeadline').textContent = `${dollars(cf.cost)} so far`;
+    $('cloudflareDetail').textContent = pace;
+    $('cloudflareNote').textContent = 'Workers Paid: $5 a month, plus what goes over each allowance.';
   }
-  $('cloudflareCost').textContent = `${dollars(cf.cost)} so far`;
-  $('cloudflarePace').textContent = `about ${dollars(cf.projectedCost)} for ${cf.month} at this pace (day ${Math.ceil(cf.elapsedDays)} of ${cf.daysInMonth})`;
+  $('cloudflareAlerts').replaceChildren(
+    ...cf.alerts.map(({ level, text }) => {
+      const li = cell('li', text);
+      li.className = level;
+      return li;
+    }),
+  );
+  $('cloudflareAlerts').hidden = !cf.alerts.length;
+  $('cloudflareLimitsBlock').hidden = !free; // on Workers Paid, the bill below shows the same numbers
+  $('cloudflareLimits').replaceChildren(...cf.limits.map(limitRow));
+  $('cloudflareBillTitle').textContent = free ? `What ${cf.month} would cost on Workers Paid` : `${cf.month}, estimated`;
   $('cloudflareLines').replaceChildren(
     row('td', ['Plan', '', '', dollars(cf.base), dollars(cf.base)]),
     ...cf.lines.map((l) => row('td', [l.label, amount(l.used, l.unit), amount(l.included, l.unit), dollars(l.cost), dollars(l.projectedCost)])),
   );
-  const days = cf.days.slice().reverse();
-  $('cloudflareDaysHead').replaceChildren(row('th', ['', ...CLOUDFLARE_DAYS.map(([, label]) => label)]));
-  $('cloudflareDays').replaceChildren(...days.map((d) => row('td', [shortDay(d.date), ...CLOUDFLARE_DAYS.map(([k, , format]) => format(d[k]))])));
-  const types = Object.entries(cf.requestTypes || {}).sort((a, b) => b[1] - a[1]);
-  $('cloudflareTypes').textContent = types.length
-    ? `Object requests by kind: ${types.map(([type, n]) => `${type} ${count(n)}`).join(', ')}. Incoming messages to sleeping objects bill 20 to 1.`
-    : '';
+  renderPanels(cf);
+  const deployment = cf.deployment.error ? ' Add Workers Scripts: Read to the token to also see what is deployed.' : '';
+  $('cloudflareFootnote').textContent =
+    `The whole account counts, like the limits and the bill. Fetched ${new Date(cf.fetchedAt).toLocaleTimeString()}, at most every 5 minutes, and Cloudflare's own figures run a few minutes behind and are partly sampled. Incoming messages to sleeping objects bill 20 to 1.${deployment}`;
 }
 
 function renderMetered(metered) {

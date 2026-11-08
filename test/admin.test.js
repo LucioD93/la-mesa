@@ -5,7 +5,7 @@ import WebSocket from 'ws';
 import { createApp } from '../server/app.js';
 import { turnHosts } from '../server/admin.js';
 import { createMetered } from '../server/metered.js';
-import { createCloudflareUsage, dailyUsage, monthBill } from '../server/cloudflare.js';
+import { DATASETS, alertsFor, buildQuery, createCloudflareUsage, dailyLimits, dailyUsage, monthBill, windowOf } from '../server/cloudflare.js';
 import { Stats, memoryKv } from '../server/stats.js';
 
 // The admin page: its data is behind a shared password.
@@ -193,15 +193,15 @@ test('stats forget matches that stopped reporting, and old days', (t) => {
   assert.deepEqual(stats.overview(), { voice: [], matches: 0, online: 0 });
 });
 
-/** One day of Cloudflare's GraphQL groups. */
+/** One day of the daily datasets, as flat rows. */
 const groups = (date, n) => ({
-  workers: [{ dimensions: { date }, sum: { requests: n, cpuTimeUs: n * 1000 } }],
+  workers: [{ date, requests: n, cpuTimeUs: n * 1000 }],
   invocations: [
-    { dimensions: { date, type: 'fetch' }, sum: { requests: n } },
-    { dimensions: { date, type: 'websocketMessage' }, sum: { requests: 20 * n } },
+    { date, type: 'fetch', requests: n },
+    { date, type: 'websocketMessage', requests: 20 * n },
   ],
-  periodic: [{ dimensions: { date }, sum: { duration: n, cpuTime: n * 1000, inboundWebsocketMsgCount: 0, outboundWebsocketMsgCount: n, rowsRead: n, rowsWritten: n } }],
-  storage: [{ dimensions: { date }, max: { storedBytes: 1e9 } }],
+  periodic: [{ date, duration: n, cpuTime: n * 1000, inboundWebsocketMsgCount: 0, outboundWebsocketMsgCount: n, rowsRead: n, rowsWritten: n }],
+  storage: [{ date, maxStoredBytes: 1e9 }],
 });
 
 test('turns Cloudflare analytics into an estimated bill', () => {
@@ -223,29 +223,160 @@ test('turns Cloudflare analytics into an estimated bill', () => {
   assert.ok(bill.projectedCost > bill.cost && bill.cost > 5);
 });
 
-test('Cloudflare usage is optional, cached, and reports errors without the token', async (t) => {
-  assert.equal(await createCloudflareUsage().usage(), null);
+test('today against the free limits: the share, the time it runs out, and what is unknown', () => {
+  const noon = Date.UTC(2026, 11, 7, 12);
+  const days = [{ date: '2026-12-06', storedBytes: 2e9, rowsRead: 9e6 }, { date: '2026-12-07', rowsWritten: 80e3, rowsRead: 1000, workerRequests: 10 }];
+  const line = (id) => dailyLimits(days, noon).find((l) => l.id === id);
+  assert.equal(line('rowsWritten').share, 0.8);
+  assert.equal(line('rowsWritten').projected, 160e3, 'twice as much by the end of the day');
+  assert.equal(new Date(line('rowsWritten').runsOutAt).toISOString(), '2026-12-07T15:00:00.000Z');
+  assert.equal(line('workerRequests').runsOutAt, null);
+  assert.equal(line('doRequests').used, null, 'no dataset gave it');
+  assert.equal(line('doRequests').share, null);
+  assert.equal(line('storage').used, 2, 'the last day with a figure');
+  // A busy start says little: no guess in the day's first hour.
+  assert.equal(dailyLimits(days, Date.UTC(2026, 11, 7, 0, 30)).find((l) => l.id === 'rowsWritten').runsOutAt, null);
+});
+
+test('warns near a limit, past one, and about what could not be read', () => {
+  const noon = Date.UTC(2026, 11, 7, 12);
+  const today = { date: '2026-12-07', rowsWritten: 100e3, workerRequests: 85e3, doDuration: 1, exceededCpu: 2, workerCpuMax: 12 };
+  const limits = dailyLimits([today], noon);
+  const alerts = alertsFor({ plan: 'free', limits, bill: monthBill([today], noon), today, failed: [{ label: 'Static files', error: 'HTTP 500' }], limited: [] });
+  const texts = alerts.map((a) => `${a.level} ${a.text}`);
+  assert.equal(alerts[0].level, 'bad', 'the worst come first');
+  assert.ok(texts.some((t) => t.startsWith('bad SQLite rows written') && t.includes('00:00 UTC')));
+  assert.ok(texts.some((t) => t.startsWith('warn Worker requests: 85%')));
+  assert.ok(texts.some((t) => t.startsWith('warn Worker requests: at this pace') && t.includes('14:')), 'runs out around 14:07 UTC');
+  assert.ok(texts.some((t) => t.startsWith('bad Objects hit the CPU limit 2 times')));
+  assert.ok(texts.some((t) => t.includes('12.0 ms of CPU')));
+  assert.ok(texts.some((t) => t === 'warn Could not read Static files: HTTP 500.'));
+
+  const quiet = dailyLimits([{ date: '2026-12-07', rowsWritten: 10 }], noon);
+  assert.deepEqual(alertsFor({ plan: 'free', limits: quiet, bill: monthBill([], noon), today: {}, failed: [], limited: [] }), []);
+});
+
+test('each dataset is asked for only what the account allows', () => {
+  const now = Date.UTC(2026, 10, 20, 12);
+  const days = DATASETS.periodic;
+  assert.deepEqual(windowOf(days, undefined, now), { since: '2026-10-22', until: '2026-11-20', limited: false });
+  const cut = windowOf(days, { notOlderThan: 3 * 86400, maxDuration: 32 * 86400 }, now);
+  assert.equal(cut.limited, true);
+  assert.equal(cut.since, '2026-11-19', 'whole days inside the reach, with a margin');
+  const hours = windowOf(DATASETS.hourActivity, { notOlderThan: 3600, maxDuration: 3600 }, now);
+  assert.equal(hours.since, '2026-11-20T11:00:00.000Z');
+  assert.equal(windowOf(days, { notOlderThan: 3600 }, now).since, '2026-11-20', 'never later than today');
+
+  const query = buildQuery('periodic', { maxPageSize: 50, availableFields: ['sum_rowsWritten', 'max_memoryUsageBytes', 'date'] });
+  assert.match(query, /limit: 50,/);
+  assert.match(query, /sum \{ rowsWritten \}/);
+  assert.match(query, /max \{ memoryUsageBytes \}/);
+  assert.doesNotMatch(query, /quantiles/, 'none of its fields are allowed');
+  assert.match(buildQuery('matches'), /orderBy: \[sum_rowsWritten_DESC\]/);
+  assert.match(buildQuery('hourActivity'), /datetime_geq: \$since/);
+  assert.match(buildQuery('periodic', { availableFields: ['some other shape'] }), /sum \{ rowsWritten/, 'a list it cannot read asks for everything');
+});
+
+/** A fake of Cloudflare's API: `datasets` maps a query's name to its groups, or to an error. */
+function fakeCloudflare(datasets, { deployment = true } = {}) {
+  const calls = [];
+  const fetcher = async (url, init) => {
+    calls.push({ url, init });
+    const reply = (body) => ({ ok: true, json: async () => body });
+    if (url.endsWith('/graphql')) {
+      const { query, variables } = JSON.parse(init.body);
+      const [, name] = query.match(/query (\w+)/);
+      const answer = datasets[name];
+      if (answer instanceof Error) return reply({ errors: [{ message: answer.message }] });
+      if (name === 'settings') return reply({ data: { viewer: { accounts: [{ settings: answer ?? {} }] } } });
+      calls.at(-1).variables = variables;
+      return reply({ data: { viewer: { accounts: [{ rows: answer ?? [] }] } } });
+    }
+    if (!deployment) return { ok: false, status: 403, json: async () => { throw new Error('not json'); } };
+    if (url.endsWith('/deployments')) return reply({ success: true, result: { deployments: [{ created_on: '2026-11-01T00:00:00Z', source: 'wrangler', versions: [{ version_id: 'abcdef012345', percentage: 100 }], annotations: { 'workers/message': 'hi' } }] } });
+    if (url.endsWith('/namespaces')) return reply({ success: true, result: [{ id: 'ns1', class: 'MatchServer', script: 'la-mesa', use_sqlite: true }] });
+    return reply({ success: true, result: [{ id: 'la-mesa', created_on: '2026-10-01T00:00:00Z', modified_on: '2026-11-01T00:00:00Z' }] });
+  };
+  return { calls, fetcher };
+}
+
+function cloudflareEnv(t, plan) {
   process.env.CF_ACCOUNT_ID = 'acct';
   process.env.CF_API_TOKEN = 'very secret';
+  if (plan) process.env.CF_PLAN = plan;
   t.after(() => {
     delete process.env.CF_ACCOUNT_ID;
     delete process.env.CF_API_TOKEN;
+    delete process.env.CF_PLAN;
   });
-  const calls = [];
-  const cf = createCloudflareUsage(async (url, init) => {
-    calls.push(init);
-    return { ok: true, json: async () => ({ data: { viewer: { accounts: [groups('2026-11-07', 10)] } } }) };
+}
+
+const gql = (dimensions, sum, extra) => ({ dimensions, sum, ...extra });
+
+test('Cloudflare usage is optional, cached, and reports errors without the token', async (t) => {
+  assert.equal(await createCloudflareUsage().usage(), null);
+  cloudflareEnv(t);
+  const { calls, fetcher } = fakeCloudflare({
+    periodic: [gql({ date: '2026-11-07' }, { rowsWritten: 10, duration: 1.5 }, { max: { activeWebsocketConnections: 4 }, quantiles: { memoryUsageBytesP50: 100 } })],
+    matches: [gql({ name: 'sala' }, { rowsWritten: 10 })],
+    classes: [gql({ namespaceId: 'ns1' }, { rowsWritten: 10 })],
+    hourActivity: [gql({ datetimeHour: '2026-11-07T11:00:00Z' }, { rowsWritten: 10 })],
   });
+  const cf = createCloudflareUsage(fetcher);
   const now = Date.UTC(2026, 10, 7, 12);
   const usage = await cf.usage(now);
   assert.equal(usage.ok, true);
-  assert.equal(usage.days.length, 1);
-  assert.equal(calls[0].headers.authorization, 'Bearer very secret');
-  assert.deepEqual(JSON.parse(calls[0].body).variables, { account: 'acct', since: '2026-10-09', until: '2026-11-07' });
+  assert.equal(usage.plan, 'free', 'the free plan unless told otherwise');
+  assert.equal(usage.limits.find((l) => l.id === 'rowsWritten').used, 10);
+  assert.equal(usage.days[0].maxSockets, 4);
+  assert.equal(usage.days[0].doMemoryP50, 100);
+  assert.equal(usage.hours[0].rowsWritten, 10);
+  assert.equal(usage.breakdowns.matches[0].name, 'sala');
+  assert.equal(usage.breakdowns.classes[0].class, 'MatchServer', 'the id, named');
+  assert.equal(usage.deployment.deployments[0].message, 'hi');
+  assert.equal(usage.deployment.error, null);
+  assert.equal(calls[0].init.headers.authorization, 'Bearer very secret');
+  assert.deepEqual(calls.find((c) => c.variables?.since === '2026-10-09').variables, { account: 'acct', since: '2026-10-09', until: '2026-11-07' });
+  const n = calls.length;
   await cf.usage(now + 60_000);
-  assert.equal(calls.length, 1, 'served from the cache');
+  assert.equal(calls.length, n, 'served from the cache');
 
   const failing = createCloudflareUsage(async () => ({ ok: true, json: async () => ({ errors: [{ message: 'not authorized' }] }) }));
   const failed = await failing.usage(now);
   assert.deepEqual(failed, { ok: false, error: 'not authorized' });
+
+  const refused = createCloudflareUsage(async () => ({ ok: false, status: 400, json: async () => ({ errors: [{ code: 6003, message: 'Invalid request headers' }] }) }));
+  assert.deepEqual(await refused.usage(now), { ok: false, error: 'Invalid request headers' }, 'its reason, not just the status');
+});
+
+test('a dataset that fails costs only itself, and the settings are respected', async (t) => {
+  cloudflareEnv(t, 'paid');
+  const now = Date.UTC(2026, 10, 7, 12);
+  const { calls, fetcher } = fakeCloudflare(
+    {
+      settings: {
+        workersAssetsRequestsAdaptiveGroups: { enabled: false },
+        durableObjectsPeriodicGroups: { enabled: true, notOlderThan: 3 * 86400, maxDuration: 3 * 86400, maxPageSize: 10 },
+      },
+      workers: [gql({ date: '2026-11-07' }, { requests: 5 })],
+      periodic: new Error('too many fields'),
+    },
+    { deployment: false },
+  );
+  const usage = await createCloudflareUsage(fetcher).usage(now);
+  assert.equal(usage.ok, true);
+  assert.equal(usage.plan, 'paid');
+  assert.equal(usage.days[0].workerRequests, 5);
+  assert.equal(usage.days[0].rowsWritten, undefined, 'unknown, not zero');
+  const texts = usage.alerts.map((a) => a.text);
+  assert.ok(texts.includes('Could not read Object activity: too many fields.'));
+  assert.ok(texts.includes('Could not read Static files: not enabled for this account.'));
+  assert.ok(texts.some((text) => text.startsWith('Object activity: this account can only read back')));
+  assert.equal(usage.deployment.error, 'HTTP 403', 'the token need not have Workers Scripts: Read');
+  assert.deepEqual(usage.deployment.deployments, []);
+  const asked = calls.filter((c) => c.url.endsWith('/graphql')).map((c) => JSON.parse(c.init.body).query.match(/query (\w+)/)[1]);
+  assert.ok(!asked.includes('assets'), 'a dataset that is not enabled is not asked for');
+  // The settings failing leaves every dataset to try on its own.
+  const lost = fakeCloudflare({ settings: new Error('nope'), workers: [gql({ date: '2026-11-07' }, { requests: 5 })] });
+  assert.equal((await createCloudflareUsage(lost.fetcher).usage(now)).days[0].workerRequests, 5);
 });

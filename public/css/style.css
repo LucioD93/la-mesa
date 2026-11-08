@@ -1897,10 +1897,21 @@ body.admin { height: auto; min-height: 100dvh; background: var(--felt-dark); pad
 .admin-services tr:first-child > * { border-top: 0; }
 .admin-note { margin: 8px 0 0; font-size: 13px; }
 .admin-chart { padding: 10px 12px; border-radius: var(--radius); background: var(--panel); }
-.admin-quota { display: flex; align-items: baseline; gap: 8px; }
-.admin-quota b { font-size: 26px; font-variant-numeric: tabular-nums; }
+.admin-quota { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+.admin-quota b { font-size: 26px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .admin-meter { height: 8px; margin: 8px 0; border-radius: 4px; overflow: hidden; background: rgba(255, 255, 255, 0.1); }
 .admin-meter i { display: block; background: #c97414; height: 100%; min-width: 2px; border-radius: 4px; }
+.admin-meter i.near { background: var(--gold); }
+.admin-meter i.full { background: var(--accent); }
+.admin-meter-small { width: 72px; height: 5px; margin: 4px 0 0 auto; }
+.admin-alerts { display: grid; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
+.admin-alerts[hidden] { display: none; }
+.admin-alerts li { padding: 9px 12px; border-radius: var(--radius); background: color-mix(in srgb, var(--gold) 14%, var(--panel)); }
+.admin-alerts li.bad { background: color-mix(in srgb, var(--accent) 28%, var(--panel)); font-weight: 600; }
+.admin-panels { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; margin-top: 14px; }
+.admin-more > summary { padding: 9px 12px; border-radius: var(--radius); background: var(--panel); color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; }
+.admin-more[open] > summary { margin-bottom: 2px; }
+.admin-more[hidden] { display: none; }
 
 /* ---- team names ------------------------------------------------------------ */
 .lobby-seat .team-tag { display: inline-flex; align-items: center; max-width: 100%; white-space: nowrap; }
