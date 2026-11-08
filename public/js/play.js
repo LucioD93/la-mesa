@@ -881,7 +881,59 @@ const voice = createVoice({
   send: sendBestEffort,
   onChange: paintVoice,
   onJoin: (name) => toast(t('voiceJoined', { name: name || '?' })),
+  onRoster: offerVoice,
 });
+
+// When others are in voice and we aren't, offer to join them. "Not now" (or hanging up)
+// holds until voice has been empty a while, so someone reconnecting doesn't ask again.
+const OFFER_RESET_MS = 15000;
+const voiceOffer = { open: false, started: null, declined: false, timer: null };
+
+function offerVoice(kind) {
+  const others = voice.others;
+  clearTimeout(voiceOffer.timer);
+  if (!others.length) voiceOffer.timer = setTimeout(() => (voiceOffer.declined = false), OFFER_RESET_MS);
+  else if (!voiceOffer.open && !voiceOffer.declined && !voice.joined) {
+    voiceOffer.open = true;
+    // Someone just turned it on, or we found it already on.
+    voiceOffer.started = kind === 'join' && others.length === 1 ? others[0] : null;
+  }
+  paintVoice();
+}
+
+/** Someone in voice as the table knows them: a seated player's name, team and photo. */
+function inVoiceAs(p) {
+  const s = state?.seats[p.seat];
+  if (s && !s.bot) return { name: s.name, team: s.team, photo: photoOf(p.seat), muted: p.muted };
+  return { name: p.name || '?', team: null, photo: null, muted: p.muted };
+}
+
+function paintVoiceOffer() {
+  const others = voice.others;
+  if (voice.joined || !others.length) voiceOffer.open = false;
+  $('voiceInvite').hidden = !voiceOffer.open;
+  if (!voiceOffer.open) return;
+  const people = others.map(inVoiceAs);
+  const started = others.includes(voiceOffer.started) ? inVoiceAs(voiceOffer.started) : null;
+  $('voiceInviteTitle').textContent = started ? t('voiceInvite.started', { name: started.name }) : t('voiceInvite.on');
+  $('voiceInviteText').textContent =
+    started && people.length === 1
+      ? t('voiceInvite.startedText')
+      : t('voiceInvite.onText', { names: new Intl.ListFormat(i18n.lang, { type: 'conjunction' }).format(people.map((p) => p.name)), n: people.length });
+  $('voiceInvitePeople').innerHTML = people
+    .map(
+      (p) => `<div class="voice-invite-person">
+      <div class="avatar"${p.team == null ? '' : ` data-team="${p.team}"`} data-voice="${p.muted ? 'muted' : 'on'}">${p.photo ? photoImg(p.photo, 'avatar-photo') : esc([...p.name][0]?.toUpperCase() ?? '?')}</div>
+      ${nameHTML(p.name)}</div>`,
+    )
+    .join('');
+}
+
+function declineVoiceOffer() {
+  voiceOffer.open = false;
+  voiceOffer.declined = true;
+  paintVoice();
+}
 
 // ---- player photos ------------------------------------------------------------
 
@@ -921,6 +973,7 @@ function paintVoice() {
     btn.querySelector('.voice-count').textContent = voice.joined && voice.count ? voice.count : '';
   }
   for (const btn of document.querySelectorAll('.voice-leave')) btn.hidden = !voice.joined;
+  paintVoiceOffer();
   if (!state) return;
   // Mic badge on the avatars of seated players in voice; a ring while they talk.
   const inVoice = voice.bySeat();
@@ -940,13 +993,14 @@ function paintVoice() {
   }
 }
 
+async function joinVoice() {
+  const result = await voice.join();
+  toast(t({ ok: 'voiceOn', blocked: 'voiceBlocked', noMic: 'voiceNoMic' }[result]), result === 'ok' ? 1800 : 3200);
+}
+
 for (const btn of document.querySelectorAll('.voice-btn')) {
-  btn.onclick = async () => {
-    if (!voice.joined) {
-      const result = await voice.join();
-      toast(t({ ok: 'voiceOn', blocked: 'voiceBlocked', noMic: 'voiceNoMic' }[result]), result === 'ok' ? 1800 : 3200);
-      return;
-    }
+  btn.onclick = () => {
+    if (!voice.joined) return joinVoice();
     if (!voice.canTalk) return toast(t('voiceListening'));
     voice.setMuted(!voice.muted);
   };
@@ -954,9 +1008,18 @@ for (const btn of document.querySelectorAll('.voice-btn')) {
 for (const btn of document.querySelectorAll('.voice-leave')) {
   btn.onclick = () => {
     voice.leave();
+    voiceOffer.declined = true; // hung up on purpose: don't ask again right away
     toast(t('voiceOff'));
   };
 }
+$('voiceInviteJoin').onclick = () => {
+  voiceOffer.open = false;
+  paintVoice();
+  joinVoice();
+};
+$('voiceInviteLater').onclick = declineVoiceOffer;
+$('voiceInvite').addEventListener('click', (e) => e.target === $('voiceInvite') && declineVoiceOffer());
+document.addEventListener('keydown', (e) => e.key === 'Escape' && voiceOffer.open && declineVoiceOffer());
 window.addEventListener('pagehide', () => voice.leave());
 
 // ---- results ----------------------------------------------------------------
