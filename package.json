@@ -9,14 +9,24 @@
     "start": "node server/index.js",
     "dev": "node --watch server/index.js",
     "dev:tools": "DEV_TOOLS=1 node --watch server/index.js",
+    "dev:worker": "wrangler dev",
+    "deploy": "wrangler deploy",
     "sim": "node scripts/sim.js",
     "test": "node --test test/"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   },
   "dependencies": {
-    "redis": "5.12.1",
+    "partyserver": "0.5.10",
     "ws": "8.22.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20261107.1",
+    "wrangler": "4.158.0"
+  },
+  "allowScripts": {
+    "workerd@1.20261104.1": true,
+    "esbuild@0.28.2": true
   }
 }

@@ -7,7 +7,6 @@ import { fileURLToPath } from 'node:url';
 import { WebSocket } from 'ws';
 import { createApp } from '../server/app.js';
 import { Match } from '../server/match.js';
-import { MemoryStore } from '../server/store.js';
 import { GAME_IDS } from '../server/games/index.js';
 import { diceValues, devTools, rig, seededRng, timeScale } from '../server/dev/config.js';
 import { SCENARIOS, applyScenario, playUntil } from '../server/dev/scenarios.js';
@@ -27,8 +26,8 @@ function withEnv(t, vars) {
 
 // ---- the knobs ----------------------------------------------------------------------
 
-test('the dev knobs are off unless set, and never work on Vercel', (t) => {
-  withEnv(t, { DEV_TOOLS: null, TIME_SCALE: null, SEED: null, VERCEL: null });
+test('the dev knobs are off unless set, and never work deployed', (t) => {
+  withEnv(t, { DEV_TOOLS: null, TIME_SCALE: null, SEED: null, DEPLOYED: null });
   assert.equal(devTools(), false);
   assert.equal(timeScale(), 1);
   process.env.DEV_TOOLS = '1';
@@ -39,13 +38,13 @@ test('the dev knobs are off unless set, and never work on Vercel', (t) => {
   assert.equal(timeScale(), 1, 'nonsense is ignored');
   process.env.TIME_SCALE = '0';
   assert.equal(timeScale(), 0);
-  process.env.VERCEL = '1';
+  process.env.DEPLOYED = '1';
   assert.equal(devTools(), false);
   assert.equal(timeScale(), 1);
 });
 
 test('SEED repeats deals and bot moves, per match', (t) => {
-  withEnv(t, { SEED: 'abc', VERCEL: null });
+  withEnv(t, { SEED: 'abc', DEPLOYED: null });
   const play = (id) => {
     const m = new Match(id, { game: 'truco' });
     for (const s of ['a', 'b', 'c', 'd']) m.join(s, s);
@@ -163,8 +162,8 @@ test('a scenario repeats with the same seed, and seats as many players as asked'
 // ---- over HTTP and sockets ------------------------------------------------------------
 
 async function serve(t, env = { DEV_TOOLS: '1' }) {
-  withEnv(t, { VERCEL: null, ...env });
-  const { server } = createApp({ store: new MemoryStore() });
+  withEnv(t, { DEPLOYED: null, ...env });
+  const { server } = createApp();
   await new Promise((resolve) => server.listen(0, resolve));
   t.after(() => server.close());
   const base = `http://127.0.0.1:${server.address().port}`;
@@ -282,7 +281,7 @@ test('the simulator plays every game over sockets without a refused move', async
   await Promise.all(
     GAME_IDS.map(async (game) => {
       const { stdout } = await run(process.execPath, [SIM, game, '--seed', '1', '--rounds', '2', '--quiet', '--bots', '1', '--stall', '10'], {
-        env: { ...process.env, DEV_TOOLS: '', VERCEL: '' },
+        env: { ...process.env, DEV_TOOLS: '', DEPLOYED: '' },
         timeout: 60_000,
       });
       assert.match(stdout, new RegExp(`✔ ${game}:`), stdout);

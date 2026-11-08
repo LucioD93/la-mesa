@@ -1,0 +1,25 @@
+// Cloudflare: one Worker (worker/index.js) serving public/, the admin data, and each
+// match's WebSocket through its Durable Object. Secrets are set with `wrangler secret put`
+// (see README.md, "Deploying").
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "la-mesa",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-11-01",
+  // node:crypto, and process.env filled from the vars and secrets
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    // Everything else is served straight from the assets, without running the Worker.
+    "run_worker_first": ["/api/*", "/ws/*", "/play/*"]
+  },
+  "durable_objects": {
+    "bindings": [
+      { "name": "MATCHES", "class_name": "MatchServer" },
+      { "name": "STATS", "class_name": "StatsServer" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["MatchServer", "StatsServer"] }],
+  "observability": { "enabled": true }
+}

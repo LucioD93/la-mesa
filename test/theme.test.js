@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Match, THEMES, DEFAULT_THEME } from '../server/match.js';
-import { MemoryStore } from '../server/store.js';
+import { createRoom } from '../server/room.js';
 
 test('a new match uses the default theme, and so does one saved before themes', () => {
   assert.equal(new Match('t').theme, DEFAULT_THEME);
@@ -29,12 +29,13 @@ test('the theme is picked by anyone in the match, even mid-game, and everyone se
   assert.equal(m.stateFor('b', new Set()).theme, 'neon');
 });
 
-test('the theme survives a save', async () => {
-  const store = new MemoryStore();
-  await store.update('t', (m) => m.join('a', 'A'));
-  await store.update('t', (m) => m.handle('a', { t: 'theme', theme: 'neon' }, new Set()));
-  const { match } = await store.get('t');
-  assert.equal(match.theme, 'neon');
+test('the theme survives a save', () => {
+  let saved;
+  const host = { load: () => saved, save: (r) => (saved = structuredClone(r)), forget() {}, connections: () => [], wakeAt() {}, report() {} };
+  const room = createRoom('t', host);
+  room.update((m) => m.join('a', 'A'));
+  room.update((m) => m.handle('a', { t: 'theme', theme: 'neon' }, new Set()));
+  assert.equal(createRoom('t', host).snapshot().match.theme, 'neon'); // loaded back, as after a sleep
 });
 
 test("the first player's theme carries into a new match, but not into one already going", () => {

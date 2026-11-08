@@ -4,12 +4,11 @@ import { once } from 'node:events';
 import { WebSocket } from 'ws';
 import { createApp } from '../server/app.js';
 import { Match, REACTIONS } from '../server/match.js';
-import { MemoryStore, RedisStore } from '../server/store.js';
 import { GAME_IDS } from '../server/games/index.js';
 import { GAMES } from '../public/js/games.js';
 import { REACTIONS as PICKER_REACTIONS, IMAGES } from '../public/js/reactions.js';
 
-// A match as the live Redis has it today, saved before matches had a `game`.
+// A match as saved before matches had a `game`.
 function savedDominoMatch() {
   const m = new Match('old');
   for (const t of ['a', 'b', 'c', 'd']) m.join(t, t);
@@ -180,27 +179,11 @@ test('a link can pick the game of a new match only', () => {
   assert.equal(existing.game, 'domino');
 });
 
-test('Redis keys keep the domino prefix, so live matches and usage counters survive', async () => {
-  const k = new RedisStore(null).keys('arepa-123');
-  assert.deepEqual(k, {
-    m: 'domino:{arepa-123}:m',
-    v: 'domino:{arepa-123}:v',
-    p: 'domino:{arepa-123}:p',
-    ch: 'domino:{arepa-123}:ch',
-    sig: 'domino:{arepa-123}:sig',
-  });
-  const read = [];
-  const store = new RedisStore({ hGetAll: async (key) => (read.push(key), {}) });
-  await store.readUsage(['2026-11-04']);
-  assert.deepEqual(read.sort(), ['domino:usage:2026-11-04', 'domino:usage:total']);
-});
-
 async function listen(t) {
-  const store = new MemoryStore();
-  const { server } = createApp({ store });
+  const { server } = createApp();
   await new Promise((resolve) => server.listen(0, resolve));
   t.after(() => server.close());
-  return { store, url: `ws://127.0.0.1:${server.address().port}/api/ws?match=sala` };
+  return { url: `ws://127.0.0.1:${server.address().port}/api/ws?match=sala` };
 }
 
 /** Connect and say hello; `messages` collects what arrives, `next` waits for a match. */

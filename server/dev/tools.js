@@ -1,6 +1,6 @@
 // /api/dev: read any match whole and change it while people are at the table. Every
-// change goes through the store like a move does, so open tabs redraw right away.
-// Only mounted with DEV_TOOLS=1 and never on Vercel (see config.js).
+// change goes through the match's room like a move does, so open tabs redraw right away.
+// Only mounted by the local Node server with DEV_TOOLS=1, never by the Worker (see config.js).
 //
 //   GET    /api/dev                              what's here: routes, scenarios, the knobs
 //   GET    /api/dev/match/<id>                   the match, every hand included
@@ -75,9 +75,9 @@ const ROUTES = [
   'POST /api/dev/match/<id>/rig',
 ];
 
-export function createDevHandler(storeReady, matchId) {
+/** @param {{ get(id), update(id, fn), setPresence(id, token) }} matches  the rooms, by match id (see app.js) */
+export function createDevHandler(matches, matchId) {
   async function route(req, path) {
-    const store = await storeReady;
     if (path === '/api/dev' || path === '/api/dev/') {
       return {
         routes: ROUTES,
@@ -94,13 +94,13 @@ export function createDevHandler(storeReady, matchId) {
     if (!matchId.test(id)) throw new HttpError(400, 'bad match id');
     const key = `${req.method} ${action ?? ''}`;
     const update = async (fn) => {
-      const { match, online, changed } = await store.update(id, fn);
+      const { match, online, changed } = await matches.update(id, fn);
       return report(match, online, !!changed);
     };
 
     switch (key) {
       case 'GET ': {
-        const { match, online } = await store.get(id);
+        const { match, online } = await matches.get(id);
         return report(match, online, false);
       }
       case 'PUT ': {
@@ -117,7 +117,7 @@ export function createDevHandler(storeReady, matchId) {
         if (!Object.hasOwn(SCENARIOS, name ?? '')) throw new HttpError(404, `unknown scenario ${name}; GET /api/dev lists them`);
         // The scenario's players count as online, so nobody offers to swap them for bots.
         const humans = Math.min(Math.max(Math.trunc(Number(opts.humans ?? 1)) || 0, 0), 4);
-        for (let s = 0; s < humans; s++) await store.setPresence(id, playerToken(s));
+        for (let s = 0; s < humans; s++) await matches.setPresence(id, playerToken(s));
         try {
           return await update((match) => !!applyScenario(match, name, opts));
         } catch (err) {
