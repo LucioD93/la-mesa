@@ -74,7 +74,7 @@ function matchIdFrom(reqUrl) {
   return MATCH_ID.test(id) ? id : null;
 }
 
-export function createApp({ store: storeOverride } = {}) {
+export function createApp({ store: storeOverride, analytics } = {}) {
   const storeReady = storeOverride ? Promise.resolve(storeOverride) : createStore();
   const admin = createAdminHandler(storeReady);
   const dev = devTools() ? createDevHandler(storeReady, MATCH_ID) : null;
@@ -85,7 +85,7 @@ export function createApp({ store: storeOverride } = {}) {
     serveStatic(req, res);
   });
   const wss = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024 });
-  const hubReady = storeReady.then(createHub);
+  const hubReady = storeReady.then((store) => createHub(store, analytics));
 
   server.on('upgrade', async (req, socket, head) => {
     const id = matchIdFrom(req.url);
@@ -101,7 +101,7 @@ export function createApp({ store: storeOverride } = {}) {
       ws.isAlive = true;
       ws.on('pong', () => (ws.isAlive = true));
       ws.on('message', () => (ws.isAlive = true)); // client pings count too
-      hub.connect(ws, id);
+      hub.connect(ws, id, req);
     });
   });
 
