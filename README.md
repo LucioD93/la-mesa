@@ -170,6 +170,7 @@ server/
   usage.js         Buffers usage counters and writes them in batches
   admin.js         Password check and the report behind the admin page
   metered.js       TURN usage from Metered's API
+  analytics.js     Match-level events for PostHog (off without POSTHOG_KEY): what each change to a match did, and the player's country
   match.js         A match as serializable state: game, table style, seats, lobby, reactions, per-player views
   dev/
     config.js      Testing knobs (DEV_TOOLS, TIME_SCALE, SEED), seeded and rigged random numbers
@@ -365,11 +366,30 @@ Open http://localhost:3000. On startup the server also prints a LAN address so p
 | `ICE_SERVERS` | Google STUN | JSON array of [`RTCIceServer`](https://developer.mozilla.org/docs/Web/API/RTCIceServer)s for voice chat. Add a TURN server so voice works for players behind strict NATs (common on mobile data). |
 | `ADMIN_PASSWORD` | unset | Shared password for `/admin`. The admin data is refused until it's set. |
 | `METERED_APP`, `METERED_SECRET_KEY` | unset | Metered app name (`<app>.metered.live`) and secret key. When set, `/admin` shows the TURN usage Metered reports for the billing cycle. |
+| `POSTHOG_KEY`, `POSTHOG_HOST` | unset, `https://us.i.posthog.com` | PostHog project key (`phc_…`). When set, the server reports [analytics events](#analytics); use `https://eu.i.posthog.com` for an EU project. |
 | `DEV_TOOLS` | unset | `1` turns on [`/api/dev`](#testing-tools). Ignored on Vercel. |
 | `TIME_SCALE` | `1` | Multiplies every wait the server schedules: bot moves, forced passes, closing a cochina grab, the slow-player mocking. `0.1` makes bots ten times faster (the client's animations don't speed up). Ignored on Vercel. |
 | `SEED` | unset | Deals, dice and bot choices follow this seed, so the same moves in a match with the same id replay the same game. Ignored on Vercel. |
 
 Health check: `GET /healthz` → `ok` (local server).
+
+### Analytics
+
+With `POSTHOG_KEY` set, the server sends [PostHog](https://posthog.com) events from `server/analytics.js`. It sends nothing otherwise, so local dev, tests and sims stay silent, and the browser loads no tracker. Events are about matches, not people: no names, photos, tokens, IP addresses or moves. A player is only their 12-character `publicId`, and PostHog is told not to look up an address. Where a player is comes from Vercel's `x-vercel-ip-country` header and is kept as a country code (`country`); other hosts don't set it.
+
+| Event | When | Properties besides `match` and `country` |
+| --- | --- | --- |
+| `match_created` | a match's first player joins | `game` |
+| `player_joined` | a player or spectator connects, once per room per server instance | `game`, `phase`, `role` |
+| `game_switched` | the lobby picks another game | `from`, `to` |
+| `match_started` | the first round is dealt (also a rematch) | `game`, `humans`, `bots`, `target`, `variant`, `theme`, `team_named`, `countries` |
+| `round_finished` | a round ends | `game`, `humans`, `bots`, `round`, `scores` |
+| `match_finished` | a team reaches the target | `game`, `humans`, `bots`, `rounds`, `scores`, `winner_team`, `duration_s` |
+| `match_abandoned` | someone returns to the lobby mid-game | `game`, `humans`, `bots`, `round`, `scores` |
+| `bot_takeover` | a bot replaces a player who left | `game`, `humans`, `bots`, `phase` |
+| `voice_joined` | someone joins the voice chat | none |
+
+`distinct_id` is the match id for match events and the player's `publicId` for `player_joined` and `voice_joined`; neither creates a person profile.
 
 ### Tests
 

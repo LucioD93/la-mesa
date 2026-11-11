@@ -6,6 +6,7 @@ import { MoveError } from './games/common.js';
 import { SLOW_TURN_MS, publicId } from './match.js';
 import { PRESENCE_REFRESH_MS, LEAVE_GRACE_MS } from './store.js';
 import { createUsage } from './usage.js';
+import { createAnalytics, countryOf, glance } from './analytics.js';
 import { timeScale } from './dev/config.js';
 
 // Voice chat is peer-to-peer WebRTC; the server only relays the signaling
@@ -28,10 +29,26 @@ export function iceServers() {
   return [{ urls: 'stun:stun.l.google.com:19302' }];
 }
 
-export function createHub(store) {
-  /** id -> { conns: Set<{ws, token, peer}>, ready, unsub, timer, autoKey, hurryTimer, hurryKey, onlineKey } */
+export function createHub(store, analytics = createAnalytics()) {
+  /** id -> { conns: Set<{ws, token, peer, country}>, ready, unsub, timer, autoKey, hurryTimer, hurryKey, onlineKey, seen } */
   const rooms = new Map();
   const usage = createUsage(store);
+
+  /** Countries of the players connected to this room here (other instances report theirs). */
+  const countriesIn = (r) => [...new Set([...r.conns].map((c) => c.country).filter(Boolean))].sort();
+
+  /** `store.update` that reports what the committed change did. A retried write re-runs `fn`, so `before` is the last attempt's. */
+  async function update(id, fn, conn = null) {
+    let before;
+    const result = await store.update(id, (m, online) => {
+      before = glance(m);
+      return fn(m, online);
+    });
+    if (result.changed && analytics.enabled) {
+      analytics.changed(before, result.match, conn?.country ?? null, countriesIn(rooms.get(id) ?? { conns: [] }));
+    }
+    return result;
+  }
 
   const send = (ws, data) => {
     if (ws.readyState !== 1) return;
@@ -45,7 +62,7 @@ export function createHub(store) {
   function room(id) {
     let r = rooms.get(id);
     if (!r) {
-      r = { conns: new Set(), unsub: null, timer: null, autoKey: null, hurryTimer: null, hurryKey: null, onlineKey: '' };
+      r = { conns: new Set(), unsub: null, timer: null, autoKey: null, hurryTimer: null, hurryKey: null, onlineKey: '', seen: new Set() };
       r.ready = store
         .subscribe(
           id,
@@ -97,7 +114,7 @@ export function createHub(store) {
     r.autoKey = p.key;
     r.timer = setTimeout(() => {
       r.autoKey = null;
-      store.update(id, (m) => m.runAuto(p.key)).catch(log(id));
+      update(id, (m) => m.runAuto(p.key)).catch(log(id));
     }, p.delay * timeScale());
   }
 
@@ -110,7 +127,7 @@ export function createHub(store) {
     clearTimeout(r.hurryTimer);
     r.hurryKey = w?.key ?? null;
     if (!w || match.hurried === w.key) return;
-    r.hurryTimer = setTimeout(() => store.update(id, (m) => m.hurry(w.key)).catch(log(id)), SLOW_TURN_MS * timeScale());
+    r.hurryTimer = setTimeout(() => update(id, (m) => m.hurry(w.key)).catch(log(id)), SLOW_TURN_MS * timeScale());
   }
 
   // Keep presence fresh, notice players that dropped, and free their lobby seats.
@@ -119,7 +136,7 @@ export function createHub(store) {
       const tokens = new Set([...r.conns].map((c) => c.token).filter(Boolean));
       for (const c of r.conns) if (c.inVoice) usage.voiceSeen(id, c.peer);
       Promise.all([...tokens].map((t) => store.setPresence(id, t)))
-        .then(() => store.update(id, (m, online) => m.cleanupLobby(online)))
+        .then(() => update(id, (m, online) => m.cleanupLobby(online)))
         .then(({ match, online, changed }) => {
           // Presence-only changes are not published; refresh our own clients.
           if (!changed && onlineKey(online) !== r.onlineKey) fanout(id, match, online);
@@ -128,9 +145,9 @@ export function createHub(store) {
     }
   }, PRESENCE_REFRESH_MS).unref?.();
 
-  function connect(ws, id) {
+  function connect(ws, id, req = null) {
     // `peer` is a public id for voice chat; the token stays secret.
-    const conn = { ws, token: null, peer: randomBytes(6).toString('hex') };
+    const conn = { ws, token: null, peer: randomBytes(6).toString('hex'), country: countryOf(req) };
     const r = room(id);
     r.conns.add(conn);
     usage.add({ sockets: 1 });
@@ -157,6 +174,7 @@ export function createHub(store) {
       if (!spendBudget()) return;
       if (msg.data.kind === 'join') {
         usage.add({ voiceJoins: 1 });
+        analytics.capture('voice_joined', analytics.player(conn.token), { match: id }, conn.country);
         setInVoice(true);
       } else if (msg.data.kind === 'leave') setInVoice(false);
       const sig = { from: conn.peer, to: msg.to || null, data: msg.data };
@@ -186,12 +204,18 @@ export function createHub(store) {
         }
         if (msg.inVoice) setInVoice(true); // a handover doesn't join voice again
         await store.setPresence(id, conn.token);
-        await store.update(id, (m) => m.join(conn.token, msg.name, msg.game, msg.theme));
+        const { match } = await update(id, (m) => m.join(conn.token, msg.name, msg.game, msg.theme), conn);
+        // Once per player per room on this instance; a reload that empties the room counts again.
+        if (!r.seen.has(conn.token)) {
+          r.seen.add(conn.token);
+          const seated = match.seatOf(conn.token) !== -1;
+          analytics.capture('player_joined', analytics.player(conn.token), { match: id, game: match.game, phase: match.phase, role: seated ? 'player' : 'spectator' }, conn.country);
+        }
         send(ws, { t: 'voiceConfig', peer: conn.peer, iceServers: iceServers() });
         return;
       }
       try {
-        await store.update(id, (m, online) => m.handle(conn.token, msg, online));
+        await update(id, (m, online) => m.handle(conn.token, msg, online), conn);
       } catch (err) {
         if (err instanceof MoveError) send(ws, { t: 'error', message: err.message });
         else throw err;
