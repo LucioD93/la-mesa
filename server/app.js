@@ -68,7 +68,7 @@ function serveStatic(req, res) {
   sendFile(res, file);
 }
 
-export function createApp() {
+export function createApp({ analytics } = {}) {
   const records = new Map(); // id -> each room's saved record as JSON, like a Durable Object's storage
   const stats = new Stats(memoryKv());
   /** id -> { room, conns: Map<id, conn>, timer } */
@@ -93,6 +93,7 @@ export function createApp() {
         r.timer?.unref?.();
       },
       report: (room, live, usage) => stats.report(room, live, usage),
+      analytics,
     });
     rooms.set(id, r);
     return r;

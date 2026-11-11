@@ -67,6 +67,7 @@ export class Match {
     this.history = [];
     this.round = null;
     this.roundNo = 0;
+    this.startedAt = null; // when the first round was dealt, for the match's length in analytics
     this.nextStarter = null; // who starts the next round, null to let the game pick
     this.reaction = null; // latest emoji thrown at the table: { n, seat, emoji, at, sent, crowd, slow? }
     this.hurried = null; // the moment key of the last slow player the table hurried, so it happens once
@@ -78,8 +79,8 @@ export class Match {
   }
 
   toJSON() {
-    const { id, game, theme, teamNames, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, hurried, blunder, v } = this;
-    return { id, game, theme, teamNames, seats, names, phase, target, variant, scores, history, round, roundNo, nextStarter, reaction, hurried, blunder, v };
+    const { id, game, theme, teamNames, seats, names, phase, target, variant, scores, history, round, roundNo, startedAt, nextStarter, reaction, hurried, blunder, v } = this;
+    return { id, game, theme, teamNames, seats, names, phase, target, variant, scores, history, round, roundNo, startedAt, nextStarter, reaction, hurried, blunder, v };
   }
 
   /** The rules of the game this match is playing. */
@@ -281,6 +282,7 @@ export class Match {
   startRound(rng = matchRng(this, 'deal')) {
     this.round = this.rules.newRound(this, rng);
     this.roundNo += 1;
+    if (this.roundNo === 1) this.startedAt = Date.now();
     this.phase = 'playing';
   }
 

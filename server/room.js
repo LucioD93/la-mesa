@@ -9,10 +9,12 @@
 //   connections()     the open sockets: { id, state, setState(s), send(text) }
 //   wakeAt(ms|null)   call wake() at this time (the earliest timer), or never
 //   report(id, live, usage)  who's here and the usage counters, for the admin page
+//   analytics         optional: where match events go (server/analytics.js); POSTHOG_KEY's by default
 import { createHash, randomBytes } from 'node:crypto';
 import { MoveError } from './games/common.js';
 import { isGame } from './games/index.js';
 import { Match, SLOW_TURN_MS, publicId } from './match.js';
+import { createAnalytics, glance } from './analytics.js';
 import { timeScale } from './dev/config.js';
 
 export const MATCH_ID = /^[a-z0-9-]{3,40}$/;
@@ -66,6 +68,7 @@ const fresh = (id, saved) => ({
   liveAt: saved?.liveAt ?? null,
   expireAt: saved?.expireAt ?? null,
   onlineKey: saved?.onlineKey ?? '', // who the players were last shown as online
+  joined: saved?.joined ?? {}, // token -> 1: reported to analytics as joined, until they leave for good
 });
 
 export function createRoom(id, host) {
@@ -74,6 +77,7 @@ export function createRoom(id, host) {
   let depth = 0;
   const budgets = new Map(); // connection id -> voice/photo messages left; resets if the room sleeps
   const log = (err) => console.error(`[${id}]`, err);
+  const analytics = host.analytics ?? createAnalytics();
 
   // ---- plumbing ------------------------------------------------------------------
 
@@ -125,10 +129,17 @@ export function createRoom(id, host) {
 
   // ---- the match -------------------------------------------------------------------
 
-  /** Apply `fn` to a copy of the match; if it says it changed, keep it and show everyone. */
-  function update(fn) {
+  /** Countries of everyone connected, for analytics. */
+  const countries = () => [...new Set(open().map((c) => c.state.country).filter(Boolean))].sort();
+
+  /**
+   * Apply `fn` to a copy of the match; if it says it changed, keep it and show everyone.
+   * `conn` is whoever caused it, whose country the analytics events carry.
+   */
+  function update(fn, conn = null) {
     return run(() => {
       const now = online();
+      const before = glance(rec.match);
       const next = new Match(id, JSON.parse(JSON.stringify(rec.match)));
       const changed = fn(next, now);
       if (!changed) return { match: next, online: now, changed };
@@ -136,6 +147,7 @@ export function createRoom(id, host) {
       rec.match = next;
       dirty = true;
       count({ saves: 1 });
+      if (analytics.enabled) analytics.changed(before, next, conn?.state.country ?? null, countries());
       fanout();
       return { match: next, online: now, changed };
     });
@@ -209,10 +221,11 @@ export function createRoom(id, host) {
 
   // ---- sockets ---------------------------------------------------------------------
 
-  function connect(conn) {
+  /** `country` is where the host saw the socket come from (a code from countryOf), if it knows. */
+  function connect(conn, country = null) {
     run(() => {
       // `peer` is a public id for voice chat; the token stays secret.
-      conn.setState({ peer: randomBytes(6).toString('hex') });
+      conn.setState({ peer: randomBytes(6).toString('hex'), country });
       rec.expireAt = null;
       dirty = true;
       count({ sockets: 1 });
@@ -243,6 +256,7 @@ export function createRoom(id, host) {
       patch(conn, { inVoice: true });
       count({ voiceJoins: 1 });
       dirty = true; // joins are counted exactly, so keep this one even if the room sleeps
+      analytics.capture('voice_joined', analytics.player(token), { match: id }, conn.state.country);
     } else if (msg.data.kind === 'leave') patch(conn, { inVoice: false });
     relay(peer, msg.to || null, { t: 'voice', from: peer, data: msg.data });
     report();
@@ -271,7 +285,13 @@ export function createRoom(id, host) {
     patch(conn, { token, games, peer, inVoice: !!msg.inVoice }); // a handover doesn't join voice again
     delete rec.away[token];
     dirty = true;
-    update((m) => m.join(token, msg.name, msg.game, msg.theme));
+    const { match } = update((m) => m.join(token, msg.name, msg.game, msg.theme), conn);
+    // Once per visit: a reload or a dropped connection doesn't count again, coming back later does.
+    if (analytics.enabled && !rec.joined[token]) {
+      rec.joined[token] = 1;
+      const role = match.seatOf(token) !== -1 ? 'player' : 'spectator';
+      analytics.capture('player_joined', analytics.player(token), { match: id, game: match.game, phase: match.phase, role }, conn.state.country);
+    }
     send(conn, { t: 'voiceConfig', peer, iceServers: iceServers() });
     report();
   }
@@ -295,7 +315,7 @@ export function createRoom(id, host) {
       if (msg.t === 'handoff') return patch(conn, { handoff: true });
       if (!conn.state.token) return hello(conn, msg);
       try {
-        update((m, now) => m.handle(conn.state.token, msg, now));
+        update((m, now) => m.handle(conn.state.token, msg, now), conn);
       } catch (err) {
         if (err instanceof MoveError) send(conn, { t: 'error', message: err.message });
         else log(err);
@@ -355,6 +375,7 @@ export function createRoom(id, host) {
       for (const [token, until] of Object.entries(rec.away)) {
         if (until > now) continue;
         delete rec.away[token];
+        delete rec.joined[token];
         left = dirty = true;
       }
       if (left) presenceChanged();

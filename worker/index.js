@@ -3,6 +3,7 @@
 import { MATCH_ID, matchIdFrom } from '../server/room.js';
 import { createAdmin } from '../server/admin.js';
 import { createMetered } from '../server/metered.js';
+import { COUNTRY_HEADER, countryOf } from '../server/analytics.js';
 
 export { MatchServer } from './match-server.js';
 export { StatsServer } from './stats-server.js';
@@ -42,7 +43,10 @@ export default {
     if (url.pathname === '/api/ws' || url.pathname.startsWith('/ws/')) {
       const id = matchIdFrom(request.url);
       if (!id || request.headers.get('upgrade')?.toLowerCase() !== 'websocket') return new Response('Bad request', { status: 400 });
-      return env.MATCHES.getByName(id).fetch(request);
+      // Where Cloudflare saw the player, for analytics. Set (or cleared) here, so a client can't.
+      const headers = new Headers(request.headers);
+      headers.set(COUNTRY_HEADER, countryOf(request.cf?.country) ?? '');
+      return env.MATCHES.getByName(id).fetch(new Request(request, { headers }));
     }
 
     if (url.pathname === '/api/admin') {

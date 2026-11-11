@@ -4,6 +4,7 @@
 // an idle table costs no duration, and it wakes from the saved record.
 import { Server } from 'partyserver';
 import { createRoom } from '../server/room.js';
+import { COUNTRY_HEADER, countryOf } from '../server/analytics.js';
 
 const SWEEP_MS = 60_000; // how often to look for sockets that went quiet
 const QUIET_MS = 75_000; // no ping or message for this long: the phone is gone (the client pings every 10 s)
@@ -43,8 +44,8 @@ export class MatchServer extends Server {
     });
   }
 
-  onConnect(conn) {
-    this.room.connect(conn);
+  onConnect(conn, { request }) {
+    this.room.connect(conn, countryOf(request.headers.get(COUNTRY_HEADER)));
     conn.setState({ ...conn.state, seen: Date.now() });
   }
 

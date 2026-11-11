@@ -173,6 +173,7 @@ server/
   admin.js         Password check and the report behind the admin page
   cloudflare.js    This month's Cloudflare usage and estimated bill, from its GraphQL Analytics API
   metered.js       TURN usage from Metered's API
+  analytics.js     Match-level events for PostHog (off without POSTHOG_KEY): what each change to a match did, and the player's country
   match.js         A match as serializable state: game, table style, seats, lobby, reactions, per-player views
   dev/
     config.js      Testing knobs (DEV_TOOLS, TIME_SCALE, SEED), seeded and rigged random numbers
@@ -372,12 +373,31 @@ To run the real Worker, Durable Objects and all, on your machine: `npm run dev:w
 | `METERED_APP`, `METERED_SECRET_KEY` | unset | Metered app name (`<app>.metered.live`) and secret key. When set, `/admin` shows the TURN usage Metered reports for the billing cycle. |
 | `CF_ACCOUNT_ID`, `CF_API_TOKEN` | unset | Cloudflare account id and an API token with **Account Analytics: Read**. When set, `/admin` shows Cloudflare's usage, limits and estimated bill. If the token also has **Workers Scripts: Read**, it shows deployments and class names too. |
 | `CF_PLAN` | `free` | The plan whose limits `/admin` watches: `free` or `paid`. Set in `wrangler.jsonc`. |
+| `POSTHOG_KEY`, `POSTHOG_HOST` | unset, `https://us.i.posthog.com` | PostHog project key (`phc_…`). When set, the matches report [analytics events](#analytics); use `https://eu.i.posthog.com` for an EU project. Set it with `wrangler secret put`, not in `wrangler.jsonc`, so `wrangler dev` sends nothing. |
 | `DEV_TOOLS` | unset | `1` turns on [`/api/dev`](#testing-tools) on the local server. The Worker never mounts it. |
 | `TIME_SCALE` | `1` | Multiplies every wait the server schedules: bot moves, forced passes, closing a cochina grab, the slow-player mocking. `0.1` makes bots ten times faster (the client's animations don't speed up). Ignored in the Worker. |
 | `SEED` | unset | Deals, dice and bot choices follow this seed, so the same moves in a match with the same id replay the same game. Ignored in the Worker. |
 | `DEPLOYED` | unset | `1` turns the three knobs above off, for a Node server that strangers can reach. |
 
 Health check: `GET /healthz` → `ok` (local server).
+
+### Analytics
+
+With `POSTHOG_KEY` set, each match's room sends [PostHog](https://posthog.com) events from `server/analytics.js`. It sends nothing otherwise, so local dev, tests and sims stay silent, and the browser loads no tracker. Events are about matches, not people: no names, photos, tokens, IP addresses or moves. A player is only their 12-character `publicId`, and PostHog is told not to look up an address. Where a player is comes from Cloudflare (`request.cf.country`, which the Worker passes to the match in its own header) and is kept as a country code (`country`); the local server knows none.
+
+| Event | When | Properties besides `match` and `country` |
+| --- | --- | --- |
+| `match_created` | a match's first player joins | `game` |
+| `player_joined` | a player or spectator connects, once per visit: a reload within the 20-second grace doesn't count again | `game`, `phase`, `role` |
+| `game_switched` | the lobby picks another game | `from`, `to` |
+| `match_started` | the first round is dealt (also a rematch) | `game`, `humans`, `bots`, `target`, `variant`, `theme`, `team_named`, `countries` |
+| `round_finished` | a round ends | `game`, `humans`, `bots`, `round`, `scores` |
+| `match_finished` | a team reaches the target | `game`, `humans`, `bots`, `rounds`, `scores`, `winner_team`, `duration_s` |
+| `match_abandoned` | someone returns to the lobby mid-game | `game`, `humans`, `bots`, `round`, `scores` |
+| `bot_takeover` | a bot replaces a player who left | `game`, `humans`, `bots`, `phase` |
+| `voice_joined` | someone joins the voice chat | none |
+
+`distinct_id` is the match id for match events and the player's `publicId` for `player_joined` and `voice_joined`; neither creates a person profile.
 
 ### Tests
 
@@ -447,7 +467,7 @@ It runs on the free plan. Its tightest limit is 100,000 SQLite rows written a da
 ### Steps
 
 1. **Sign in:** `npx wrangler login` (or set `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`).
-2. **Set the secrets** with `npx wrangler secret put <NAME>`: `ADMIN_PASSWORD`, `ICE_SERVERS` (the TURN servers, as JSON), and optionally `METERED_APP`, `METERED_SECRET_KEY`, `CF_ACCOUNT_ID` and `CF_API_TOKEN` (see [Running locally](#running-locally)).
+2. **Set the secrets** with `npx wrangler secret put <NAME>`: `ADMIN_PASSWORD`, `ICE_SERVERS` (the TURN servers, as JSON), and optionally `METERED_APP`, `METERED_SECRET_KEY`, `CF_ACCOUNT_ID`, `CF_API_TOKEN` and `POSTHOG_KEY` (see [Running locally](#running-locally)).
 3. **Deploy:** `npm run deploy`. The app is at `la-mesa.<your-subdomain>.workers.dev`.
 4. **A custom domain** has to be a zone on Cloudflare: add it under the Worker's *Settings → Domains & Routes*.
 
