@@ -1,6 +1,7 @@
 // The caída table: the loose cards, the dealer's count, cantos, and how a round reads.
 import { cardSVG, cardKey, parseKey } from './cards.js';
 import { canFly, FLIGHT_MS, isFlying, launch, whenLanded } from './flight.js';
+import { roundTable } from './deal.js';
 import * as sound from './sound.js';
 import * as i18n from './i18n.js';
 import { t } from './i18n.js';
@@ -280,6 +281,17 @@ export function createView(ctx) {
       const r = ctx.state.round;
       const sameRound = prev?.roundNo === ctx.state.roundNo;
       const la = r?.lastAction;
+      if (r && sameRound && r.deal && r.deal !== prev.round?.deal) {
+        // The first deal shuffles and lays the table before the hands; the next ones wait
+        // for the last card of the deal before to land and its capture to leave.
+        const first = r.deal === 1;
+        const thrown = la && la.n !== prev.round?.lastAction?.n && la.seat !== me();
+        const wait = first ? 0 : (thrown ? FLIGHT_MS : 0) + (la?.taken.length ? SWEEP_DELAY_MS + SWEEP_MS : 0) + 300;
+        const mine = [...$('hand').querySelectorAll('.hand-card')].map((el) => el.dataset.key);
+        const table = first ? r.table.map((card) => ({ key: cardKey(card) })) : [];
+        const drops = [...table, ...roundTable({ first: (r.dealer + 1) % 4, each: 3, me: me(), mine })];
+        ctx.deal.start({ mix: first ? 'cards' : null, drops, rest: first ? 24 : 6, wait });
+      }
       if (la && sameRound && la.n !== prev?.round?.lastAction?.n) {
         const landed = () => {
           if (sweep) startSweep(la.seat);

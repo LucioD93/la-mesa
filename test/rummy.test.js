@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as G from '../server/games/rummy.js';
-import { BOT_DELAY_MS } from '../server/games/common.js';
+import { BOT_DELAY_MS, DEAL_MS } from '../server/games/common.js';
 import { Match } from '../server/match.js';
 
 /** A round where seat 1 has drawn and is about to play, with the hands set by hand. */
@@ -177,7 +177,9 @@ test('a match with four bots runs to the end, paced like the other games', () =>
   const m = new Match('bots', { game: 'rummy' });
   m.handle('a', { t: 'addBots' }, new Set());
   m.startRound();
-  assert.equal(m.pendingAuto().delay, BOT_DELAY_MS);
+  assert.equal(m.pendingAuto().delay, BOT_DELAY_MS + DEAL_MS); // the deal shows first
+  m.runAuto(m.pendingAuto().key, seeded(1)); // drawn: the rest of the turn goes at its own pace
+  assert.equal(m.pendingAuto().delay, G.STEP_MS);
   let guard = 0;
   const rng = seeded(3);
   while (m.phase !== 'matchEnd') {

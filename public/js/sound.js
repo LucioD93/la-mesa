@@ -61,7 +61,11 @@ const sounds = {
   shuffle: () => {
     for (let ms = 0; ms < 1000; ms += 35 + Math.random() * 60) setTimeout(() => clack(0.06 + Math.random() * 0.1), ms);
   },
-  // A tile slid into your hand.
+  // A deck riffled: a quick flutter of cards.
+  riffle: () => {
+    for (let ms = 0; ms < 320; ms += 8 + Math.random() * 8) setTimeout(() => clack(0.03 + Math.random() * 0.05), ms);
+  },
+  // A tile or card landing in your hand.
   deal: () => clack(0.12),
   // A die rattling on the board.
   dice: () => [0, 90, 190, 320, 480].forEach((ms) => setTimeout(() => clack(0.18), ms)),

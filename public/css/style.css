@@ -551,12 +551,13 @@ body[data-game='domino'] .hand {
   40%, 80% { translate: 4px 0; }
 }
 
-/* ---- the deal ------------------------------------------------------------ */
-.deal-tile { position: fixed; left: 0; top: 0; z-index: 44; pointer-events: none; will-change: transform; }
-.board.dealing .board-empty { visibility: hidden; }
-.hand.dealing { pointer-events: none; }
-.hand-tile.undealt { visibility: hidden; }
-.hand-tile.dealt { animation: dealt 0.25s ease-out; }
+/* ---- the deal (deal.js) -------------------------------------------------- */
+/* .card comes later and sets position: relative. */
+.deal-piece, .card.deal-piece { position: fixed; left: 0; top: 0; z-index: 44; pointer-events: none; will-change: transform; }
+body.dealing .board-empty, body.dealing .actions { visibility: hidden; }
+body.dealing .hand { pointer-events: none; }
+.undealt { visibility: hidden !important; }
+.dealt { animation: dealt 0.25s ease-out; }
 @keyframes dealt { from { rotate: y 90deg; } }
 
 /* ---- tiles played by the others ------------------------------------------- */
@@ -1066,6 +1067,13 @@ body[data-game='truco'] .board { --cw: min(15.5vw, 11.5dvh, 92px); }
 .slot.p2 { transform: translateY(calc(var(--cw) * -0.85)); }
 .slot.p1 { transform: translateX(calc(var(--cw) * 1.05)) rotate(4deg); }
 .slot.p3 { transform: translateX(calc(var(--cw) * -1.05)) rotate(-4deg); }
+/* A seat's earlier cards stay under its newest, each one further out toward the player. */
+.slot { rotate: var(--tilt, 0deg); }
+.slot.p0 { translate: 0 calc(var(--i, 0) * var(--cw) * 0.2); }
+.slot.p2 { translate: 0 calc(var(--i, 0) * var(--cw) * -0.2); }
+.slot.p1 { translate: calc(var(--i, 0) * var(--cw) * 0.2) 0; }
+.slot.p3 { translate: calc(var(--i, 0) * var(--cw) * -0.2) 0; }
+.slot.past .card { filter: brightness(0.82); }
 .slot.fresh .card { animation: card-drop 0.3s cubic-bezier(0.2, 1.4, 0.4, 1); }
 .slot.won { z-index: 2; }
 .slot.won .card { box-shadow: 0 0 0 3px var(--team), 0 0 18px var(--team); }

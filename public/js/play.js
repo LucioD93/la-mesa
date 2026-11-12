@@ -11,6 +11,7 @@ import { RULES } from './rules.js';
 import { GAMES, gameIcon } from './games.js';
 import { REACTION_TABS, REACTIONS, IMAGES, FIRST_RECENT } from './reactions.js';
 import { reduceMotion, whenLanded } from './flight.js';
+import { createDeal } from './deal.js';
 import * as fx from './fx.js';
 import * as sound from './sound.js';
 import * as i18n from './i18n.js';
@@ -291,6 +292,7 @@ function useGame(id) {
   const next = views[id] ?? views.domino;
   if (next === view) return;
   cancelDrag();
+  ctx.deal.stop();
   view?.unmount();
   view = next;
   handOrder = [];
@@ -317,6 +319,7 @@ function render(next) {
   paintVoice();
   view.renderBoard(prev);
   renderHand();
+  ctx.deal.mark();
   renderStatus();
   renderResult(prev);
   renderScoreSheet();
@@ -1325,12 +1328,15 @@ const ctx = {
   redraw() {
     view.renderBoard(state);
     renderHand();
+    ctx.deal.mark();
   },
   sortHand(compare) {
     handOrder.sort(compare);
     renderHand();
+    ctx.deal.mark();
   },
 };
+ctx.deal = createDeal(ctx);
 const views = {
   domino: createDominoView(ctx),
   truco: createTrucoView(ctx),

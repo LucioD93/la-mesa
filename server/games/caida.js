@@ -5,6 +5,8 @@
 
 import {
   BOT_DELAY_MS,
+  DEAL_MS,
+  REDEAL_MS,
   MoveError,
   PLAY_PHRASE_CHANCE,
   SEATS,
@@ -18,7 +20,7 @@ import { HAND_SIZE, NUMBERS, fullDeck, sameCard } from './truco.js';
 
 export const DEALS = 3;
 export const TABLE_CARDS = 4;
-export const DEAL_PAUSE_MS = 1400; // extra time to see the table or a new hand before the first card
+export const DEAL_PAUSE_MS = 600; // extra time to see the table and a new hand once dealt
 export const CAPTURE_PAUSE_MS = 900; // extra time to watch a capture leave the table
 
 // The house rules that vary most from table to table.
@@ -288,7 +290,7 @@ export const game = {
     const newDeal = r.deal && r.hands.every((h) => h.length === HAND_SIZE) && !r.sung.length;
     const captured = r.lastAction?.n === r.seq && r.lastAction.taken.length;
     return {
-      delay: BOT_DELAY_MS + (newDeal ? DEAL_PAUSE_MS : 0) + (captured ? CAPTURE_PAUSE_MS : 0),
+      delay: BOT_DELAY_MS + (newDeal ? DEAL_PAUSE_MS + (r.deal === 1 ? DEAL_MS : REDEAL_MS) : 0) + (captured ? CAPTURE_PAUSE_MS : 0),
       key: `${match.roundNo}:${r.seq}`,
     };
   },
