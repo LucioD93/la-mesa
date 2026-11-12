@@ -1,9 +1,10 @@
 // Read-only JSON for the admin page (/api/admin), behind one shared password
 // (ADMIN_PASSWORD). The page sends it as `Authorization: Bearer <password>`.
+// The Node server and the Worker each turn their requests into `admin({ method, authorization, address })`.
 import { createHash, timingSafeEqual } from 'node:crypto';
-import { iceServers } from './hub.js';
+import { createCloudflareUsage } from './cloudflare.js';
 import { createMetered } from './metered.js';
-import { usageDay } from './usage.js';
+import { iceServers, usageDay } from './room.js';
 
 const HISTORY_DAYS = 30;
 const MAX_FAILS = 10; // wrong passwords per address before it is locked out
@@ -15,12 +16,6 @@ export function passwordMatches(given, expected) {
   return timingSafeEqual(digest(String(given)), digest(String(expected)));
 }
 
-/** Vercel sets x-forwarded-for itself; elsewhere the header could be spoofed. */
-function clientAddress(req) {
-  const forwarded = process.env.VERCEL && String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
-  return forwarded || req.socket?.remoteAddress || 'unknown';
-}
-
 /** Hostnames of the TURN servers in use; never their credentials. */
 export function turnHosts(servers = iceServers()) {
   const urls = servers.flatMap((s) => s?.urls ?? []);
@@ -30,54 +25,54 @@ export function turnHosts(servers = iceServers()) {
   return [...new Set(hosts)];
 }
 
-export async function adminReport(store, metered, now = Date.now()) {
+/**
+ * @param {object} deps
+ * @param {object} deps.stats      a Stats, or a stub whose methods return promises (the Worker's)
+ * @param {string} deps.storage    where matches live: 'memory' or 'durable-objects'
+ */
+export async function adminReport({ stats, storage, metered, cloudflare }, now = Date.now()) {
   const dayList = Array.from({ length: HISTORY_DAYS }, (_, i) => usageDay(now - i * 86_400_000)).reverse();
-  const [usage, live, storeInfo, turnUsage] = await Promise.all([
-    store.readUsage(dayList),
-    store.liveOverview(now),
-    store.info().catch((err) => ({ type: store.constructor.name, ok: false, error: err.message })),
-    metered.usage(now),
-  ]);
+  const started = performance.now();
+  const statsInfo = Promise.all([stats.readUsage(dayList), stats.overview(now)]).then(
+    ([usage, live]) => ({ usage, live, info: { type: storage, ok: true, latencyMs: Math.round(performance.now() - started) } }),
+  );
+  const [{ usage, live, info }, turnUsage, cloudflareUsage] = await Promise.all([statsInfo, metered.usage(now), cloudflare.usage(now)]);
   return {
     now,
     days: dayList.map((day) => ({ day, ...usage.days[day] })),
     total: usage.total,
     live,
     metered: turnUsage,
+    cloudflare: cloudflareUsage,
     services: {
-      store: storeInfo,
+      store: info,
       turn: { hosts: turnHosts() },
+      metered: !!(process.env.METERED_APP && process.env.METERED_SECRET_KEY),
+      cloudflare: !!(process.env.CF_ACCOUNT_ID && process.env.CF_API_TOKEN),
     },
   };
 }
 
-function json(res, status, body) {
-  res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-  res.end(JSON.stringify(body));
-}
-
-/** @param {Promise<object>} storeReady */
-export function createAdminHandler(storeReady) {
-  const metered = createMetered();
-  return async function adminHandler(req, res) {
+export function createAdmin({ stats, storage, metered = createMetered(), cloudflare = createCloudflareUsage() }) {
+  /** @returns {Promise<{ status: number, body: object }>} */
+  return async function admin({ method, authorization, address }) {
     try {
-      if (req.method !== 'GET') return json(res, 405, { error: 'method' });
+      if (method !== 'GET') return { status: 405, body: { error: 'method' } };
       const expected = process.env.ADMIN_PASSWORD;
-      if (!expected) return json(res, 503, { error: 'unconfigured' });
+      if (!expected) return { status: 503, body: { error: 'unconfigured' } };
 
-      const store = await storeReady;
-      const failKey = clientAddress(req);
-      if ((await store.failedLogins(failKey)) >= MAX_FAILS) return json(res, 429, { error: 'locked' });
+      const failKey = address || 'unknown';
+      if ((await stats.failedLogins(failKey)) >= MAX_FAILS) return { status: 429, body: { error: 'locked' } };
 
-      const given = String(req.headers.authorization || '').replace(/^Bearer /, '');
+      const given = String(authorization || '').replace(/^Bearer /, '');
       if (!passwordMatches(given, expected)) {
-        await store.addFailedLogin(failKey, FAIL_WINDOW_S);
-        return json(res, 401, { error: 'password' });
+        await stats.addFailedLogin(failKey, FAIL_WINDOW_S);
+        return { status: 401, body: { error: 'password' } };
       }
-      json(res, 200, await adminReport(store, metered));
+      return { status: 200, body: await adminReport({ stats, storage, metered, cloudflare }) };
     } catch (err) {
       console.error('[admin]', err);
-      json(res, 500, { error: 'server' });
+      return { status: 500, body: { error: 'server' } };
     }
   };
 }

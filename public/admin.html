@@ -35,6 +35,36 @@
         </div>
       </section>
 
+      <section id="cloudflare" hidden>
+        <h2>Cloudflare</h2>
+        <p id="cloudflareError" class="admin-chart admin-error" role="alert" hidden></p>
+        <div id="cloudflareUsage">
+          <div class="admin-chart">
+            <div class="admin-quota"><b id="cloudflareHeadline"></b><span id="cloudflareDetail" class="muted"></span></div>
+            <p id="cloudflareNote" class="muted admin-note"></p>
+          </div>
+          <ul id="cloudflareAlerts" class="admin-alerts"></ul>
+          <div id="cloudflareLimitsBlock">
+            <h2 class="admin-sub">Today against the free limits (UTC)</h2>
+            <div class="admin-table-wrap">
+              <table class="admin-table">
+                <thead><tr><th></th><th>Used</th><th>Limit</th><th>Share</th><th>At this pace</th></tr></thead>
+                <tbody id="cloudflareLimits"></tbody>
+              </table>
+            </div>
+          </div>
+          <h2 id="cloudflareBillTitle" class="admin-sub"></h2>
+          <div class="admin-table-wrap">
+            <table class="admin-table">
+              <thead><tr><th></th><th>Used</th><th>Included</th><th>Cost</th><th>At this pace</th></tr></thead>
+              <tbody id="cloudflareLines"></tbody>
+            </table>
+          </div>
+          <div id="cloudflarePanels" class="admin-panels"></div>
+          <p id="cloudflareFootnote" class="muted admin-note"></p>
+        </div>
+      </section>
+
       <section id="metered" hidden>
         <h2>TURN relay this billing cycle, from Metered</h2>
         <div class="admin-chart">
@@ -56,6 +86,14 @@
             <tbody id="periods"></tbody>
           </table>
         </div>
+        <h2 class="admin-sub">Activity by day</h2>
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead id="daysHead"></thead>
+            <tbody id="days"></tbody>
+          </table>
+        </div>
+        <p id="daysEmpty" class="muted admin-note" hidden>Nothing recorded in the last 30 days.</p>
       </section>
 
       <section>

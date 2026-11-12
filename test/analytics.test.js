@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import WebSocket from 'ws';
 import { createApp } from '../server/app.js';
-import { MemoryStore } from '../server/store.js';
 import { Match } from '../server/match.js';
 import { createAnalytics, countryOf, glance, transitions } from '../server/analytics.js';
+import { LEAVE_GRACE_MS, createRoom } from '../server/room.js';
+import { GAME_IDS } from '../server/games/index.js';
 
 // What leaves the server for PostHog: match-level events, never names or tokens.
 
@@ -98,19 +99,77 @@ test('an event carries the country but asks PostHog not to look up an address', 
   assert.equal(properties.$process_person_profile, false);
 });
 
-test('the country header counts only where the platform sets it', () => {
-  const req = { headers: { 'x-vercel-ip-country': 've' } };
-  const was = process.env.VERCEL;
-  try {
-    delete process.env.VERCEL;
-    assert.equal(countryOf(req), null);
-    process.env.VERCEL = '1';
-    assert.equal(countryOf(req), 'VE');
-    assert.equal(countryOf({ headers: { 'x-vercel-ip-country': '<script>' } }), null);
-  } finally {
-    if (was === undefined) delete process.env.VERCEL;
-    else process.env.VERCEL = was;
-  }
+test('a country is a two-letter code, or nothing', () => {
+  assert.equal(countryOf('ve'), 'VE');
+  assert.equal(countryOf('XX'), null, "Cloudflare's unknown");
+  assert.equal(countryOf('T1'), null, 'Tor');
+  assert.equal(countryOf('<script>'), null);
+  assert.equal(countryOf(undefined), null);
+});
+
+/** A room with the host's parts it needs, reporting to `sent`. */
+function analyticsRoom(sent) {
+  const analytics = createAnalytics({
+    key: 'phc_test',
+    fetch: async (_url, init) => (sent.push(JSON.parse(init.body)), { ok: true }),
+  });
+  const conns = new Map();
+  let saved;
+  const room = createRoom('stats-2', {
+    load: () => structuredClone(saved),
+    save: (record) => (saved = structuredClone(record)),
+    forget: () => (saved = undefined),
+    connections: () => conns.values(),
+    wakeAt: () => {},
+    report: () => {},
+    analytics,
+  });
+  let last = 0;
+  const socket = (country) => {
+    const conn = { id: String(++last), state: null, setState: (s) => (conn.state = s), send: () => {} };
+    conns.set(conn.id, conn);
+    room.connect(conn, country);
+    return {
+      say: (msg) => room.message(conn, JSON.stringify(msg)),
+      leave: () => (conns.delete(conn.id), room.close(conn)),
+    };
+  };
+  return { room, socket };
+}
+
+test('events carry the country the host saw, and a player joins once per visit', (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: 1_000_000 });
+  const sent = [];
+  const { room, socket } = analyticsRoom(sent);
+  const hello = { t: 'hello', token: 'secret-token-2', name: 'Lucio', games: GAME_IDS };
+  const a = socket('VE');
+  a.say(hello);
+  const b = socket('AR');
+  b.say({ ...hello, token: 'secret-token-3', name: 'Ana' });
+  a.say({ t: 'voice', data: { kind: 'join' } });
+
+  // A reload: a new socket before the old one's grace runs out.
+  a.leave();
+  const again = socket('VE');
+  again.say(hello);
+  const joins = () => sent.filter((e) => e.event === 'player_joined');
+  assert.equal(joins().length, 2, 'a reload is the same visit');
+
+  // Gone for good, then back later.
+  again.leave();
+  t.mock.timers.tick(LEAVE_GRACE_MS + 1000);
+  room.wake();
+  socket('VE').say(hello);
+  assert.equal(joins().length, 3, 'coming back is a new visit');
+
+  const created = sent.find((e) => e.event === 'match_created');
+  assert.equal(created.properties.country, 'VE');
+  assert.deepEqual(created.properties.countries, ['VE'], 'only the first player was here yet');
+  assert.equal(joins()[1].properties.country, 'AR');
+  assert.equal(sent.find((e) => e.event === 'voice_joined').properties.country, 'VE');
+  const everything = JSON.stringify(sent);
+  assert.ok(!everything.includes('secret-token'), 'tokens stay secret');
+  assert.ok(!everything.includes('Lucio') && !everything.includes('Ana'), 'names stay home');
 });
 
 test('a player starting a match with bots over a socket is reported with no names or tokens', async (t) => {
@@ -119,20 +178,12 @@ test('a player starting a match with bots over a socket is reported with no name
     key: 'phc_test',
     fetch: async (_url, init) => (sent.push(JSON.parse(init.body)), { ok: true }),
   });
-  const was = process.env.VERCEL;
-  process.env.VERCEL = '1';
-  const { server } = createApp({ store: new MemoryStore(), analytics });
+  const { server } = createApp({ analytics });
   server.listen(0);
   await once(server, 'listening');
-  t.after(() => {
-    server.close();
-    if (was === undefined) delete process.env.VERCEL;
-    else process.env.VERCEL = was;
-  });
+  t.after(() => server.close());
 
-  const ws = new WebSocket(`ws://127.0.0.1:${server.address().port}/api/ws?match=stats-1`, {
-    headers: { 'x-vercel-ip-country': 'VE' },
-  });
+  const ws = new WebSocket(`ws://127.0.0.1:${server.address().port}/api/ws?match=stats-1`);
   await once(ws, 'open');
   const states = [];
   ws.on('message', (raw) => states.push(JSON.parse(raw)));
@@ -143,7 +194,7 @@ test('a player starting a match with bots over a socket is reported with no name
     }
     assert.fail('timed out');
   };
-  ws.send(JSON.stringify({ t: 'hello', token: 'secret-token-1', name: 'Lucio' }));
+  ws.send(JSON.stringify({ t: 'hello', token: 'secret-token-1', name: 'Lucio', games: GAME_IDS }));
   await waitFor((m) => m.t === 'state');
   ws.send(JSON.stringify({ t: 'addBots' }));
   await waitFor((m) => m.t === 'state' && m.seats.every(Boolean));
@@ -155,8 +206,7 @@ test('a player starting a match with bots over a socket is reported with no name
   assert.deepEqual(Object.keys(byName).sort(), ['match_created', 'match_started', 'player_joined']);
   assert.equal(byName.match_started.properties.humans, 1);
   assert.equal(byName.match_started.properties.bots, 3);
-  assert.deepEqual(byName.match_started.properties.countries, ['VE']);
-  assert.equal(byName.player_joined.properties.country, 'VE');
+  assert.equal(byName.player_joined.properties.country, undefined, 'the local server knows no country');
   const everything = JSON.stringify(sent);
   assert.ok(!everything.includes('secret-token-1'), 'the token stays secret');
   assert.ok(!everything.includes('Lucio'), 'names stay home');

@@ -16,7 +16,7 @@ Created in [T3 Code](https://t3.codes).
 - **Shareable matches.** A match lives at `/play/<id>`. *Invite friends*, in the lobby and the ⋯ menu, uses the native share sheet when the browser has one (and copies the link when it doesn't), and links unfurl with a preview image in WhatsApp and other chat apps. The preview is the same for every game: chat apps only see the static page, and the game can still change until the match starts. The share sheet's text names the current game.
 - **Bots.** Fill empty seats from the lobby with Venezuelan memes, drawn at random each time. Mid-game, a spectator can take over a bot's seat and hand, and a player who disconnected can be replaced by a bot so the game keeps going. Bots only see their own tiles or cards and the table.
 - **Spectators.** Anyone who opens the link after the seats are taken watches the game.
-- **Reconnects.** Reloading or briefly losing the connection puts you back in your seat with your hand. Sockets are replaced before the host's time limit ends them, so games and voice calls carry on without a drop. The client notices dead connections within seconds, reconnects with backoff, and retries right away when the network or the tab comes back. If you were swapped for a bot while away, rejoining gives you your seat back.
+- **Reconnects.** Reloading or briefly losing the connection puts you back in your seat with your hand. A match's sockets stay open as long as the players do, and the client notices dead connections within seconds, reconnects with backoff, and retries right away when the network or the tab comes back. If you were swapped for a bot while away, rejoining gives you your seat back.
 - **Voice chat.** Everyone in a match (players and spectators) can join the room's voice chat with the mic button, from the lobby or the table, mute themselves, or hang up. Audio goes peer to peer over WebRTC; the server only relays the connection setup. Seated players in voice get a mic badge on their avatar. While they talk, a green halo breathes around it (outside the turn ring, so it shows on their turn too), the badge shows sound bars, and their name turns green. Without a microphone (blocked, missing, or a plain-`http` LAN page) you join as a listener. When others are in voice and you aren't, whether you arrive to find it on or someone starts it while you're there, in the lobby or at the table, a dialog shows who is in it and offers to join. *Not now* (or hanging up) holds until voice has been empty for 15 seconds. Everyone sees the mic badge on seated players in voice, even from outside it.
 - **Reactions and sound.** Reactions thrown at the table from a picker with tabs: what you sent last, faces, hands, the table, and memes (El Manguangua's face, with his catchphrase). The list is `public/js/reactions.js` (a picture reaction is an id and an image), and `REACTIONS` in `server/match.js` accepts the same ids. There are sound effects and a pass animation too. When players send the same emoji within 3 seconds, a big one pops over the table. A player who takes more than a minute over a move gets mocked by everyone else at once, silently, with a reaction picked at random (🐢 🐌 🦥 😴 🥱 💤 ⏳ or El Manguangua).
 - **Your hand, your order.** Drag a tile or card to a new slot in your hand at any point. In rummy, a drawn card joins the end of your hand without undoing your order, and a button sorts by suit or by rank.
@@ -26,7 +26,7 @@ Created in [T3 Code](https://t3.codes).
 - **Traditional suits.** The oros, copas, espadas and bastos use public-domain drawings of the Spanish deck by [Florixc on Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Seme_denari_carte_spagnole.svg), lightly cleaned up in `public/suits/`.
 - **Phones and tablets.** The layout is a phone's, held upright. On tablets and big windows it's scaled up as a whole (1.2× to 1.6× with the screen), so the board, cards and hand grow with it, and sheets open as centered dialogs.
 - **Installable.** Ships a web app manifest, so it can be added to the home screen.
-- **Admin page.** `/admin`, behind one shared password, shows who is in voice, TURN usage as reported by Metered, voice joins, game socket traffic, and the state of Redis and TURN.
+- **Admin page.** `/admin`, behind one shared password, shows who is online and in voice, Cloudflare's numbers (today against the free plan's limits with warnings near them, or this month against Workers Paid's allowances; what the month would cost; requests, sockets, rows, storage, speed, memory and failures by day and by hour; the busiest objects; data centers; outgoing calls; static files; and, if the token allows, deployments), TURN usage as reported by Metered, every usage counter the matches keep (sockets, messages, data in and out, saves, timer wake-ups, voice joins) for today, 7 days, 30 days and all time and by day, and which services are set up.
 
 ### Domino rules
 
@@ -150,25 +150,28 @@ Rummy has many versions. This is a partnership game scored like Rummy 500, kept 
 | Layer    | Tech |
 | -------- | ---- |
 | Client   | Plain HTML, CSS and ES modules in `public/`, with no framework or build step. Tiles are drawn with DOM and CSS, cards are SVG built in the browser from the suit drawings, and sound uses the Web Audio API. |
-| Server   | Node.js (≥ 18, ESM) using `node:http` and [`ws`](https://github.com/websockets/ws) for WebSockets |
-| State    | In-memory store for local dev. [Redis](https://redis.io) (`redis` v5 client) when several instances need to share matches. |
-| Hosting  | [Vercel](https://vercel.com): static files from `public/` plus one Vercel Function (`api/ws.js`) that accepts WebSocket upgrades |
+| Server   | One room per match (`server/room.js`), plain JS that runs on either host below |
+| Hosting  | [Cloudflare Workers](https://developers.cloudflare.com/workers/): static assets from `public/`, and each match as a [Durable Object](https://developers.cloudflare.com/durable-objects/) through [PartyServer](https://github.com/cloudflare/partykit/tree/main/packages/partyserver), hibernating between messages, with its state in the object's SQLite storage |
+| Local    | Node.js (≥ 22, ESM) with `node:http` and [`ws`](https://github.com/websockets/ws), every match in memory. It runs the tests, the sim and the testing tools. `wrangler dev` runs the real Worker locally. |
 | Tests    | Built-in `node:test` runner |
 
-The project has two runtime dependencies, `ws` and `redis`.
+The project has two runtime dependencies, `partyserver` and `ws`, and uses `wrangler` to run and deploy the Worker.
 
 ## Project layout
 
 ```
-api/ws.js          Vercel Function: the WebSocket endpoint (/api/ws?match=<id>)
-api/admin.js       Vercel Function: admin data (/api/admin)
+worker/
+  index.js         The Worker: /api/ws to the match's Durable Object, /api/admin, /play/<id>, and the static assets
+  match-server.js  MatchServer: a match as a hibernating Durable Object (PartyServer), its room's storage and alarm
+  stats-server.js  StatsServer: usage counters and who's online across matches, one object named "global"
+wrangler.jsonc     The Worker's config: assets, Durable Object bindings and migrations
 server/
   index.js         Local entry point (HTTP + static files + WebSocket on one port)
-  app.js           Shared HTTP/WebSocket server: upgrade handling, heartbeats
-  hub.js           Connects sockets to matches, fans out state, schedules automatic moves, relays voice signaling and photos
-  store.js         MemoryStore (local) and RedisStore (shared): storage, presence, pub/sub
-  usage.js         Buffers usage counters and writes them in batches
+  app.js           The local server: static files, admin, dev tools, and a room per match kept in memory
+  room.js          A match's room: sockets, state views, bots and the slow-player clock, presence, voice and photo relay, usage
+  stats.js         Usage counters and who's online, over a small key-value store
   admin.js         Password check and the report behind the admin page
+  cloudflare.js    This month's Cloudflare usage and estimated bill, from its GraphQL Analytics API
   metered.js       TURN usage from Metered's API
   analytics.js     Match-level events for PostHog (off without POSTHOG_KEY): what each change to a match did, and the player's country
   match.js         A match as serializable state: game, table style, seats, lobby, reactions, per-player views
@@ -217,8 +220,7 @@ public/
   css/style.css    Styles, then each table style's overrides at the end
   fonts/           Patrick Hand (pencil), Orbitron and Chakra Petch (neon), Creepster (halloween), Mountains of Christmas (christmas)
 scripts/sim.js     Plays whole matches over WebSockets with headless players
-test/              Rules of every game, match, board layout, game and style choice, voice relay, admin and dev tools tests
-vercel.json        Rewrites /play/:id → /play.html and /admin → /admin.html
+test/              Rules of every game, match, rooms, board layout, game and style choice, voice relay, admin and dev tools tests
 ```
 
 ## Architecture
@@ -229,7 +231,7 @@ A match's `game` field picks its rules. `Match` handles what is common (seats, b
 
 On the client, `play.js` keeps one view per game (`domino.js`, `truco.js`, `caida.js`, `parchis.js`, `cochina.js`, `rummy.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
 
-The `domino:` prefix on Redis keys and the `domino.*` browser storage keys predate truco and cover every game. Renaming them would lose live matches, the usage counters, and players' names, seats and photos. Matches saved without a `game` load as dominoes.
+The `domino.*` browser storage keys predate truco and cover every game. Renaming them would lose players' names, seats and photos. Matches saved without a `game` load as dominoes.
 
 ### Connection diagram
 
@@ -241,30 +243,29 @@ flowchart LR
     C[Player C / spectator]
   end
 
-  subgraph Vercel
-    CDN[Static assets<br/>public/]
-    F1[Function instance 1<br/>api/ws.js]
-    F2[Function instance 2<br/>api/ws.js]
+  subgraph Cloudflare
+    W[Worker<br/>worker/index.js]
+    AS[Static assets<br/>public/]
+    M1[(MatchServer arepa<br/>room · SQLite · alarm)]
+    M2[(MatchServer cachapa)]
+    S[(StatsServer global)]
   end
 
-  R[(Redis<br/>match state · version<br/>presence · pub/sub)]
-
-  A -- HTTPS GET /play/:id --> CDN
-  A <-- "WSS /api/ws?match=id" --> F1
-  B <-- WSS --> F1
-  C <-- WSS --> F2
-
-  F1 <-- "GET / CAS write / PUBLISH" --> R
-  F2 <-- "GET / CAS write / PUBLISH" --> R
-  R -. "SUBSCRIBE domino:{id}:ch" .-> F1
-  R -. SUBSCRIBE .-> F2
+  A -- "HTTPS /play/:id" --> W
+  W --> AS
+  A <-- "WSS /api/ws?match=arepa" --> M1
+  B <-- WSS --> M1
+  C <-- "WSS ?match=cachapa" --> M2
+  M1 -. "report (RPC)" .-> S
+  M2 -. report .-> S
+  W -- "/api/admin" --> S
 ```
 
-In local dev, a single Node process serves the static files and the WebSocket and keeps everything in memory, so Redis isn't needed:
+Every socket of a match ends up in the same Durable Object, named after the match id, so there is one copy of the match and it changes in memory, one message at a time. In local dev, a single Node process plays that part for every match, with the same room code:
 
 ```mermaid
 flowchart LR
-  P1[Phone / browser] <-- "HTTP + WS :3000" --> N[node server/index.js<br/>MemoryStore]
+  P1[Phone / browser] <-- "HTTP + WS :3000" --> N[node server/index.js<br/>a room per match, in memory]
   P2[Phone / browser] <-- "HTTP + WS :3000" --> N
 ```
 
@@ -273,34 +274,37 @@ flowchart LR
 ```mermaid
 sequenceDiagram
   participant C as Client
-  participant H as Hub (any instance)
-  participant S as Store (Redis)
-  participant O as Other instances
+  participant W as Worker
+  participant M as MatchServer (the match's room)
+  participant S as StatsServer
 
-  C->>H: {t: "hello", token, name}
-  H->>S: setPresence + update(join)
-  C->>H: {t: "play", tile, end} (or card, call, answer)
-  H->>S: load match + version
-  H->>H: Match.handle() applies rules
-  H->>S: compare-and-set write (retry if version changed)
-  S-->>H: PUBLISH new state
-  S-->>O: PUBLISH new state
-  H-->>C: {t: "state", ...} (personalized view)
-  O-->>O: send state to their own sockets
+  C->>W: GET /api/ws?match=id (upgrade)
+  W->>M: MATCHES.getByName(id).fetch()
+  C->>M: {t: "hello", token, name}
+  M->>M: Match.join(), save the record
+  M-->>C: {t: "state", ...} to every socket (personalized)
+  M-->>S: report: who's here, usage so far
+  C->>M: {t: "play", tile, end} (or card, call, answer)
+  M->>M: Match.handle() on a copy, kept if it changed
+  M->>M: save the record, set the alarm for the next bot move
+  M-->>C: {t: "state", ...} to every socket
+  Note over M: sleeps (hibernates) with its sockets open
+  M->>M: alarm: the bot plays, save, fan out, next alarm
 ```
 
 Key points:
 
-- **Instances hold no state.** Each server instance keeps only its own sockets. The match itself is a plain JSON object in the store, and any instance can load it, apply a change, and save it.
-- **Optimistic concurrency.** `RedisStore.update` writes with a Lua compare-and-set on a version key. If another instance saved first, it reloads and re-applies the change (up to 8 attempts).
-- **Fan-out.** Every saved change is published on `domino:{id}:ch`. Each instance subscribed to that match sends every connected player a personalized view (`Match.stateFor`), so you only see your own hand until the round ends.
-- **Bots and forced passes.** Every instance with players in the match schedules the automatic move, keyed by turn (`round:lineLength:seat:lastAction`). Only the first one to run gets applied, so duplicates are harmless.
-- **Presence.** Each connection refreshes a presence entry every 15 s (expires after 40 s). When a socket closes, the player keeps a 20 s grace period so a reload or a network blip doesn't show them as offline (or free their seat). Lobby seats held by players who have gone offline are freed.
-- **Heartbeats.** The server pings sockets every 25 s and drops ones that neither answered nor sent anything. The client sends an app-level `ping` every 10 s, plus one right after each action. If no reply arrives within 25 s (6 s after an action), it treats the socket as half-open, drops it and reconnects.
-- **Socket handover.** A Vercel Function, and every socket it holds, ends at its max duration (300 s by default). About 4 minutes into a socket's life (with jitter), the client opens a second socket and sends `hello` with the same `session`. When `voiceConfig` arrives on the new socket, the client switches to it, sends `handoff` on the old one and closes it. The server skips the voice `bye` and the presence grace period for a socket that sent `handoff`. If the old socket dies first, the client falls back to a normal reconnect.
-- **Voice chat.** A full mesh of WebRTC audio connections between everyone in voice. Signaling goes over the game socket and, between instances, through `domino:{id}:sig` (pub/sub only, nothing stored). Each client gets a public peer id, a hash of its token and `session`, so tokens never reach other clients. Every normal connect uses a new `session`; a handover reuses it, which keeps the id and leaves the audio connections untouched. A newcomer broadcasts `join`, members answer `hello`, and in each pair only the peer with the smaller id sends offers, so they never collide. When a socket closes the server broadcasts `bye`; after a reconnect the client re-joins with its new peer id. A client out of voice still follows who is in it: on connect it broadcasts `who`, everyone in voice answers `here` with their seat, name and mute state, and `join`, `meta`, `leave` and `bye` keep the list current.
-- **Usage tracking.** Audio never reaches the server, so TURN data comes only from Metered's usage API (cached for a minute). The hub tracks who is in voice from the signaling it relays, and counts voice joins and game socket traffic. Each instance writes its counters every 30 s and after its last socket closes.
-- **Expiry.** Redis keys expire after a day without activity. Daily usage counters last 100 days, and the all-time totals don't expire.
+- **One room per match.** `server/room.js` is the whole server side of a match: its sockets' state, the match, its timers, presence, and the relay for voice signaling and photos. The host gives it storage, its open sockets and one alarm. On Cloudflare that's the Durable Object (`worker/match-server.js`); locally, a `Map` and a `setTimeout` (`server/app.js`). The tests drive a room directly too.
+- **In memory, saved after each change.** A message is applied to a copy of the match, so an illegal move found halfway through changes nothing. If the rules say it changed, the room keeps it, bumps `v`, and saves one record: the match, the timers, who just left, and the usage counted so far. That's one SQLite row written.
+- **Hibernation.** Between messages the object sleeps with its sockets open and costs no duration. Each socket's own state (token, voice id, the games its page can draw) is kept on the socket (`connection.setState`, up to 2 KB), and the room is rebuilt from the saved record on the next message or alarm. The client's `ping` is answered by the runtime (`setWebSocketAutoResponse`) without waking the object.
+- **Fan-out.** Every change sends each socket its personalized view (`Match.stateFor`), so you only see your own hand until the round ends. The players in one seat, and all the spectators, share one view, built once.
+- **Bots and the slow-player clock.** The room keeps the bot move or forced pass that is due (`pendingAuto`, keyed by the moment) and the human the table waits on, with their times, in the record, and asks for an alarm at the earliest. Nothing runs while nobody is connected. Outside the alarm handler the alarm only ever moves earlier, and the handler sets the next one once per run: an alarm moved later while the handler's own change is in flight can be scheduled for the wrong time ([workerd#7330](https://github.com/cloudflare/workerd/issues/7330)).
+- **Presence.** Who's online is whoever has an open socket. When a player's last socket closes, they keep a 20 s grace period so a reload or a network blip doesn't show them as offline (or free their seat). Lobby seats held by players who have gone offline are freed when the grace ends.
+- **Heartbeats.** The client sends an app-level `ping` every 10 s, plus one right after each action. If no reply arrives within 25 s (6 s after an action), it treats the socket as half-open, drops it and reconnects. The Durable Object closes sockets that haven't pinged or sent anything for 75 s, checking every minute; the Node server pings its sockets every 25 s.
+- **Deploys.** Durable Objects pick up new code once they hibernate, or after at most 5 minutes, so most sockets stay connected through a deploy. A match that gets reset reconnects on its own and carries on from its saved record.
+- **Voice chat.** A full mesh of WebRTC audio connections between everyone in voice. Signaling goes over the game socket, and the room relays it to the match's other sockets; nothing is stored. Each client gets a public peer id, a hash of its token and `session`, so tokens never reach other clients. Every connect uses a new `session`. A newcomer broadcasts `join`, members answer `hello`, and in each pair only the peer with the smaller id sends offers, so they never collide. When a socket closes the room broadcasts `bye`; after a reconnect the client re-joins with its new peer id. A client out of voice still follows who is in it: on connect it broadcasts `who`, everyone in voice answers `here` with their seat, name and mute state, and `join`, `meta`, `leave` and `bye` keep the list current.
+- **Usage tracking.** Audio never reaches the server, so TURN data comes only from Metered's usage API (cached for a minute). Each room counts sockets, messages, data in and out, saves, alarm wake-ups and voice joins, and reports them to the stats with who's online and in voice: when those change, at least every minute while it has people, and when the last one leaves. Cloudflare's own numbers come from its GraphQL Analytics API (cached for five minutes).
+- **Expiry.** A match nobody has opened for a day is deleted. A match that stops reporting drops out of "online" after 15 minutes. Daily usage counters last 100 days, and the all-time totals don't expire.
 
 ### WebSocket protocol
 
@@ -309,7 +313,7 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | Client → server | Payload | When |
 | --- | --- | --- |
 | `hello` | `token`, `name`, `session?`, `inVoice?`, `games?`, `game?`, `theme?` | First message. Joins the match and takes a free seat if in the lobby. `session` determines the voice peer id. `inVoice` says a handover or reconnect is already in voice. `games` lists the games this page can draw. A tab from an older deploy sends `true` (domino and truco) or nothing (domino), and is asked to reload instead of receiving a state it can't draw. `game` picks the game if the match is brand new, from a `?game=` link. `theme` does the same for the table style, from the last one this device saw. |
-| `handoff` | | The client is moving to another socket and is about to close this one |
+| `handoff` | | The client is moving to another socket and is about to close this one. Only tabs from before the move to Cloudflare send it; the room still honors it. |
 | `rename` | `name` | Any time |
 | `teamName` | `name` (up to 16 characters; empty clears it) | Seated players, for their own team, any time. The name stays with the team when players change seats. |
 | `sit` / `stand` | `seat` | Lobby. `sit` also lets a spectator take over a bot mid-game. |
@@ -359,28 +363,32 @@ npm start
 
 Open http://localhost:3000. On startup the server also prints a LAN address so phones on the same Wi-Fi can join.
 
+To run the real Worker, Durable Objects and all, on your machine: `npm run dev:worker` (`wrangler dev`, on http://localhost:8787). Put its secrets in `.dev.vars` (`ADMIN_PASSWORD=…`, one per line). The testing knobs below don't work there.
+
 | Env var | Default | Purpose |
 | --- | --- | --- |
 | `PORT` | `3000` | HTTP/WebSocket port (local server) |
-| `REDIS_URL` (or `KV_URL`) | unset | Use Redis instead of memory. Optional locally, required on Vercel. |
 | `ICE_SERVERS` | Google STUN | JSON array of [`RTCIceServer`](https://developer.mozilla.org/docs/Web/API/RTCIceServer)s for voice chat. Add a TURN server so voice works for players behind strict NATs (common on mobile data). |
 | `ADMIN_PASSWORD` | unset | Shared password for `/admin`. The admin data is refused until it's set. |
 | `METERED_APP`, `METERED_SECRET_KEY` | unset | Metered app name (`<app>.metered.live`) and secret key. When set, `/admin` shows the TURN usage Metered reports for the billing cycle. |
-| `POSTHOG_KEY`, `POSTHOG_HOST` | unset, `https://us.i.posthog.com` | PostHog project key (`phc_…`). When set, the server reports [analytics events](#analytics); use `https://eu.i.posthog.com` for an EU project. |
-| `DEV_TOOLS` | unset | `1` turns on [`/api/dev`](#testing-tools). Ignored on Vercel. |
-| `TIME_SCALE` | `1` | Multiplies every wait the server schedules: bot moves, forced passes, closing a cochina grab, the slow-player mocking. `0.1` makes bots ten times faster (the client's animations don't speed up). Ignored on Vercel. |
-| `SEED` | unset | Deals, dice and bot choices follow this seed, so the same moves in a match with the same id replay the same game. Ignored on Vercel. |
+| `CF_ACCOUNT_ID`, `CF_API_TOKEN` | unset | Cloudflare account id and an API token with **Account Analytics: Read**. When set, `/admin` shows Cloudflare's usage, limits and estimated bill. If the token also has **Workers Scripts: Read**, it shows deployments and class names too. |
+| `CF_PLAN` | `free` | The plan whose limits `/admin` watches: `free` or `paid`. Set in `wrangler.jsonc`. |
+| `POSTHOG_KEY`, `POSTHOG_HOST` | unset, `https://us.i.posthog.com` | PostHog project key (`phc_…`). When set, the matches report [analytics events](#analytics); use `https://eu.i.posthog.com` for an EU project. Set it with `wrangler secret put`, not in `wrangler.jsonc`, so `wrangler dev` sends nothing. |
+| `DEV_TOOLS` | unset | `1` turns on [`/api/dev`](#testing-tools) on the local server. The Worker never mounts it. |
+| `TIME_SCALE` | `1` | Multiplies every wait the server schedules: bot moves, forced passes, closing a cochina grab, the slow-player mocking. `0.1` makes bots ten times faster (the client's animations don't speed up). Ignored in the Worker. |
+| `SEED` | unset | Deals, dice and bot choices follow this seed, so the same moves in a match with the same id replay the same game. Ignored in the Worker. |
+| `DEPLOYED` | unset | `1` turns the three knobs above off, for a Node server that strangers can reach. |
 
 Health check: `GET /healthz` → `ok` (local server).
 
 ### Analytics
 
-With `POSTHOG_KEY` set, the server sends [PostHog](https://posthog.com) events from `server/analytics.js`. It sends nothing otherwise, so local dev, tests and sims stay silent, and the browser loads no tracker. Events are about matches, not people: no names, photos, tokens, IP addresses or moves. A player is only their 12-character `publicId`, and PostHog is told not to look up an address. Where a player is comes from Vercel's `x-vercel-ip-country` header and is kept as a country code (`country`); other hosts don't set it.
+With `POSTHOG_KEY` set, each match's room sends [PostHog](https://posthog.com) events from `server/analytics.js`. It sends nothing otherwise, so local dev, tests and sims stay silent, and the browser loads no tracker. Events are about matches, not people: no names, photos, tokens, IP addresses or moves. A player is only their 12-character `publicId`, and PostHog is told not to look up an address. Where a player is comes from Cloudflare (`request.cf.country`, which the Worker passes to the match in its own header) and is kept as a country code (`country`); the local server knows none.
 
 | Event | When | Properties besides `match` and `country` |
 | --- | --- | --- |
 | `match_created` | a match's first player joins | `game` |
-| `player_joined` | a player or spectator connects, once per room per server instance | `game`, `phase`, `role` |
+| `player_joined` | a player or spectator connects, once per visit: a reload within the 20-second grace doesn't count again | `game`, `phase`, `role` |
 | `game_switched` | the lobby picks another game | `from`, `to` |
 | `match_started` | the first round is dealt (also a rematch) | `game`, `humans`, `bots`, `target`, `variant`, `theme`, `team_named`, `countries` |
 | `round_finished` | a round ends | `game`, `humans`, `bots`, `round`, `scores` |
@@ -399,9 +407,9 @@ npm test
 
 ### Testing tools
 
-Reaching a particular moment by playing to it takes a while, so there are tools to jump there. They're for your own machine: everything below is off unless you turn it on, and none of it works on Vercel.
+Reaching a particular moment by playing to it takes a while, so there are tools to jump there. They're for your own machine: everything below is off unless you turn it on, and none of it works in the Worker.
 
-**Changing a match while it's open.** Start the server with `npm run dev:tools` (`DEV_TOOLS=1`). Then `/api/dev` reads and rewrites any match. Changes go through the store like a move does, so every open tab redraws right away. Anyone who can reach the server can see every hand, phones on your Wi-Fi included.
+**Changing a match while it's open.** Start the server with `npm run dev:tools` (`DEV_TOOLS=1`). Then `/api/dev` reads and rewrites any match. Changes go through the match's room like a move does, so every open tab redraws right away. Anyone who can reach the server can see every hand, phones on your Wi-Fi included.
 
 | Route | Does |
 | --- | --- |
@@ -447,32 +455,27 @@ npm run sim -- domino --url http://localhost:3000 --match demo --pace 600   # wa
 
 ## Deployment
 
-The app is deployed on Vercel with no build step:
+The app is one Cloudflare Worker with no build step (`wrangler.jsonc`):
 
-- `public/` is served as static files.
-- `api/ws.js` is a Vercel Function (Node.js runtime, Fluid Compute) that accepts WebSocket upgrades at `/api/ws?match=<id>`.
-- `vercel.json` rewrites `/play/:id` to `/play.html`.
+- `public/` is served as static assets. Only `/api/*`, `/ws/*` and `/play/*` run the Worker.
+- `/api/ws?match=<id>` goes to the Durable Object named after the match (`MatchServer`), which holds the match's sockets.
+- `/play/<id>` serves `play.html`, and `/api/admin` reads the stats object (`StatsServer`), which also fetches Cloudflare's numbers, since that takes more CPU than a free-plan Worker gets for a request.
 - The Open Graph tags in `public/index.html` and `public/play.html` point at the production domain, because chat apps need an absolute image URL. Update them if the domain changes.
+
+It runs on the free plan. Its tightest limit is 100,000 SQLite rows written a day, which covers about 70 hours of 4-player games, or roughly 200 dominó matches (an estimate). Past a limit, that kind of operation fails with an error until 00:00 UTC, so tables stop rather than a bill arriving; `/admin` warns from 80%. To lift the limits, move the account to Workers Paid ($5 a month) and set `CF_PLAN` to `paid` in `wrangler.jsonc`. No other code changes.
 
 ### Steps
 
-1. **Import the repo** into Vercel, or run `vercel link` from the project directory. No framework preset or build command is needed.
-2. **Add Redis.** Connect a Redis database from the Vercel Marketplace (for example Upstash Redis), or use any Redis you already have, and make sure `REDIS_URL` is set for Production and Preview:
-   ```sh
-   vercel env add REDIS_URL
-   ```
-   Without it, each function instance keeps its own in-memory matches, so players who land on different instances won't see each other. A warning is logged in that case.
-3. **Deploy:**
-   ```sh
-   vercel          # preview
-   vercel --prod   # production
-   ```
+1. **Sign in:** `npx wrangler login` (or set `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`).
+2. **Set the secrets** with `npx wrangler secret put <NAME>`: `ADMIN_PASSWORD`, `ICE_SERVERS` (the TURN servers, as JSON), and optionally `METERED_APP`, `METERED_SECRET_KEY`, `CF_ACCOUNT_ID`, `CF_API_TOKEN` and `POSTHOG_KEY` (see [Running locally](#running-locally)).
+3. **Deploy:** `npm run deploy`. The app is at `la-mesa.<your-subdomain>.workers.dev`.
+4. **A custom domain** has to be a zone on Cloudflare: add it under the Worker's *Settings → Domains & Routes*.
 
-Pushes to `main` deploy to production automatically when the project is connected to Git.
+The first deploy creates both Durable Object classes (migration `v1`). A class added later needs its own migration in `wrangler.jsonc`.
 
 ### Self-hosting
 
-Any host that runs a long-lived Node process works: `npm start` serves everything on `PORT`. If you run more than one instance behind a load balancer, set `REDIS_URL` so they share matches. The load balancer must support WebSocket upgrades.
+`npm start` serves everything from one Node process on `PORT`, with every match in memory, so it has to be a single instance and a restart forgets the matches. Set `DEPLOYED=1` so the testing knobs stay off. The load balancer in front must support WebSocket upgrades.
 
 ## Roadmap
 

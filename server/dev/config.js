@@ -1,7 +1,8 @@
 // Knobs for testing on your own machine. All of them are off unless set, and none of
-// them work on Vercel, where anyone could read every hand or rewrite a match.
+// them work in the Worker (on Cloudflare or under `wrangler dev`), or with DEPLOYED=1,
+// where anyone could read every hand or rewrite a match.
 // They are read on every use, so a test can flip them.
-const local = () => !process.env.VERCEL;
+const local = () => globalThis.navigator?.userAgent !== 'Cloudflare-Workers' && !process.env.DEPLOYED;
 
 /** The /api/dev endpoints: read any match whole, rewrite it, set up a scenario. */
 export const devTools = () => local() && process.env.DEV_TOOLS === '1';

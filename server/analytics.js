@@ -64,13 +64,15 @@ export function transitions(before, after) {
 }
 
 /**
- * The country the platform saw the connection come from. Vercel sets this
- * header itself; elsewhere it could be spoofed, so it is ignored.
+ * The header the Worker passes a socket's country to its match in, from what Cloudflare
+ * saw (`request.cf.country`). The Worker always sets it, so a client can't.
  */
-export function countryOf(req) {
-  if (!process.env.VERCEL) return null;
-  const country = String(req?.headers?.['x-vercel-ip-country'] || '').toUpperCase();
-  return /^[A-Z]{2}$/.test(country) ? country : null;
+export const COUNTRY_HEADER = 'x-la-mesa-country';
+
+/** A two-letter country code, or null. Cloudflare says `XX` when it doesn't know, and `T1` for Tor. */
+export function countryOf(value) {
+  const country = String(value || '').toUpperCase();
+  return /^[A-Z]{2}$/.test(country) && country !== 'XX' ? country : null;
 }
 
 /**

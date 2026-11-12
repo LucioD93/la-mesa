@@ -58,21 +58,11 @@ const SILENCE_MS = 25000; // no message for this long → assume the socket is d
 const ACK_MS = 6000; // after an action, expect a reply this fast
 const CONNECT_MS = 8000; // give up on a handshake that hangs
 
-// Vercel ends a function, and its sockets, at 300 s. Well before that we open a
-// replacement socket and switch to it once the server has joined it to the
-// match, so nobody sees a drop. Jitter keeps players from all switching at once.
-const ROTATE_MS = 240000;
-const ROTATE_JITTER_MS = 30000;
-const ROTATE_RETRY_MS = 10000; // the replacement failed; there is still time to try again
-
 const HEARD_MAX = 50;
 const heard = []; // the last messages from the server, for window.__laMesa
 
 let ws;
-let standby = null; // replacement socket that isn't in use yet
-let standbyTimer;
-let rotateAt = 0;
-let voiceSession; // same across a handover, so voice peers keep their connection
+let voiceSession; // this connection's voice id comes from it (a new one each connect)
 let retry = 0;
 let retryTimer;
 let deadline = 0; // drop the socket if nothing arrives before this time
@@ -81,7 +71,6 @@ let bannerTimer;
 const dial = () => new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/ws?match=${encodeURIComponent(matchId)}`);
 // `games` tells the server what this page can draw, since a tab can stay open across deploys.
 const hello = () => ({ t: 'hello', token, name: myName, session: voiceSession, inVoice: voice.joined, games: Object.keys(views), game: gameHint, theme: theme.saved() });
-const scheduleRotation = () => (rotateAt = Date.now() + ROTATE_MS + Math.random() * ROTATE_JITTER_MS);
 
 function connect() {
   clearTimeout(retryTimer);
@@ -92,7 +81,6 @@ function connect() {
   deadline = Date.now() + CONNECT_MS;
   sock.onopen = () => {
     deadline = Date.now() + SILENCE_MS;
-    scheduleRotation();
     send(hello());
   };
 }
@@ -124,55 +112,6 @@ function adopt(sock) {
   };
 }
 
-/** Open a replacement socket alongside the current one. */
-function rotate() {
-  const sock = dial();
-  let latest = null;
-  const fail = () => {
-    if (standby !== sock) return;
-    dropStandby();
-    rotateAt = Date.now() + ROTATE_RETRY_MS;
-  };
-  standby = sock;
-  standbyTimer = setTimeout(fail, CONNECT_MS);
-  sock.onopen = () => sock.send(JSON.stringify(hello()));
-  sock.onclose = fail;
-  // Until it takes over, the current socket delivers everything. The server
-  // sends voiceConfig after joining, so from then on this socket misses nothing.
-  sock.onmessage = (e) => {
-    const msg = JSON.parse(e.data);
-    if (msg.t === 'state') latest = msg;
-    else if (msg.t === 'voiceConfig') handOver(sock, msg, latest);
-  };
-}
-
-function handOver(sock, config, latest) {
-  clearTimeout(standbyTimer);
-  standby = null;
-  retire(ws);
-  adopt(sock);
-  deadline = Date.now() + SILENCE_MS;
-  scheduleRotation();
-  voice.setConfig(config);
-  if (latest) render(latest);
-}
-
-/** Close a socket on purpose; `handoff` stops the server hanging up on our voice peers. */
-function retire(sock) {
-  if (!sock) return;
-  sock.onopen = sock.onmessage = sock.onclose = null;
-  try {
-    if (sock.readyState === 1) sock.send(JSON.stringify({ t: 'handoff' }));
-    sock.close();
-  } catch {}
-}
-
-function dropStandby() {
-  clearTimeout(standbyTimer);
-  retire(standby);
-  standby = null;
-}
-
 /** Abandon the current socket (even if the browser still thinks it is open). */
 function drop() {
   const sock = ws;
@@ -188,7 +127,6 @@ function drop() {
 
 function reconnectLater() {
   ws = null;
-  dropStandby(); // voice has to rejoin after a real drop, so start clean
   setConnected(false);
   clearTimeout(retryTimer);
   // Exponential backoff with jitter so a server blip doesn't get every client
@@ -246,7 +184,6 @@ setInterval(() => {
   if (document.visibilityState === 'visible' && Date.now() > deadline) return drop();
   if (ws.readyState !== 1) return;
   send({ t: 'ping' });
-  if (!standby && Date.now() > rotateAt) rotate();
 }, PING_MS);
 
 window.addEventListener('online', reconnectNow);

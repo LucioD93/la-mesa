@@ -321,11 +321,11 @@ test('nobody sees the deck, other hands, or what a sung canto is worth', () => {
   m.handle(m.seats[first].token, { t: 'call', what: 'canto' }, new Set());
 
   const other = m.stateFor(m.seats[(first + 1) % 4].token, new Set());
-  const json = JSON.stringify(other.round);
   assert.equal(other.round.deck, undefined);
   assert.equal(other.round.hands, null);
   assert.deepEqual(other.round.sung, [{ seat: first, kind: 'ronda' }]);
-  assert.equal(json.includes('"points":4'), false);
+  // The opening table's awards are public, and can be worth the same as this canto.
+  assert.equal(other.round.awards.some((a) => a.kind === 'ronda'), false);
   assert.equal(other.seats[first].count, 3);
 
   const watcher = m.stateFor('nobody', new Set());

@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import WebSocket from 'ws';
 import { createApp } from '../server/app.js';
-import { MemoryStore } from '../server/store.js';
 import { createVoice } from '../public/js/voice.js';
 
 // Voice chat signaling: the server relays {t: 'voice'} messages between
@@ -31,7 +30,7 @@ async function client(port, match, token, session) {
 }
 
 test('relays voice signaling within a match only', async (t) => {
-  const { server } = createApp({ store: new MemoryStore() });
+  const { server } = createApp();
   server.listen(0);
   await once(server, 'listening');
   const { port } = server.address();
@@ -68,7 +67,7 @@ test('relays voice signaling within a match only', async (t) => {
 });
 
 test('a socket handover keeps the voice id and does not hang up', async (t) => {
-  const { server } = createApp({ store: new MemoryStore() });
+  const { server } = createApp();
   server.listen(0);
   await once(server, 'listening');
   const { port } = server.address();
@@ -105,8 +104,7 @@ test('a socket handover keeps the voice id and does not hang up', async (t) => {
 });
 
 test('relays player photos without storing them', async (t) => {
-  const store = new MemoryStore();
-  const { server } = createApp({ store });
+  const { server, records } = createApp();
   server.listen(0);
   await once(server, 'listening');
   const { port } = server.address();
@@ -138,7 +136,7 @@ test('relays player photos without storing them', async (t) => {
   await new Promise((r) => setTimeout(r, 50));
   assert.ok(!b.inbox.some((m) => m.t === 'avatar'));
   assert.ok(!c.inbox.some((m) => m.t === 'avatar'));
-  assert.ok(![...store.matches.values()].some((raw) => raw.includes('image/jpeg')));
+  assert.ok(records.size && ![...records.values()].some((raw) => raw.includes('image/jpeg')));
 });
 
 test('follows who is in voice while out of it', () => {

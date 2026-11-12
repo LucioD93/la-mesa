@@ -1,18 +1,19 @@
-// HTTP + WebSocket server shared by local dev (server/index.js) and the
-// Vercel Function (api/ws.js).
+// The local server (server/index.js), and what the tests and the sim run: one Node process
+// serves the static files, the admin data and the WebSockets, and keeps every match in
+// memory. Each match is a room from room.js, the same one the Worker runs as a Durable
+// Object (worker/); here its storage is a Map and its alarm a setTimeout.
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
-import { createAdminHandler } from './admin.js';
-import { createHub } from './hub.js';
-import { createStore } from './store.js';
+import { createAdmin } from './admin.js';
+import { MATCH_ID, createRoom, matchIdFrom } from './room.js';
+import { Stats, memoryKv } from './stats.js';
 import { devTools } from './dev/config.js';
 import { createDevHandler } from './dev/tools.js';
 
 const PUBLIC = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../public');
-export const MATCH_ID = /^[a-z0-9-]{3,40}$/;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -42,7 +43,7 @@ function sendFile(res, file) {
   });
 }
 
-// Static files (only used locally; on Vercel they are served from public/).
+// Static files, with the same routes as the Worker's assets.
 function serveStatic(req, res) {
   const p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
   if (p === '/' || p === '/index.html') return sendFile(res, path.join(PUBLIC, 'index.html'));
@@ -67,41 +68,83 @@ function serveStatic(req, res) {
   sendFile(res, file);
 }
 
-/** Match id from `/api/ws?match=<id>` (or the older `/ws/<id>`). */
-function matchIdFrom(reqUrl) {
-  const url = new URL(reqUrl, 'http://x');
-  const id = (url.searchParams.get('match') || url.pathname.match(/^\/ws\/([^/]+)$/)?.[1] || '').toLowerCase();
-  return MATCH_ID.test(id) ? id : null;
-}
+export function createApp({ analytics } = {}) {
+  const records = new Map(); // id -> each room's saved record as JSON, like a Durable Object's storage
+  const stats = new Stats(memoryKv());
+  /** id -> { room, conns: Map<id, conn>, timer } */
+  const rooms = new Map();
+  let lastConn = 0;
 
-export function createApp({ store: storeOverride, analytics } = {}) {
-  const storeReady = storeOverride ? Promise.resolve(storeOverride) : createStore();
-  const admin = createAdminHandler(storeReady);
-  const dev = devTools() ? createDevHandler(storeReady, MATCH_ID) : null;
-  const server = http.createServer((req, res) => {
+  function roomFor(id) {
+    let r = rooms.get(id);
+    if (r) return r;
+    r = { conns: new Map(), timer: null };
+    r.room = createRoom(id, {
+      load: () => (records.has(id) ? JSON.parse(records.get(id)) : undefined),
+      save: (record) => records.set(id, JSON.stringify(record)),
+      forget: () => {
+        records.delete(id);
+        if (rooms.get(id) === r) rooms.delete(id);
+      },
+      connections: () => r.conns.values(),
+      wakeAt: (at) => {
+        clearTimeout(r.timer);
+        r.timer = at == null ? null : setTimeout(() => r.room.wake(), Math.max(0, at - Date.now()));
+        r.timer?.unref?.();
+      },
+      report: (room, live, usage) => stats.report(room, live, usage),
+      analytics,
+    });
+    rooms.set(id, r);
+    return r;
+  }
+
+  // What the dev tools change a match through, the same way a move does.
+  const matches = {
+    get: async (id) => roomFor(id).room.snapshot(),
+    update: async (id, fn) => roomFor(id).room.update(fn),
+    setPresence: async (id, token) => roomFor(id).room.markOnline(token),
+  };
+
+  const admin = createAdmin({ stats, storage: 'memory' });
+  const dev = devTools() ? createDevHandler(matches, MATCH_ID) : null;
+  const server = http.createServer(async (req, res) => {
     const p = new URL(req.url, 'http://x').pathname;
-    if (p === '/api/admin') return admin(req, res);
+    if (p === '/api/admin') {
+      const { status, body } = await admin({ method: req.method, authorization: req.headers.authorization, address: req.socket.remoteAddress });
+      res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+      return res.end(JSON.stringify(body));
+    }
     if (dev && (p === '/api/dev' || p.startsWith('/api/dev/'))) return dev(req, res);
     serveStatic(req, res);
   });
   const wss = new WebSocketServer({ noServer: true, maxPayload: 16 * 1024 });
-  const hubReady = storeReady.then((store) => createHub(store, analytics));
 
-  server.on('upgrade', async (req, socket, head) => {
+  server.on('upgrade', (req, socket, head) => {
     const id = matchIdFrom(req.url);
     if (!id) return socket.destroy();
-    let hub;
-    try {
-      hub = await hubReady;
-    } catch (err) {
-      console.error('store unavailable', err);
-      return socket.destroy();
-    }
     wss.handleUpgrade(req, socket, head, (ws) => {
       ws.isAlive = true;
       ws.on('pong', () => (ws.isAlive = true));
-      ws.on('message', () => (ws.isAlive = true)); // client pings count too
-      hub.connect(ws, id, req);
+      const r = roomFor(id);
+      const conn = {
+        id: String(++lastConn),
+        state: null,
+        setState(state) {
+          return (this.state = state);
+        },
+        send: (text) => ws.readyState === 1 && ws.send(text),
+      };
+      r.conns.set(conn.id, conn);
+      r.room.connect(conn);
+      ws.on('message', (raw) => {
+        ws.isAlive = true; // client pings count too
+        r.room.message(conn, raw.toString());
+      });
+      ws.on('close', () => {
+        r.conns.delete(conn.id);
+        r.room.close(conn);
+      });
     });
   });
 
@@ -117,5 +160,5 @@ export function createApp({ store: storeOverride, analytics } = {}) {
     }
   }, 25000).unref();
 
-  return { server, hubReady };
+  return { server, rooms, records, stats, matches };
 }
