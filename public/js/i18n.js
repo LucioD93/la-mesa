@@ -87,6 +87,7 @@ const en = {
   'seatsNote': '— partners sit across from each other',
   'game': 'Game',
   'game.domino': 'Domino',
+  'game.fives': 'All Fives',
   'game.truco': 'Truco',
   'game.caida': 'Caída',
   'game.parchis': 'Parchís',
@@ -95,6 +96,7 @@ const en = {
   'gameChanged': ({ game }) => `Now playing: ${game}`,
   'chooseGame': 'Choose a game',
   'gameDesc.domino': 'Partner dominoes, double six',
+  'gameDesc.fives': 'Dominoes that score when the ends add up to 5s',
   'gameDesc.truco': 'Venezuelan, with vira, perico and perica',
   'gameDesc.caida': 'Capture cards and sing rondas',
   'gameDesc.parchis': 'A race in pairs, with one die or two',
@@ -244,6 +246,7 @@ const es = {
   'seatsNote': '— los compañeros se sientan enfrente',
   'game': 'Juego',
   'game.domino': 'Dominó',
+  'game.fives': 'Dominó a los cinco',
   'game.truco': 'Truco',
   'game.caida': 'Caída',
   'game.parchis': 'Parchís',
@@ -252,6 +255,7 @@ const es = {
   'gameChanged': ({ game }) => `Ahora se juega: ${game}`,
   'chooseGame': 'Elige un juego',
   'gameDesc.domino': 'Dominó en parejas, doble seis',
+  'gameDesc.fives': 'Dominó que suma cuando las puntas dan múltiplos de 5',
   'gameDesc.truco': 'Venezolano, con vira, perico y perica',
   'gameDesc.caida': 'Recoge cartas y canta rondas',
   'gameDesc.parchis': 'Carrera en parejas, con uno o dos dados',
@@ -891,6 +895,42 @@ const games = {
       'nextRound': 'Siguiente mano',
       'seeBoard': 'Ver mesa',
     },
+  },
+};
+
+// All Fives is dominoes with points on the ends: the domino table's strings, plus its own.
+games.fives = {
+  en: {
+    ...games.domino.en,
+    'rules':
+      'Dominoes, scored as you play. After each tile, if the two ends of the line add up to a multiple of 5, your team scores that sum; a double on an end counts both halves. Going out scores the other team\'s pips, rounded to the nearest 5. The first team to the target wins on the spot.',
+    'shareTitle': 'Play All Fives with me',
+    'shareText': 'Join my All Fives domino match',
+    'ends': ({ n }) => `Ends: ${n}`,
+    'scored': ({ team, n }) => `${team} +${n}`,
+    'onTheEnds': 'Points on the ends',
+    'outBonus': 'Going out: their pips, to the nearest 5',
+    'blockBonus': 'Blocked: their pips, to the nearest 5',
+    'youReach': 'You reach the target!',
+    'reaches': ({ name }) => `${name} reaches the target!`,
+    'histTarget': ({ name }) => `${name} to the target`,
+    'tieSub': ({ n }) => `Both teams have ${n} pips. No bonus.`,
+  },
+  es: {
+    ...games.domino.es,
+    'rules':
+      'Dominó que suma mientras se juega. Después de cada ficha, si las dos puntas suman un múltiplo de 5, tu equipo se anota esa suma; un doble en una punta cuenta sus dos mitades. Quien domina suma los puntos del otro equipo, redondeados al 5 más cercano. El primer equipo en llegar a la meta gana en el acto.',
+    'shareTitle': 'Juega dominó a los cinco conmigo',
+    'shareText': 'Únete a mi partida de dominó a los cinco',
+    'ends': ({ n }) => `Puntas: ${n}`,
+    'scored': ({ team, n }) => `${team} +${n}`,
+    'onTheEnds': 'Puntos en las puntas',
+    'outBonus': 'Dominó: sus puntos, al 5 más cercano',
+    'blockBonus': 'Tranque: sus puntos, al 5 más cercano',
+    'youReach': '¡Llegaste a la meta!',
+    'reaches': ({ name }) => `¡${name} llegó a la meta!`,
+    'histTarget': ({ name }) => `${name} a la meta`,
+    'tieSub': ({ n }) => `Los dos equipos tienen ${n} puntos. Nadie suma el premio.`,
   },
 };
 

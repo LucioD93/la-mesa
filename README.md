@@ -2,13 +2,13 @@
 
 # La Mesa
 
-Mobile-first, four-player games (2 vs 2) you play in the browser: partner dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, parchís in pairs, roba la cochina, and partnership rummy. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
+Mobile-first, four-player games (2 vs 2) you play in the browser: partner dominoes, All Fives dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, parchís in pairs, roba la cochina, and partnership rummy. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
 
 Created in [T3 Code](https://t3.codes).
 
 ## Features
 
-- **Six games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, truco, caída, parchís, roba la cochina and rummy, and everyone there sees the change. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again. A player can also go back to the lobby mid-game, from the ⋯ menu or a round's result, after confirming: it ends the game for all four and resets the score.
+- **Seven games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, All Fives, truco, caída, parchís, roba la cochina and rummy, and everyone there sees the change. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again. A player can also go back to the lobby mid-game, from the ⋯ menu or a round's result, after confirming: it ends the game for all four and resets the score.
 - **Table styles.** Anyone can pick how the table looks for everyone in the match, from *Table style* in the ⋯ menu, in the lobby or at the table: Felt (the green table), Pencil (graphite on graph paper, with hatched card backs and colored-pencil teams) Neon (dark glass tiles with lit pips and a glowing grid) Minimal (flat white, hairlines, no shadows) Dark (graphite, charcoal tiles with white pips, amber highlights), Halloween (a moonlit purple night with bats and pumpkin tiles) or Christmas (a red table under falling snow, snow-white tiles with red pips and candy-cane card backs). A new match starts in the style its first player saw last. The fonts are served from `public/fonts/` (all SIL Open Font License).
 - **Team names.** In the lobby, either partner taps *Your team*, above the game, to name the team (up to 16 characters, or one of a few Venezuelan quick picks). Everyone sees it in the lobby, the score and the round results, and gets a toast when it changes. The name stays with the team when players change seats. Without one, the score says Us / Them.
 - **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches.
@@ -37,6 +37,17 @@ Created in [T3 Code](https://t3.codes).
 - **Domino:** the player who empties their hand wins for their team. The team scores the pips left in the losing team's hands.
 - **Blocked game:** the team with fewer pips wins and scores the losing team's pips. A tie scores nothing.
 - The match ends when a team reaches the target score, which you set in the lobby to 50, 75 or 100.
+
+### All Fives rules
+
+All Fives (also *Muggins*) is the domino game above, scored as you play. The deal, the opener, the forced pass and the laughing are the same.
+
+- **Points on the ends.** After each tile, add up the two ends of the line. If the sum is a multiple of 5, the player's team scores it. A double on an end counts both halves, and the opening tile counts its pips: the 5-5 or the 6-4 opens for 10.
+- **Going out** scores the pips left in the other team's hands, rounded to the nearest 5 (7 is 5, 8 is 10), on top of what the ends scored.
+- **Blocked game:** the team with fewer pips scores the other team's pips, rounded the same way. A tie adds nothing.
+- **Winning.** Points land as they happen, and the first team to the target (100, 150 or 250) wins on the spot, even mid-round.
+
+**Not implemented:** the spinner (the first double taking tiles on all four sides). The line always has two ends, as in dominoes.
 
 ### Truco rules
 
@@ -184,6 +195,7 @@ server/
     index.js       The list of games, and what a game has to provide
     common.js      Seats and teams, shuffling, MoveError, bot pacing, the catchphrase odds
     domino.js      Pure domino rules and bot AI, plus the `game` object
+    fives.js       All Fives: the domino rules with points on the ends, and a bot that goes for them
     truco.js       Pure truco rules and bot AI, plus the `game` object
     caida.js       Pure caída rules and bot AI, plus the `game` object
     parchis.js     Pure parchís rules and bot AI, plus the `game` object
@@ -195,6 +207,7 @@ public/
   admin.html       Admin page
   js/play.js       Client shell: connection, lobby, seats, voice, photos, reactions, drag, result frame
   js/domino.js     Domino table: board, hand, drop targets, how a round reads
+  js/fives.js      All Fives table: the domino table, plus what the ends add up to and the points as they land
   js/truco.js      Truco table: vira, trick, call buttons, how a hand reads
   js/caida.js      Caída table: loose cards, the dealer's count, captures, how a round reads
   js/parchis.js    Parchís table: the board, hopping pieces, the die, how a game reads
@@ -231,7 +244,7 @@ test/              Rules of every game, match, rooms, board layout, game and sty
 
 A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto`, `waitingOn` and `roundView`. The testing tools need two lines per game too: how a bot plays any seat (`STEP` in `server/dev/scenarios.js`) and how a headless player chooses (`STRATEGY` in `scripts/sim.js`).
 
-On the client, `play.js` keeps one view per game (`domino.js`, `truco.js`, `caida.js`, `parchis.js`, `cochina.js`, `rummy.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
+On the client, `play.js` keeps one view per game (`domino.js`, `fives.js`, `truco.js`, `caida.js`, `parchis.js`, `cochina.js`, `rummy.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
 
 The `domino.*` browser storage keys predate truco and cover every game. Renaming them would lose players' names, seats and photos. Matches saved without a `game` load as dominoes.
 
@@ -320,12 +333,12 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `teamName` | `name` (up to 16 characters; empty clears it) | Seated players, for their own team, any time. The name stays with the team when players change seats. |
 | `sit` / `stand` | `seat` | Lobby. `sit` also lets a spectator take over a bot mid-game. |
 | `addBots` / `removeBot` | `seat` | Lobby |
-| `game` | `game: "domino" \| "truco" \| "caida" \| "parchis" \| "cochina" \| "rummy"` | Lobby. Resets the target to the game's default. |
-| `target` | `50 \| 75 \| 100`, `12 \| 24 \| 32`, `12 \| 24`, `1 \| 2 \| 3`, `1 \| 3 \| 5` or `150 \| 300` | Lobby, from the current game's list |
+| `game` | `game: "domino" \| "fives" \| "truco" \| "caida" \| "parchis" \| "cochina" \| "rummy"` | Lobby. Resets the target to the game's default. |
+| `target` | `50 \| 75 \| 100`, `100 \| 150 \| 250`, `12 \| 24 \| 32`, `12 \| 24`, `1 \| 2 \| 3`, `1 \| 3 \| 5` or `150 \| 300` | Lobby, from the current game's list |
 | `variant` | `1 \| 2` | Lobby, a game that offers a choice: parchís's dice |
 | `theme` | `theme: "felt" \| "pencil" \| "neon" \| "minimal" \| "dark" \| "halloween" \| "christmas"` | Lobby. Everyone in the match sees it. |
 | `start` | | Lobby, once all 4 seats are filled |
-| `play` | Domino: `tile: [a, b]`, `end: "L" \| "R"`. Truco, caída and roba la cochina: `card: [number, suit]` | On your turn |
+| `play` | Domino and All Fives: `tile: [a, b]`, `end: "L" \| "R"`. Truco, caída and roba la cochina: `card: [number, suit]` | On your turn |
 | `call` | `what: "flor" \| "envido" \| "cinco" \| "falta" \| "truco" \| "mazo"` | Truco, when the `options` in your state allow it |
 | `answer` | `yes: boolean` | Truco, a bet is open against your team |
 | `call` | `what: "canto"` | Caída, when `options.canto` is set |
@@ -433,6 +446,7 @@ curl -X PATCH localhost:3000/api/dev/match/demo -d '{"scores": [23, 23]}'
 **Scenarios** seat players `p0`, `p1`… from seat 0 and bots in the rest. Seat 0 is the one the moment is about. Most of them deal real rounds and let bots play every seat until the moment comes, so the hands and the deck stay consistent. `seed` repeats the same one. These work for any game (`game` in the body, or the match's current one): `lobby`, `deal`, `match-point`, `round-end`, `match-end`. Then there's one per moment worth testing in each game:
 
 - Dominoes: `domino-opening`, `domino-last-tile`, `domino-stuck`, `domino-block`
+- All Fives: `fives-score` (a tile that makes the ends 15 or more), `fives-out`
 - Truco: `truco-flor`, `truco-reservada`, `truco-envido`, `truco-answer`
 - Caída: `caida-ronda` (`kind`: `ronda`, `trivilin`, `patrulla`, `vigia` or `registro`), `caida-caida`, `caida-mesa-limpia`
 - Parchís: `parchis-home`, `parchis-capture`, `parchis-leave`. Each rigs seat 0's next roll.

@@ -7,6 +7,7 @@ import { Match } from '../match.js';
 import { nextSeat, shuffle } from '../games/common.js';
 import { NUMBERS } from '../games/truco.js';
 import * as domino from '../games/domino.js';
+import * as fives from '../games/fives.js';
 import * as truco from '../games/truco.js';
 import * as caida from '../games/caida.js';
 import * as parchis from '../games/parchis.js';
@@ -50,6 +51,11 @@ const STEP = {
     const move = domino.botMove(r, r.turn);
     if (move) domino.play(r, r.turn, move.tile, move.end);
     else domino.pass(r, r.turn);
+  },
+  fives(r) {
+    const move = fives.botMove(r, r.turn);
+    if (move) fives.play(r, r.turn, move.tile, move.end);
+    else fives.pass(r, r.turn);
   },
   truco(r, rng) {
     const seat = r.pending ? nextSeat(r.pending.by) : r.turn;
@@ -181,6 +187,7 @@ const fitsTable = (r, card) => r.melds.some((m) => rummy.layoffFit(m, card));
 const meldsWith = (hand, card) => rummy.candidateMelds([...hand, card]).some((cards) => cards.some((c) => rummy.sameCard(c, card)));
 /** Cards left in hand after putting down the best melds. */
 const leftAfterMelds = (hand) => hand.length - rummy.bestMelds(hand).reduce((n, m) => n + m.cards.length, 0);
+const scoresWith = (r, m) => fives.scoreFor(fives.endsCount(fives.lineAfter(r.line, m)));
 const blocksWith = (r, m) => {
   const after = structuredClone(r);
   domino.play(after, 0, m.tile, m.end);
@@ -256,6 +263,18 @@ export const SCENARIOS = {
     game: 'domino',
     about: "Seat 0's turn, and one of its tiles blocks the game.",
     setup: (match, opts) => search(match, 'domino', opts, (r) => r.turn === 0 && domMoves(r, 0).some((m) => blocksWith(r, m))),
+  },
+
+  'fives-score': {
+    game: 'fives',
+    about: "Seat 0's turn, and one of its tiles makes the ends add up to 15 or more.",
+    setup: (match, opts) => search(match, 'fives', opts, (r) => r.turn === 0 && domMoves(r, 0).some((m) => scoresWith(r, m) >= 15)),
+  },
+  'fives-out': {
+    game: 'fives',
+    about: "Seat 0's turn, one tile left, and it fits: going out scores the other team's pips, to the nearest 5.",
+    setup: (match, opts) =>
+      search(match, 'fives', opts, (r) => r.turn === 0 && r.hands[0].length === 1 && domMoves(r, 0).length > 0),
   },
 
   'truco-flor': {

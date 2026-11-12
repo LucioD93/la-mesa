@@ -53,7 +53,8 @@ input { font: inherit; }
 .center { text-align: center; }
 
 /* Each game keeps its own colors and table. The domino table's rules are scoped with
-   body[data-game='domino'] and truco's with body[data-game='truco'] where they share a name. */
+   body[data-game='domino'] (and 'fives', which shares its table) and truco's with
+   body[data-game='truco'] where they share a name. */
 body[data-game='truco'] { --accent: #0e7490; --accent-glow: rgba(14, 116, 144, 0.4); }
 body[data-game='caida'] { --accent: #b45309; --accent-glow: rgba(180, 83, 9, 0.4); }
 body[data-game='cochina'] { --accent: #be185d; --accent-glow: rgba(190, 24, 93, 0.4); }
@@ -261,10 +262,26 @@ body.sad #app { filter: grayscale(0.85) brightness(0.75); }
   padding: 0 4px;
 }
 .board { grid-area: board; position: relative; min-height: 0; margin: 6px 0; }
-body[data-game='domino'] .board { overflow: hidden; }
+body:is([data-game='domino'], [data-game='fives']) .board { overflow: hidden; }
 .board .tile { position: absolute; transition: left 0.35s, top 0.35s, width 0.35s, height 0.35s, box-shadow 0.3s; }
 .board .tile.fresh { animation: tile-drop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1); }
 .board .tile.last { box-shadow: 0 0 0 2px var(--team), 0 0 14px var(--team); }
+/* All Fives: what the ends add up to, in a corner of the board; gold when it scores. */
+.ends-count {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  z-index: 1;
+  margin: 0;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--well-soft);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: none;
+}
+.ends-count.scores { color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
 .board-empty {
   position: absolute;
   inset: 0;
@@ -348,7 +365,7 @@ body[data-game='domino'] .board { overflow: hidden; }
   font-variant-numeric: tabular-nums;
 }
 .backs { display: flex; gap: 2px; }
-body[data-game='domino'] .backs i { display: block; width: 7px; height: 14px; border-radius: 2px; background: linear-gradient(var(--ivory), var(--ivory-2)); opacity: 0.85; }
+body:is([data-game='domino'], [data-game='fives']) .backs i { display: block; width: 7px; height: 14px; border-radius: 2px; background: linear-gradient(var(--ivory), var(--ivory-2)); opacity: 0.85; }
 .bubble {
   position: absolute;
   z-index: 3;
@@ -499,7 +516,7 @@ body[data-game='domino'] .backs i { display: block; width: 7px; height: 14px; bo
 }
 
 
-body[data-game='domino'] .hand {
+body:is([data-game='domino'], [data-game='fives']) .hand {
   --gap: 6px;
   --tw: min(calc((100vw - 20px - (var(--n, 7) - 1) * var(--gap)) / var(--n, 7)), 58px);
   display: flex;
@@ -756,6 +773,7 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .impact
 
 /* The game being played, beside the target; tapping it opens the menu of games. */
 [data-g='domino'] { --g: #e11d48; }
+[data-g='fives'] { --g: #059669; }
 [data-g='truco'] { --g: #0e7490; }
 [data-g='caida'] { --g: #b45309; }
 [data-g='parchis'] { --g: #7c3aed; }
@@ -784,6 +802,7 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .impact
 .game-icon .card { --cw: 25px; rotate: 6deg; }
 .game-icon .card.under { position: absolute; left: 4px; top: 3px; rotate: -12deg; }
 .game-icon .card + .card { margin-left: 10px; }
+.game-icon .five { position: absolute; right: -2px; bottom: -3px; font: 800 17px/1 system-ui, sans-serif; color: var(--g, var(--gold)); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); }
 .game-icon .pig { position: absolute; right: -4px; bottom: -2px; font-size: 18px; line-height: 1; }
 .game-list { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
 .game-opt { width: 100%; min-height: 60px; padding: 8px 12px 8px 10px; background: transparent; }
@@ -1239,7 +1258,7 @@ body[data-game='parchis'] .actions { align-items: center; min-height: 56px; gap:
 .pstep:disabled { opacity: 0.45; cursor: default; }
 
 /* ---- calls -------------------------------------------------------------- */
-body[data-game='domino'] .actions { display: none; }
+body:is([data-game='domino'], [data-game='fives']) .actions { display: none; }
 .actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; min-height: 40px; margin: 2px 0 6px; }
 .call {
   min-height: 40px;

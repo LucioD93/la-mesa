@@ -14,6 +14,7 @@ import { merge } from '../server/dev/tools.js';
 import { NUMBERS, florType, envidoValue } from '../server/games/truco.js';
 import { cantoOf } from '../server/games/caida.js';
 import { bestMelds } from '../server/games/rummy.js';
+import * as fives from '../server/games/fives.js';
 
 /** Set env vars for one test. */
 function withEnv(t, vars) {
@@ -102,6 +103,10 @@ const PROMISES = {
   'domino-last-tile': (m) => m.round.turn === 0 && m.round.hands[0].length === 1,
   'domino-stuck': (m) => m.round.turn === 0 && m.pendingAuto()?.delay > 0,
   'domino-block': (m) => m.round.turn === 0,
+  'fives-score': (m) =>
+    m.round.turn === 0 &&
+    fives.legalMoves(m.round, 0).some((mv) => fives.scoreFor(fives.endsCount(fives.lineAfter(m.round.line, mv))) >= 15),
+  'fives-out': (m) => m.round.turn === 0 && m.round.hands[0].length === 1,
   'truco-flor': (m) => florType(m.round.dealt[0], m.round.vira) === 'flor' && m.round.turn === 0,
   'truco-reservada': (m) => florType(m.round.dealt[0], m.round.vira) === 'reservada',
   'truco-envido': (m) => envidoValue(m.round.dealt[0], m.round.vira) === 33,
