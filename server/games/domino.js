@@ -19,6 +19,7 @@ export { MoveError, SEATS, nextSeat, shuffle, teamOf };
 export const HAND_SIZE = 7;
 export const AUTO_PASS_DELAY_MS = 1300;
 export const STUCK_PLAYER_DELAY_MS = 3000; // long enough to try an illegal tile before the forced pass
+export const DEAL_MS = 2800; // the client's deal animation (public/js/domino.js), before the first move
 
 export const pips = (tile) => tile[0] + tile[1];
 export const sameTile = (a, b) =>
@@ -211,8 +212,10 @@ export const game = {
     const isBot = match.seats[r.turn]?.bot;
     const stuck = !legalMoves(r, r.turn).length;
     if (!isBot && !stuck) return null;
+    // A bot opening the round waits for the tables to show the deal.
+    const deal = r.lastAction ? 0 : DEAL_MS;
     return {
-      delay: !isBot ? STUCK_PLAYER_DELAY_MS : stuck ? AUTO_PASS_DELAY_MS : BOT_DELAY_MS,
+      delay: !isBot ? STUCK_PLAYER_DELAY_MS : stuck ? AUTO_PASS_DELAY_MS : BOT_DELAY_MS + deal,
       key: momentKey(match),
     };
   },

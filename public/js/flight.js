@@ -21,6 +21,21 @@ export function whenLanded(fn) {
   else fn();
 }
 
+/** Count `key` as in the air until it lands, then run what was waiting on it. */
+function land(key) {
+  flying.delete(key);
+  if (flying.size) return;
+  const queued = afterFlights;
+  afterFlights = [];
+  queued.forEach((fn) => fn());
+}
+
+/** Hold `whenLanded` back for something other than a throw (the deal). Returns the release. */
+export function hold(key) {
+  flying.add(key);
+  return () => land(key);
+}
+
 function flightPose(t) {
   if (t < 0.2) {
     const u = t / 0.2;
@@ -65,11 +80,7 @@ export function launch({ seat, avatar, flier, target, fit, rotation = 0, onImpac
   const finish = () => {
     flier.remove();
     onDone();
-    flying.delete(seat);
-    if (flying.size) return;
-    const queued = afterFlights;
-    afterFlights = [];
-    queued.forEach((fn) => fn());
+    land(seat);
   };
 
   const frame = (now) => {

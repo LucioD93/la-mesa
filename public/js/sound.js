@@ -57,6 +57,12 @@ const sounds = {
     clack();
     note(180, { dur: 0.09, type: 'triangle', gain: 0.25, slide: 90 });
   },
+  // Dominoes mixed face down on the table: a long, uneven rattle.
+  shuffle: () => {
+    for (let ms = 0; ms < 1000; ms += 35 + Math.random() * 60) setTimeout(() => clack(0.06 + Math.random() * 0.1), ms);
+  },
+  // A tile slid into your hand.
+  deal: () => clack(0.12),
   // A die rattling on the board.
   dice: () => [0, 90, 190, 320, 480].forEach((ms) => setTimeout(() => clack(0.18), ms)),
   call: () => note(440, { dur: 0.16, type: 'triangle', gain: 0.16, slide: 620 }),

@@ -1,9 +1,15 @@
 // The domino table: the line of tiles, dragging a tile to an end, and how a round reads.
 import { BoardView } from './board.js';
 import { tileHTML, tileKey } from './tiles.js';
-import { canFly, FLIGHT_MS, launch, whenLanded } from './flight.js';
+import { canFly, FLIGHT_MS, hold, launch, whenLanded } from './flight.js';
 import * as sound from './sound.js';
 import { t } from './i18n.js';
+
+// The deal: the tiles mixed face down, lined up a row per seat, then handed out one at a
+// time. The server holds the opening bot back for it (DEAL_MS in server/games/domino.js).
+const SHUFFLE_MS = 1100;
+const DEAL_GAP_MS = 40;
+const DEAL_FLY_MS = 400;
 
 const sortHand = (hand) =>
   hand
@@ -13,6 +19,7 @@ const sortHand = (hand) =>
 export function createView(ctx) {
   const { $, esc, me, seatName, seatAvatar, toast, buzz, shake, send, laughAtMe, within, teamLabel } = ctx;
   let board = null;
+  let deal = null; // { els, timers, keys (my tiles still on their way), release }
 
   const pickEnds = (key) => [...new Set(ctx.state.round.legal.filter((m) => tileKey(m.tile) === key).map((m) => m.end))];
 
@@ -102,6 +109,100 @@ export function createView(ctx) {
     laughAtMe();
   }
 
+  function stopDeal() {
+    if (!deal) return;
+    deal.els.forEach((el) => el.remove());
+    deal.timers.forEach(clearTimeout);
+    deal.release();
+    deal = null;
+    $('board').classList.remove('dealing');
+    $('hand').classList.remove('dealing');
+    for (const el of $('hand').querySelectorAll('.undealt')) el.classList.remove('undealt');
+  }
+
+  /** Mix all 28 tiles on the board, line them up and hand 7 to each seat. */
+  function dealTiles() {
+    stopDeal();
+    const b = $('board').getBoundingClientRect();
+    if (!b.width || !b.height) return;
+    const hand = $('hand');
+    const mine = [...hand.querySelectorAll('.hand-tile')].map((el) => el.dataset.key);
+    const w = Math.min(b.width / 9, b.height / 10, 28);
+    const h = w * 2;
+    const gap = w * 0.25;
+    const cx = b.left + b.width / 2;
+    const cy = b.top + b.height / 2;
+    const at = (x, y, rot = 0, scale = 1) => `translate(${x - w / 2}px, ${y - h / 2}px) rotate(${rot}deg) scale(${scale})`;
+    const rand = (a, b) => a + Math.random() * (b - a);
+    const scatter = () => [cx + rand(-0.38, 0.38) * b.width, cy + rand(-0.36, 0.36) * b.height];
+
+    deal = { els: [], timers: [], keys: new Set(mine), release: hold('deal') };
+    $('board').classList.add('dealing');
+    if (mine.length) hand.classList.add('dealing');
+    for (const el of hand.querySelectorAll('.hand-tile')) el.classList.add('undealt');
+    sound.play('shuffle');
+
+    const state = deal;
+    let left = 28;
+    for (let k = 0; k < 28; k++) {
+      const pos = k % 4; // round the table from me, one tile each
+      const idx = Math.floor(k / 4);
+      const seat = (Math.max(me(), 0) + pos) % 4;
+      const row = [3, 2, 0, 1][pos]; // top seat's row on top, mine at the bottom
+      const gx = cx + (idx - 3) * (w + gap);
+      const gy = cy + (row - 1.5) * (h + gap);
+
+      const el = document.createElement('div');
+      el.className = 'tile v deal-tile';
+      el.style.width = `${w}px`;
+      el.style.height = `${h}px`;
+      el.style.setProperty('--u', `${w}px`);
+      document.body.append(el);
+      state.els.push(el);
+
+      // Poured out in the middle, swirled around face down, then lined up.
+      let rot = rand(0, 360);
+      const frames = [{ transform: at(cx + rand(-8, 8), cy + rand(-8, 8), rot, 0.4), opacity: 0 }];
+      for (const offset of [0.22, 0.45, 0.68]) {
+        rot += rand(-140, 140);
+        frames.push({ transform: at(...scatter(), rot), opacity: 1, offset });
+      }
+      frames.push({ transform: at(gx, gy, 0), opacity: 1 });
+      el.animate(frames, { duration: SHUFFLE_MS, easing: 'ease-in-out', fill: 'forwards', delay: k * 6 });
+
+      state.timers.push(
+        setTimeout(() => {
+          const key = seat === me() ? mine[idx] : null;
+          const slot = key ? hand.querySelector(`[data-key="${key}"]`) : null;
+          const target = slot ?? seatAvatar(seat);
+          const done = () => {
+            el.remove();
+            if (key) {
+              state.keys.delete(key);
+              const live = hand.querySelector(`[data-key="${key}"]`); // the hand may have been redrawn
+              live?.classList.remove('undealt');
+              live?.classList.add('dealt');
+              sound.play('deal');
+            }
+            if (--left === 0 && deal === state) stopDeal();
+          };
+          if (!target) return done();
+          const r = target.getBoundingClientRect();
+          const tx = r.left + r.width / 2;
+          const ty = r.top + r.height / 2;
+          const end = slot ? at(tx, ty, 0, r.width / w) : at(tx, ty, rand(-30, 30), 0.35);
+          // A small hop on the way, so it's picked up rather than slid.
+          const mid = at((gx + tx) / 2, (gy + ty) / 2 - Math.hypot(tx - gx, ty - gy) * 0.15, 0, 1.15);
+          const anim = el.animate(
+            [{ transform: at(gx, gy, 0) }, { transform: mid, opacity: 1, offset: 0.6 }, { transform: end, opacity: slot ? 1 : 0 }],
+            { duration: DEAL_FLY_MS, easing: 'ease-in', fill: 'forwards' },
+          );
+          anim.onfinish = done;
+        }, SHUFFLE_MS + 160 + k * DEAL_GAP_MS),
+      );
+    }
+  }
+
   const clearHover = () => {
     for (const node of board.nodes.values()) node.classList.remove('drop-hover');
     $('board').classList.remove('drop-hover');
@@ -117,6 +218,7 @@ export function createView(ctx) {
     },
 
     unmount() {
+      stopDeal();
       board.preview(null);
       board.set([], 0);
     },
@@ -143,6 +245,7 @@ export function createView(ctx) {
       const r = ctx.state.round;
       const la = r?.lastAction;
       const pla = prev?.round?.lastAction;
+      if (prev && r && !la && prev.roundNo !== ctx.state.roundNo && ctx.state.phase === 'playing' && canFly()) dealTiles();
       if (!la || JSON.stringify(la) === JSON.stringify(pla) || prev?.roundNo !== ctx.state.roundNo) return;
       if (la.type === 'pass') {
         toast(la.seat === me() ? t('youPass') : t('passes', { name: seatName(la.seat) }));
@@ -182,11 +285,13 @@ export function createView(ctx) {
       const r = ctx.state.round;
       const myTurn = r.turn === me() && ctx.state.phase === 'playing';
       const tile = key.split('-').map(Number);
-      const cls = ['tile v hand-tile', myTurn ? 'playable' : '', dragging ? 'dragging' : ''].join(' ');
+      const undealt = deal?.keys.has(key) ? 'undealt' : '';
+      const cls = ['tile v hand-tile', myTurn ? 'playable' : '', dragging ? 'dragging' : '', undealt].join(' ');
       return `<button class="${cls}" data-key="${key}" aria-label="${t('aria.tile', { a: tile[0], b: tile[1] })}">${tileHTML(tile[0], tile[1], false)}</button>`;
     },
 
-    afterHand: (hand) => $('hand').style.setProperty('--n', Math.max(hand.length, 5)),
+    // Sized for a full hand all round, so the tiles don't grow as they're played.
+    afterHand: () => $('hand').style.setProperty('--n', 7),
 
     dressGhost(ghost, rect) {
       ghost.className = 'tile v drag-ghost';

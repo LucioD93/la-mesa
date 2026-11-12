@@ -551,6 +551,14 @@ body[data-game='domino'] .hand {
   40%, 80% { translate: 4px 0; }
 }
 
+/* ---- the deal ------------------------------------------------------------ */
+.deal-tile { position: fixed; left: 0; top: 0; z-index: 44; pointer-events: none; will-change: transform; }
+.board.dealing .board-empty { visibility: hidden; }
+.hand.dealing { pointer-events: none; }
+.hand-tile.undealt { visibility: hidden; }
+.hand-tile.dealt { animation: dealt 0.25s ease-out; }
+@keyframes dealt { from { rotate: y 90deg; } }
+
 /* ---- tiles played by the others ------------------------------------------- */
 .board .tile.incoming { visibility: hidden; }
 .flier, .card.flier {
