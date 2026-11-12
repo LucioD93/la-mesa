@@ -4,7 +4,7 @@
 // to watch. The numbers are the whole account's, in UTC days, like the limits and the bill.
 const API_ROOT = 'https://api.cloudflare.com/client/v4';
 const GRAPHQL = `${API_ROOT}/graphql`;
-const SCRIPT = 'la-mesa'; // the name in wrangler.jsonc
+const SCRIPT = 'jugar'; // the name in wrangler.jsonc
 const CACHE_MS = 5 * 60_000; // the API itself serves an identical query from a cache for minutes
 const TIMEOUT_MS = 8_000;
 const PARALLEL = 5; // a Worker keeps at most 6 connections open, and a queued call's timeout would be running

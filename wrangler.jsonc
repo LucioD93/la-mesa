@@ -3,7 +3,7 @@
 // (see README.md, "Deploying").
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "la-mesa",
+  "name": "jugar",
   "main": "worker/index.js",
   "compatibility_date": "2026-11-01",
   // node:crypto, and process.env filled from the vars and secrets

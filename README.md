@@ -470,7 +470,7 @@ It runs on the free plan. Its tightest limit is 100,000 SQLite rows written a da
 
 1. **Sign in:** `npx wrangler login` (or set `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`).
 2. **Set the secrets** with `npx wrangler secret put <NAME>`: `ADMIN_PASSWORD`, `ICE_SERVERS` (the TURN servers, as JSON), and optionally `METERED_APP`, `METERED_SECRET_KEY`, `CF_ACCOUNT_ID`, `CF_API_TOKEN` and `POSTHOG_KEY` (see [Running locally](#running-locally)).
-3. **Deploy:** `npm run deploy`. The app is at `la-mesa.<your-subdomain>.workers.dev`.
+3. **Deploy:** `npm run deploy`. The app is at `jugar.<your-subdomain>.workers.dev`.
 4. **A custom domain** has to be a zone on Cloudflare: add it under the Worker's *Settings → Domains & Routes*.
 
 The first deploy creates both Durable Object classes (migration `v1`). A class added later needs its own migration in `wrangler.jsonc`.
