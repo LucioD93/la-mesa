@@ -1,0 +1,6 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "redirects": [
+    { "source": "/:path*", "destination": "https://la-mesa.luciodavid93.workers.dev/:path*", "permanent": false }
+  ]
+}
