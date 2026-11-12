@@ -4,6 +4,7 @@
 
 import {
   BOT_DELAY_MS,
+  DEAL_MS,
   MoveError,
   PLAY_PHRASE_CHANCE,
   SEATS,
@@ -211,8 +212,10 @@ export const game = {
     const isBot = match.seats[r.turn]?.bot;
     const stuck = !legalMoves(r, r.turn).length;
     if (!isBot && !stuck) return null;
+    // A bot opening the round waits for the tables to show the deal.
+    const deal = r.lastAction ? 0 : DEAL_MS;
     return {
-      delay: !isBot ? STUCK_PLAYER_DELAY_MS : stuck ? AUTO_PASS_DELAY_MS : BOT_DELAY_MS,
+      delay: !isBot ? STUCK_PLAYER_DELAY_MS : stuck ? AUTO_PASS_DELAY_MS : BOT_DELAY_MS + deal,
       key: momentKey(match),
     };
   },

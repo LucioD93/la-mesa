@@ -5,6 +5,7 @@
 
 import {
   BOT_DELAY_MS,
+  DEAL_MS,
   MoveError,
   PLAY_PHRASE_CHANCE,
   SEATS,
@@ -501,7 +502,8 @@ export const game = {
     const r = match.round;
     const trickJustEnded = r.tricks.length > 1 && !currentTrick(r).cards.length;
     return {
-      delay: BOT_DELAY_MS + (trickJustEnded && !r.pending ? TRICK_PAUSE_MS : 0),
+      // The hand's first move waits for the deal.
+      delay: BOT_DELAY_MS + (trickJustEnded && !r.pending ? TRICK_PAUSE_MS : 0) + (r.seq ? 0 : DEAL_MS),
       key: `${match.roundNo}:${r.seq}`,
     };
   },

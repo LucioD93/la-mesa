@@ -6,12 +6,12 @@
 // Four cards on the table, then three deals of 3 cards each empty the deck. The team
 // with the bigger cochina wins the round.
 
-import { BOT_DELAY_MS, MoveError, PLAY_PHRASE_CHANCE, SEATS, isManguangua, nextSeat, shuffle, teamOf } from './common.js';
+import { BOT_DELAY_MS, DEAL_MS, MoveError, PLAY_PHRASE_CHANCE, REDEAL_MS, SEATS, isManguangua, nextSeat, shuffle, teamOf } from './common.js';
 import { HAND_SIZE, NUMBERS, fullDeck, sameCard } from './truco.js';
 
 export const DEALS = 3;
 export const TABLE_CARDS = 4;
-export const DEAL_PAUSE_MS = 1400; // extra time to see the table or a new hand before the first card
+export const DEAL_PAUSE_MS = 600; // extra time to see the table and a new hand once dealt
 export const CAPTURE_PAUSE_MS = 600; // extra time to see a capture land before the next card
 
 // How fast you have to be. The window opens when your card lands and closes early once
@@ -255,7 +255,8 @@ export const game = {
     const newDeal = r.hands.every((h) => h.length === HAND_SIZE);
     const la = r.lastAction?.n === r.seq ? r.lastAction : null;
     const captured = la?.type === 'grab' || (la?.type === 'close' && la.got);
-    return { delay: BOT_DELAY_MS + (newDeal ? DEAL_PAUSE_MS : 0) + (captured ? CAPTURE_PAUSE_MS : 0), key };
+    const deal = newDeal ? DEAL_PAUSE_MS + (r.deal === 1 ? DEAL_MS : REDEAL_MS) : 0;
+    return { delay: BOT_DELAY_MS + deal + (captured ? CAPTURE_PAUSE_MS : 0), key };
   },
 
   // A grab window always has a timer, so this is only ever a player choosing a card.

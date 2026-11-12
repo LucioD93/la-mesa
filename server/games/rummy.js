@@ -3,7 +3,7 @@
 // in both partners' hands when the round ends. Melds on the table belong to no one:
 // anybody can lay off on any of them.
 
-import { BOT_DELAY_MS, MoveError, PLAY_PHRASE_CHANCE, SEATS, isManguangua, nextSeat, shuffle, teamOf } from './common.js';
+import { BOT_DELAY_MS, DEAL_MS, MoveError, PLAY_PHRASE_CHANCE, SEATS, isManguangua, nextSeat, shuffle, teamOf } from './common.js';
 
 export const SUITS = ['S', 'H', 'D', 'C'];
 export const RANKS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]; // 1 is the ace, 11-13 J Q K
@@ -302,7 +302,8 @@ export const game = {
   pendingAuto(match) {
     const r = match.round;
     if (!match.seats[r.turn]?.bot) return null;
-    return { delay: r.drawn ? STEP_MS : BOT_DELAY_MS, key: `${match.roundNo}:${r.seq}` };
+    // The round's first move waits for the deal.
+    return { delay: (r.drawn ? STEP_MS : BOT_DELAY_MS) + (r.seq ? 0 : DEAL_MS), key: `${match.roundNo}:${r.seq}` };
   },
 
   waitingOn: (match) => ({ seat: match.round.turn, key: `${match.roundNo}:${match.round.seq}` }),

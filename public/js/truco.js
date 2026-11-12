@@ -1,11 +1,14 @@
 // The truco table: vira, the trick, the calls, and how a hand reads.
 import { cardSVG, cardKey, parseKey, pieceOf } from './cards.js';
 import { canFly, FLIGHT_MS, isFlying, launch, whenLanded } from './flight.js';
+import { roundTable } from './deal.js';
 import * as sound from './sound.js';
 import * as i18n from './i18n.js';
 import { t } from './i18n.js';
 
 const trucoCall = (level) => t(`truco${level}`);
+// Each card played after the first sits a little further out over the one before, tilted its own way.
+const TILT = [0, -5, 4];
 const gainedBy = (awards, team) => awards.reduce((sum, a) => sum + (a.team === team ? a.points : 0), 0);
 
 export function createView(ctx) {
@@ -108,9 +111,9 @@ export function createView(ctx) {
   }
 
   /** Fly a card from the seat that played it to its spot on the table. */
-  function flyCard({ seat }) {
+  function flyCard({ seat, card }) {
     // The trick can be rebuilt mid-flight when another card lands, so look it up each time.
-    const slotOf = () => $('trick')?.querySelector(`.slot[data-seat="${seat}"]`);
+    const slotOf = () => $('trick')?.querySelector(`.slot[data-key="${cardKey(card)}"]`);
     const slot = slotOf();
     const face = slot?.querySelector('.card');
     const avatar = seatAvatar(seat);
@@ -133,8 +136,8 @@ export function createView(ctx) {
       avatar,
       flier,
       target: slotOf, // gone if a new trick or hand started mid-flight
-      // Match the side slots' slight tilt so the card doesn't snap flat on landing.
-      rotation: slot.classList.contains('p1') ? 4 : slot.classList.contains('p3') ? -4 : 0,
+      // Match the slot's tilt so the card doesn't snap flat on landing.
+      rotation: (slot.classList.contains('p1') ? 4 : slot.classList.contains('p3') ? -4 : 0) + TILT[slot.dataset.trick],
       fit: () => [width, height],
       onImpact: (el) => impact(el, seat % 2),
       onDone: () => slotOf()?.classList.remove('incoming'),
@@ -186,7 +189,7 @@ export function createView(ctx) {
       }
       const { perico, perica } = r.pieces;
       $('viraBox').innerHTML = `
-        <span class="card vira">${cardSVG(r.vira)}</span>
+        <span class="card vira" data-key="vira">${cardSVG(r.vira)}</span>
         <span class="vira-text"><b>${t('vira')}</b><small>${t('perico')} ${perico[0]}</small><small>${t('perica')} ${perica[0]}</small></span>`;
 
       const dot = (i) => {
@@ -198,25 +201,32 @@ export function createView(ctx) {
       const worth = level === 4 ? t('worthGame') : t('worth', { n: [1, 3, 6, 9][level] });
       $('handInfo').innerHTML = `<span class="pips">${[0, 1, 2].map(dot).join('')}</span><span class="worth ${level ? 'hot' : ''}">${worth}</span>`;
 
-      // Show the current trick, or the one that just ended until a new card lands.
-      const idx = r.tricks.length - 1;
-      const showing = r.tricks[idx].cards.length || idx === 0 ? idx : idx - 1;
-      const trick = r.tricks[showing];
+      // Every card played this hand stays where it was put, the newest on top. The trick
+      // that just ended shows who took it until the next card lands.
+      const last = r.tricks.length - 1;
+      const showing = r.tricks[last].cards.length || last === 0 ? last : last - 1;
       // Rebuild only when the table changed, so other updates can't cut a card's flight short.
-      const sig = JSON.stringify([ctx.state.roundNo, showing, trick, me(), i18n.lang]);
+      const sig = JSON.stringify([ctx.state.roundNo, r.tricks, me(), i18n.lang]);
       if (sig === trickSig) return;
       trickSig = sig;
-      $('trick').innerHTML = trick.cards
-        .map(({ seat, card }) => {
-          const key = `${ctx.state.roundNo}:${showing}:${seat}`;
-          // No animations on the first state: a reload just shows the table as it is.
-          const fresh = !seenCards.has(key) && prev;
-          seenCards.add(key);
-          // Someone else's card stays hidden until the one in the air lands (see flyCard).
-          const motion = isFlying(seat) || (fresh && seat !== me() && canFly()) ? 'incoming' : fresh && seat === me() ? 'fresh' : '';
-          const won = trick.cards.length === 4 && trick.winnerSeat === seat;
-          return `<span class="slot p${posOf(seat)} ${motion} ${won ? 'won' : ''}" data-team="${seat % 2}" data-seat="${seat}">${cardHTML(card)}</span>`;
-        })
+      const latest = {}; // each seat's newest card: the one that may be in the air
+      r.tricks.forEach((tr, i) => tr.cards.forEach(({ seat }) => (latest[seat] = i)));
+      $('trick').innerHTML = r.tricks
+        .slice(0, showing + 1)
+        .flatMap((trick, i) =>
+          trick.cards.map(({ seat, card }) => {
+            const key = `${ctx.state.roundNo}:${i}:${seat}`;
+            // No animations on the first state: a reload just shows the table as it is.
+            const fresh = !seenCards.has(key) && prev;
+            seenCards.add(key);
+            // Someone else's card stays hidden until the one in the air lands (see flyCard).
+            const inAir = (isFlying(seat) && latest[seat] === i) || (fresh && seat !== me() && canFly());
+            const motion = inAir ? 'incoming' : fresh && seat === me() ? 'fresh' : '';
+            const won = i === showing && trick.cards.length === 4 && trick.winnerSeat === seat;
+            const cls = ['slot', `p${posOf(seat)}`, motion, won ? 'won' : '', i < showing ? 'past' : ''].join(' ');
+            return `<span class="${cls}" style="--i: ${i}; --tilt: ${TILT[i]}deg" data-team="${seat % 2}" data-seat="${seat}" data-trick="${i}" data-key="${cardKey(card)}">${cardHTML(card)}</span>`;
+          }),
+        )
         .join('');
     },
 
@@ -226,6 +236,12 @@ export function createView(ctx) {
       const sameHand = prev?.roundNo === ctx.state.roundNo;
       const la = r?.lastAction;
       const pla = prev?.round?.lastAction;
+      if (prev && r && !la && !r.lastCall && !sameHand && ctx.state.phase === 'playing') {
+        // Three each round the table from the mano, then the vira turned up.
+        const mine = [...$('hand').querySelectorAll('.hand-card')].map((el) => el.dataset.key);
+        const drops = [...roundTable({ first: r.mano, each: 3, me: me(), mine }), { key: 'vira' }];
+        ctx.deal.start({ mix: 'cards', drops, rest: 27 });
+      }
       if (la && JSON.stringify(la) !== JSON.stringify(pla) && sameHand) {
         if (la.seat === me()) sound.play('place');
         else flyCard(la);

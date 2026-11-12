@@ -3,6 +3,7 @@
 // discard; or drag one card straight onto the discard pile or a meld.
 import { cardKey, cardName, cardSVG, parseKey, sameCard } from './french.js';
 import { canFly, FLIGHT_MS, isFlying, launch, whenLanded } from './flight.js';
+import { roundTable } from './deal.js';
 import * as sound from './sound.js';
 import * as i18n from './i18n.js';
 import { t } from './i18n.js';
@@ -126,11 +127,11 @@ export function createView(ctx) {
     const top = r.discard.at(-1);
     const topKey = top && cardKey(top);
     $('rmPiles').innerHTML = `
-      <button class="rm-stock ${r.options.draw ? 'ready' : ''}" data-draw="stock" aria-label="${t('drawDeck')}">
+      <button class="rm-stock ${r.options.draw ? 'ready' : ''}" data-draw="stock" data-key="stock" aria-label="${t('drawDeck')}">
         <span class="card back"></span><small>${r.stock}</small>
       </button>
       <button class="rm-discard ${r.options.draw && top ? 'ready' : ''} ${r.options.play && selected.size === 1 ? 'target' : ''}" data-draw="discard" aria-label="${t('discardPile')}">
-        ${under}${top ? cardHTML(top, `top ${incoming === topKey ? 'incoming' : ''} ${fresh === 'discard' ? 'fresh' : ''}`) : '<span class="card place"></span>'}
+        ${under}${top ? cardHTML(top, `top ${incoming === topKey ? 'incoming' : ''} ${fresh === 'discard' ? 'fresh' : ''}`).replace('<span', `<span data-key="${topKey}"`) : '<span class="card place"></span>'}
       </button>
       <div class="rm-melded"><small>${t('melded')}</small> <b data-team="${team}">${r.melded[team]}</b> · <b data-team="${1 - team}">${r.melded[1 - team]}</b></div>`;
     $('rmMelds').innerHTML = r.melds.length
@@ -291,6 +292,14 @@ export function createView(ctx) {
       const r = ctx.state.round;
       const sameRound = prev?.roundNo === ctx.state.roundNo && !!prev.round;
       const la = r?.lastAction;
+      if (prev && r && !la && !sameRound && ctx.state.phase === 'playing') {
+        // Shuffled where the deck sits, seven each round the table, then one turned up.
+        const mine = [...$('hand').querySelectorAll('.hand-card')].map((el) => el.dataset.key);
+        const drops = roundTable({ first: (r.dealer + 1) % 4, each: 7, me: me(), mine });
+        if (r.discard.length) drops.push({ key: cardKey(r.discard.at(-1)) });
+        const origin = $('rmPiles').querySelector('.rm-stock .card');
+        ctx.deal.start({ mix: 'cards', drops, rest: r.stock, hide: ['stock'], origin });
+      }
       if (!la || !sameRound || la.n === prev.round.lastAction?.n) return;
       if (la.type === 'draw') {
         if (la.seat !== me()) {

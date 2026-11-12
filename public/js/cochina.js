@@ -1,6 +1,7 @@
 // The roba la cochina table: the loose cards, each team's cochina, grabbing them, and how a round reads.
 import { cardSVG, cardKey, parseKey, sameCard } from './cards.js';
 import { canFly, FLIGHT_MS, isFlying, launch, whenLanded } from './flight.js';
+import { roundTable } from './deal.js';
 import * as sound from './sound.js';
 import * as i18n from './i18n.js';
 import { t } from './i18n.js';
@@ -289,6 +290,17 @@ export function createView(ctx) {
     feedback(prev) {
       const r = ctx.state.round;
       const la = r?.lastAction;
+      const newRound = prev && prev.roundNo !== ctx.state.roundNo;
+      if (r && prev && ctx.state.phase === 'playing' && (newRound ? !la : r.deal !== prev.round?.deal)) {
+        // A new round shuffles and deals the hands, then lays the table; the next deals wait
+        // for the last card to land and what it took to slide away.
+        const thrown = !newRound && la?.type === 'play' && la.seat !== me();
+        const wait = newRound ? 0 : (thrown ? FLIGHT_MS : GLIDE_MS) + 300;
+        const mine = [...$('hand').querySelectorAll('.hand-card')].map((el) => el.dataset.key);
+        const table = newRound ? r.table.map((card) => ({ key: cardKey(card) })) : [];
+        const drops = [...roundTable({ first: (r.dealer + 1) % 4, each: 3, me: me(), mine }), ...table];
+        ctx.deal.start({ mix: newRound ? 'cards' : null, drops, rest: newRound ? 24 : 6, wait });
+      }
       if (!la || prev?.roundNo !== ctx.state.roundNo || la.n === prev?.round?.lastAction?.n) return;
       if (la.type === 'play') {
         if (la.seat === me()) sound.play('place');

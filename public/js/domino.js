@@ -2,6 +2,7 @@
 import { BoardView } from './board.js';
 import { tileHTML, tileKey } from './tiles.js';
 import { canFly, FLIGHT_MS, launch, whenLanded } from './flight.js';
+import { roundTable } from './deal.js';
 import * as sound from './sound.js';
 import { t } from './i18n.js';
 
@@ -102,6 +103,16 @@ export function createView(ctx) {
     laughAtMe();
   }
 
+  /** All 28 mixed face down, lined up a row per seat, and handed out round the table from me. */
+  function deal() {
+    const mine = [...$('hand').querySelectorAll('.hand-tile')].map((el) => el.dataset.key);
+    const base = Math.max(me(), 0);
+    const drops = roundTable({ first: base, each: 7, me: me(), mine });
+    // The top seat's row on top, mine at the bottom.
+    for (const d of drops) d.row = [3, 2, 0, 1][(d.seat - base + 4) % 4];
+    ctx.deal.start({ mix: 'tiles', drops });
+  }
+
   const clearHover = () => {
     for (const node of board.nodes.values()) node.classList.remove('drop-hover');
     $('board').classList.remove('drop-hover');
@@ -143,6 +154,7 @@ export function createView(ctx) {
       const r = ctx.state.round;
       const la = r?.lastAction;
       const pla = prev?.round?.lastAction;
+      if (prev && r && !la && prev.roundNo !== ctx.state.roundNo && ctx.state.phase === 'playing') deal();
       if (!la || JSON.stringify(la) === JSON.stringify(pla) || prev?.roundNo !== ctx.state.roundNo) return;
       if (la.type === 'pass') {
         toast(la.seat === me() ? t('youPass') : t('passes', { name: seatName(la.seat) }));
@@ -186,7 +198,8 @@ export function createView(ctx) {
       return `<button class="${cls}" data-key="${key}" aria-label="${t('aria.tile', { a: tile[0], b: tile[1] })}">${tileHTML(tile[0], tile[1], false)}</button>`;
     },
 
-    afterHand: (hand) => $('hand').style.setProperty('--n', Math.max(hand.length, 5)),
+    // Sized for a full hand all round, so the tiles don't grow as they're played.
+    afterHand: () => $('hand').style.setProperty('--n', 7),
 
     dressGhost(ghost, rect) {
       ghost.className = 'tile v drag-ghost';
