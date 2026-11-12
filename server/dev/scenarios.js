@@ -286,7 +286,7 @@ export const SCENARIOS = {
 
   'caida-ronda': {
     game: 'caida',
-    about: 'Seat 0 starts a deal holding a canto (opts.kind: ronda, patrulla or tolete; ronda by default).',
+    about: 'Seat 0 starts a deal holding a canto (opts.kind: ronda, trivilin, patrulla, vigia or registro; ronda by default).',
     setup: (match, opts) =>
       search(match, 'caida', opts, (r) => r.deal > 0 && r.turn === 0 && caida.options(r, 0).canto === (opts.kind ?? 'ronda')),
   },

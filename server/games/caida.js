@@ -24,27 +24,31 @@ export const DEAL_PAUSE_MS = 600; // extra time to see the table and a new hand 
 export const CAPTURE_PAUSE_MS = 900; // extra time to watch a capture leave the table
 
 // The house rules that vary most from table to table.
-const CLEAN_DEAL_POINTS = 1; // the dealer laid 4 different cards first try
-const REPEAT_POINTS = 1; // the other team, per repeated card the dealer turned up
-const MESA_LIMPIA_POINTS = 4;
+const MALA_ECHADA_POINTS = 1; // the other team, when no card lands on its number
+const MESA_LIMPIA_POINTS = 4; // not in the last deal
 const FREE_CARDS = 20; // half the deck: only the cards above this score
-const PATRULLA_POINTS = 2;
-const TOLETE_POINTS = 3;
+const TRIVILIN_POINTS = 5;
+const PATRULLA_POINTS = 6;
+const VIGIA_POINTS = 7;
+const REGISTRO_POINTS = 8;
 
 /** What a caída or a Ronda of this number is worth. */
 export const cardValue = (n) => (n <= 7 ? 1 : n - 8);
 
-const CANTO_ORDER = ['ronda', 'patrulla', 'tolete'];
-
-/** The best canto in a hand: a pair, three in a row or three of a kind. */
+/**
+ * The canto in a hand: a pair (ronda), a pair and the number next to it (vigía), three in
+ * a row (patrulla), three of a kind (trivilín) or 1-11-12 (registro). `high` breaks a tie
+ * between two of the same canto.
+ */
 export function cantoOf(hand) {
-  const [a, b, c] = hand.map(([n]) => n).sort((x, y) => NUMBERS.indexOf(x) - NUMBERS.indexOf(y));
-  if (a === c) return { kind: 'tolete', points: TOLETE_POINTS };
-  if (NUMBERS.indexOf(b) === NUMBERS.indexOf(a) + 1 && NUMBERS.indexOf(c) === NUMBERS.indexOf(b) + 1) {
-    return { kind: 'patrulla', points: PATRULLA_POINTS };
-  }
-  if (a === b || b === c) return { kind: 'ronda', points: cardValue(b) };
-  return null;
+  const [a, b, c] = hand.map(([n]) => NUMBERS.indexOf(n)).sort((x, y) => x - y);
+  if (a === c) return { kind: 'trivilin', points: TRIVILIN_POINTS, high: [a] };
+  if (b === a + 1 && c === b + 1) return { kind: 'patrulla', points: PATRULLA_POINTS, high: [c] };
+  if ([a, b, c].map((i) => NUMBERS[i]).join() === '1,11,12') return { kind: 'registro', points: REGISTRO_POINTS, high: [] };
+  if (a !== b && b !== c) return null;
+  const third = a === b ? c : a;
+  if (Math.abs(third - b) === 1) return { kind: 'vigia', points: VIGIA_POINTS, high: [b, third] };
+  return { kind: 'ronda', points: cardValue(NUMBERS[b]), high: [b, third] };
 }
 
 /** The cards a play takes: the same number, then the following numbers without a gap. */
@@ -122,8 +126,8 @@ export function options(round, seat) {
 
 /**
  * The dealer calls the count, 1 to 4 (dir 1) or 4 to 1 (dir -1), and lays the table. A
- * card landing on its own number scores that number. A number already on the table goes
- * back into the deck and pays the other team.
+ * card landing on its own number scores that number, and with none it's a mala echada
+ * that pays the other team. A number already on the table goes back into the deck.
  */
 export function chooseOrder(round, seat, dir, rng = Math.random) {
   if (round.over) throw new MoveError('Round is over');
@@ -150,8 +154,7 @@ export function chooseOrder(round, seat, dir, rng = Math.random) {
   const team = teamOf(seat);
   const hits = slots.filter((s) => s.hit).reduce((sum, s) => sum + s.spot, 0);
   if (hits) award(round, { kind: 'table', team, points: hits });
-  if (repeats) award(round, { kind: 'repeats', team: 1 - team, points: repeats * REPEAT_POINTS });
-  else award(round, { kind: 'clean', team, points: CLEAN_DEAL_POINTS });
+  else award(round, { kind: 'mala', team: 1 - team, points: MALA_ECHADA_POINTS });
   return round;
 }
 
@@ -165,20 +168,22 @@ export function sing(round, seat) {
   return round;
 }
 
-/** Once everyone has played from this deal: the best canto pays, and equal ones both do. */
+/**
+ * Whether sung canto `a` beats `b`: more points, then higher cards, then whoever sits
+ * closer to the dealer's right, so the dealer loses a tie.
+ */
+function beats(round, a, b) {
+  if (a.points !== b.points) return a.points > b.points;
+  const high = a.high ?? [];
+  for (let i = 0; i < high.length; i++) if (high[i] !== b.high[i]) return high[i] > b.high[i];
+  const fromDealer = (seat) => (seat - round.dealer + SEATS - 1) % SEATS;
+  return fromDealer(a.seat) < fromDealer(b.seat);
+}
+
+/** Once everyone has played from this deal: only the best canto pays. */
 function settleCantos(round) {
-  const best = [null, null];
-  for (const s of round.sung) {
-    const b = best[teamOf(s.seat)];
-    const rank = CANTO_ORDER.indexOf(s.kind);
-    const beats = !b || rank > CANTO_ORDER.indexOf(b.kind) || (rank === CANTO_ORDER.indexOf(b.kind) && s.points > b.points);
-    if (beats) best[teamOf(s.seat)] = s;
-  }
-  const rank = (s) => (s ? CANTO_ORDER.indexOf(s.kind) : -1);
-  for (const team of [0, 1]) {
-    const s = best[team];
-    if (s && rank(s) >= rank(best[1 - team])) award(round, { kind: s.kind, team, seat: s.seat, points: s.points });
-  }
+  const best = round.sung.reduce((b, s) => (!b || beats(round, s, b) ? s : b), null);
+  if (best) award(round, { kind: best.kind, team: teamOf(best.seat), seat: best.seat, points: best.points });
 }
 
 export function play(round, seat, card) {
@@ -200,7 +205,7 @@ export function play(round, seat, card) {
     round.table = round.table.filter((c) => !taken.includes(c));
     round.piles[team] += taken.length + 1;
     round.lastCapture = seat;
-    if (!round.table.length) mesa = MESA_LIMPIA_POINTS;
+    if (!round.table.length && round.deal < DEALS) mesa = MESA_LIMPIA_POINTS;
   } else {
     round.table.push(played);
     round.lastDrop = played;
@@ -240,7 +245,7 @@ function cardWorth(round, card) {
   const taken = takes(round.table, card);
   if (!taken.length) return -cardValue(card[0]) * 1.5;
   const caida = round.lastDrop?.[0] === card[0] ? cardValue(card[0]) : 0;
-  const mesa = taken.length === round.table.length ? MESA_LIMPIA_POINTS : 0;
+  const mesa = taken.length === round.table.length && round.deal < DEALS ? MESA_LIMPIA_POINTS : 0;
   return 1 + taken.length + caida * 4 + mesa * 3;
 }
 

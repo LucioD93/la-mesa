@@ -22,8 +22,10 @@ const calls = {
 
 const cantos = {
   'canto.ronda': '¡Ronda!',
+  'canto.trivilin': '¡Trivilín!',
   'canto.patrulla': '¡Patrulla!',
-  'canto.tolete': '¡Tolete!',
+  'canto.vigia': '¡Vigía!',
+  'canto.registro': '¡Registro!',
 };
 
 const en = {
@@ -590,11 +592,12 @@ const games = {
       'tieTitle': 'Even round',
       'tieSub': ({ n }) => `Both teams scored ${n}.`,
       'award.table': 'Table count',
-      'award.clean': 'Clean table',
-      'award.repeats': 'Repeated cards',
+      'award.mala': 'Mala echada',
       'award.ronda': 'Ronda',
+      'award.trivilin': 'Trivilín',
       'award.patrulla': 'Patrulla',
-      'award.tolete': 'Tolete',
+      'award.vigia': 'Vigía',
+      'award.registro': 'Registro',
       'award.caida': 'Caída',
       'award.mesa': 'Mesa limpia',
       'award.cards': ({ a, b }) => `Cards ${a} to ${b}`,
@@ -633,11 +636,12 @@ const games = {
       'tieTitle': 'Mano pareja',
       'tieSub': ({ n }) => `Los dos equipos sumaron ${n}.`,
       'award.table': 'Cuenta de la mesa',
-      'award.clean': 'Mesa bien puesta',
-      'award.repeats': 'Cartas repetidas',
+      'award.mala': 'Mala echada',
       'award.ronda': 'Ronda',
+      'award.trivilin': 'Trivilín',
       'award.patrulla': 'Patrulla',
-      'award.tolete': 'Tolete',
+      'award.vigia': 'Vigía',
+      'award.registro': 'Registro',
       'award.caida': 'Caída',
       'award.mesa': 'Mesa limpia',
       'award.cards': ({ a, b }) => `Cartas ${a} a ${b}`,

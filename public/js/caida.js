@@ -9,7 +9,7 @@ import { t } from './i18n.js';
 const SWEEP_DELAY_MS = 450; // how long a capture stays on the table before it leaves
 const SWEEP_MS = 450;
 
-const CANTOS = ['ronda', 'patrulla', 'tolete'];
+const CANTOS = ['ronda', 'trivilin', 'patrulla', 'vigia', 'registro'];
 const gainedBy = (awards, team) => awards.reduce((sum, a) => sum + (a.team === team ? a.points : 0), 0);
 
 /** The same award repeated reads as one line: three caídas, not three rows. */
@@ -311,7 +311,7 @@ export function createView(ctx) {
       if (!r || !sameRound) return;
       // The table's points, or the cantos paying out.
       const fresh = r.awards.slice(prev.round?.awards?.length ?? 0);
-      const table = fresh.filter((a) => ['table', 'clean', 'repeats'].includes(a.kind) || CANTOS.includes(a.kind));
+      const table = fresh.filter((a) => ['table', 'mala'].includes(a.kind) || CANTOS.includes(a.kind));
       if (table.length) {
         whenLanded(() => toast(table.map((a) => `${teamLabel(a.team)} +${a.points}: ${awardLabel(a)}`).join(' · '), 3000));
       }
