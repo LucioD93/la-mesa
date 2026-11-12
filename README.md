@@ -165,6 +165,7 @@ worker/
   match-server.js  MatchServer: a match as a hibernating Durable Object (PartyServer), its room's storage and alarm
   stats-server.js  StatsServer: usage counters and who's online across matches, one object named "global"
 wrangler.jsonc     The Worker's config: assets, Durable Object bindings and migrations
+vercel.json        Sends the old Vercel domain (la-mesa-app.vercel.app) to the Cloudflare one
 server/
   index.js         Local entry point (HTTP + static files + WebSocket on one port)
   app.js           The local server: static files, admin, dev tools, and a room per match kept in memory
