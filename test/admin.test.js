@@ -294,8 +294,8 @@ function fakeCloudflare(datasets, { deployment = true } = {}) {
     }
     if (!deployment) return { ok: false, status: 403, json: async () => { throw new Error('not json'); } };
     if (url.endsWith('/deployments')) return reply({ success: true, result: { deployments: [{ created_on: '2026-11-01T00:00:00Z', source: 'wrangler', versions: [{ version_id: 'abcdef012345', percentage: 100 }], annotations: { 'workers/message': 'hi' } }] } });
-    if (url.endsWith('/namespaces')) return reply({ success: true, result: [{ id: 'ns1', class: 'MatchServer', script: 'la-mesa', use_sqlite: true }] });
-    return reply({ success: true, result: [{ id: 'la-mesa', created_on: '2026-10-01T00:00:00Z', modified_on: '2026-11-01T00:00:00Z' }] });
+    if (url.endsWith('/namespaces')) return reply({ success: true, result: [{ id: 'ns1', class: 'MatchServer', script: 'jugar', use_sqlite: true }] });
+    return reply({ success: true, result: [{ id: 'jugar', created_on: '2026-10-01T00:00:00Z', modified_on: '2026-11-01T00:00:00Z' }] });
   };
   return { calls, fetcher };
 }
