@@ -27,8 +27,8 @@ test('a card on its own number scores that number, in the order the dealer calle
   const up = stacked([[5, 'c'], [2, 'e'], [12, 'o'], [7, 'b']]);
   G.chooseOrder(up, 0, 1);
   assert.deepEqual(up.opening.slots.map((s) => s.hit), [false, true, false, false]);
-  assert.deepEqual(up.points, [3, 0]); // +2 for the 2, +1 for no repeats
-  assert.deepEqual(kinds(up), ['table', 'clean']);
+  assert.deepEqual(up.points, [2, 0]);
+  assert.deepEqual(kinds(up), ['table']);
 
   const down = stacked([[4, 'c'], [2, 'e'], [2, 'o'], [1, 'b'], [7, 'o']]);
   G.chooseOrder(down, 0, -1, () => 0);
@@ -36,8 +36,15 @@ test('a card on its own number scores that number, in the order the dealer calle
   assert.deepEqual(down.table, [[4, 'c'], [2, 'e'], [1, 'b'], [7, 'o']]);
   assert.deepEqual(down.opening.slots.map((s) => s.spot), [4, 3, 2, 1]);
   assert.deepEqual(down.opening.slots.map((s) => s.hit), [true, false, false, false]);
-  assert.deepEqual(down.points, [4, 1]);
+  assert.deepEqual(down.points, [4, 0]); // a repeated card costs nothing
   assert.equal(down.opening.repeats, 1);
+});
+
+test('no card on its number is a mala echada, and pays the other team', () => {
+  const r = stacked([[5, 'c'], [3, 'e'], [12, 'o'], [7, 'b']]);
+  G.chooseOrder(r, 0, 1);
+  assert.deepEqual(r.points, [0, 1]);
+  assert.deepEqual(kinds(r), ['mala']);
 });
 
 test('the table always has four different numbers and the deal uses the rest of the count', () => {
@@ -120,15 +127,31 @@ test('clearing the table is mesa limpia, and it adds to a caída', () => {
   assert.deepEqual(r.points, [5, 0]);
 });
 
+test('there is no mesa limpia in the last deal', () => {
+  const r = dealt({ hands: [[], [[6, 'o'], [1, 'c'], [2, 'c']], [[6, 'b'], [1, 'b'], [2, 'b']], []] });
+  r.deal = G.DEALS;
+  G.play(r, 1, [6, 'o']);
+  G.play(r, 2, [6, 'b']);
+  assert.deepEqual(kinds(r), ['caida']);
+  assert.equal(r.lastAction.mesa, 0);
+});
+
 // ---- cantos --------------------------------------------------------------------
 
 test('the cantos in a hand', () => {
-  const c = (...ns) => G.cantoOf(ns.map((n) => [n, 'o']));
-  assert.deepEqual(c(6, 6, 3), { kind: 'ronda', points: 1 });
-  assert.deepEqual(c(12, 3, 12), { kind: 'ronda', points: 4 });
-  assert.deepEqual(c(3, 1, 2), { kind: 'patrulla', points: 2 });
-  assert.deepEqual(c(7, 11, 10), { kind: 'patrulla', points: 2 }); // there are no 8s or 9s
-  assert.deepEqual(c(4, 4, 4), { kind: 'tolete', points: 3 });
+  const c = (...ns) => {
+    const canto = G.cantoOf(ns.map((n) => [n, 'o']));
+    return canto && [canto.kind, canto.points];
+  };
+  assert.deepEqual(c(6, 6, 3), ['ronda', 1]);
+  assert.deepEqual(c(12, 3, 12), ['ronda', 4]);
+  assert.deepEqual(c(12, 12, 1), ['ronda', 4]); // the 12 isn't next to the 1
+  assert.deepEqual(c(4, 4, 4), ['trivilin', 5]);
+  assert.deepEqual(c(3, 1, 2), ['patrulla', 6]);
+  assert.deepEqual(c(7, 11, 10), ['patrulla', 6]); // there are no 8s or 9s
+  assert.deepEqual(c(3, 4, 3), ['vigia', 7]);
+  assert.deepEqual(c(10, 7, 7), ['vigia', 7]);
+  assert.deepEqual(c(12, 1, 11), ['registro', 8]);
   assert.equal(c(1, 3, 12), null);
   assert.equal(c(12, 1, 2), null); // the sequence doesn't wrap around
 });
@@ -166,16 +189,25 @@ test('you cannot sing out of turn, without a canto, or after your first card', (
   assert.throws(() => G.sing(r, 2), /cannot sing/);
 });
 
-test('the better canto wins, and equal ones both pay', () => {
-  const pair = (n) => [[n, 'o'], [n, 'c'], [1, 'b']];
-  const r = dealt({ hands: [[[1, 'e'], [2, 'e'], [3, 'e']], pair(12), [[5, 'o'], [6, 'o'], [7, 'o']], pair(6)] });
-  firstCards(r, [1, 2]); // Ronda of 12s against a Patrulla: the kind decides, not the points
-  assert.deepEqual(r.awards.filter((a) => ['ronda', 'patrulla'].includes(a.kind)).map((a) => [a.kind, a.team, a.points]), [['patrulla', 0, 2]]);
+test('only the best canto at the table pays', () => {
+  const cantos = (r) => r.awards.filter((a) => !['caida', 'mesa'].includes(a.kind)).map((a) => [a.kind, a.seat, a.points]);
+  const pair = (n, third = 3) => [[n, 'o'], [n, 'c'], [third, 'b']];
+  const r = dealt({ hands: [[[1, 'e'], [11, 'e'], [12, 'e']], pair(12), [[5, 'o'], [6, 'o'], [7, 'o']], [[2, 'e'], [2, 'c'], [3, 'c']]] });
+  firstCards(r, [1, 2, 3, 0]); // ronda, patrulla, vigía and registro: the registro takes it
+  assert.deepEqual(cantos(r), [['registro', 0, 8]]);
 
-  const even = dealt({ hands: [[[3, 'e'], [4, 'e'], [7, 'e']], pair(12), pair(6), [[2, 'e'], [4, 'c'], [7, 'c']]] });
-  firstCards(even, [1, 2]);
-  const rondas = even.awards.filter((a) => a.kind === 'ronda').map((a) => [a.team, a.points]).sort();
-  assert.deepEqual(rondas, [[0, 1], [1, 4]]);
+  // The same points: a higher pair, then a higher third card.
+  const pairs = dealt({ hands: [pair(2, 12), pair(5), pair(2, 11), quiet.slice()] });
+  firstCards(pairs, [0, 1, 2]);
+  assert.deepEqual(cantos(pairs), [['ronda', 1, 1]]);
+  const thirds = dealt({ hands: [pair(5, 12), pair(5, 10), quiet.slice(), quiet.slice()] });
+  firstCards(thirds, [0, 1]);
+  assert.deepEqual(cantos(thirds), [['ronda', 0, 1]]);
+
+  // The same cards: the dealer (seat 0) loses to the seat on its right.
+  const same = dealt({ hands: [pair(5, 12), pair(5, 12), quiet.slice(), quiet.slice()] });
+  firstCards(same, [0, 1]);
+  assert.deepEqual(cantos(same), [['ronda', 1, 1]]);
 });
 
 test('cantos start over with each deal', () => {
@@ -240,7 +272,7 @@ test('a dealer can win the game with the table alone', () => {
   m.round.deck = [...m.round.deck.filter((c) => !cards.some((s) => s[0] === c[0] && s[1] === c[1])), ...cards.slice().reverse()];
   assert.equal(m.handle('a', { t: 'order', dir: 1 }, new Set()), true);
   assert.equal(m.phase, 'matchEnd');
-  assert.deepEqual(m.scores, [27, 0]); // 1 + 2 + 3 gets there, so the clean table's +1 never lands
+  assert.deepEqual(m.scores, [27, 0]); // 1 + 2 + 3
 });
 
 // ---- whole games ---------------------------------------------------------------
