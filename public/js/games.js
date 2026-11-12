@@ -4,12 +4,13 @@ import { tileHTML } from './tiles.js';
 import { cardSVG } from './cards.js';
 import { cardSVG as frenchSVG } from './french.js';
 
-export const GAMES = ['domino', 'truco', 'caida', 'parchis', 'cochina', 'rummy'];
+export const GAMES = ['domino', 'fives', 'truco', 'caida', 'parchis', 'cochina', 'rummy'];
 
 const card = (c, cls = '') => `<span class="card ${cls}">${cardSVG(c)}</span>`;
 
 const ICONS = {
   domino: () => `<span class="tile v">${tileHTML(6, 3, false)}</span>`,
+  fives: () => `<span class="tile v">${tileHTML(5, 5, false)}</span><span class="five">5</span>`,
   truco: () => card([1, 'e']),
   caida: () => card([7, 'c'], 'under') + card([1, 'o']),
   parchis: () =>

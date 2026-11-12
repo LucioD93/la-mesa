@@ -37,6 +37,53 @@ export const RULES = {
     ],
   },
 
+  fives: {
+    en: [
+      { h: 'The game', items: [
+        'Dominoes with the same set and deal: double six, 7 tiles each, no boneyard, partners across from each other.',
+        'Points come as you play. The first team to the target wins on the spot, even mid-round. You pick 100, 150 or 250 in the lobby.',
+      ] },
+      { h: 'Your turn', items: [
+        'In the first round, whoever holds the double six opens with it. After that the opener rotates to the right and can open with any tile.',
+        'Match one of the two ends of the line. With no legal move, the game passes for you after 3 seconds.',
+      ] },
+      { h: 'Scoring on the ends', items: [
+        'After each tile, add up the two ends of the line. If the sum is a multiple of 5 (5, 10, 15, 20…), your team scores it.',
+        'A double on an end counts both halves: the 4-4 on an end counts 8.',
+        'The opening tile counts its pips: opening with the 5-5 or the 6-4 scores 10, and the 5-0 scores 5.',
+      ] },
+      { h: 'Ending a round', items: [
+        'Domino: the player who empties their hand wins for their team, which also scores the pips left in the other team\'s hands, rounded to the nearest 5 (7 is 5, 8 is 10).',
+        'Tranque (blocked game): the team with fewer pips scores the other team\'s pips, rounded the same way. A tie adds nothing.',
+      ] },
+      { h: 'Not included', items: [
+        'The spinner: here the first double is just a tile in the line, so there are always two ends.',
+      ] },
+    ],
+    es: [
+      { h: 'El juego', items: [
+        'Dominó con el mismo juego y reparto: doble seis, 7 fichas cada uno, sin pozo, compañeros enfrente.',
+        'Los puntos llegan mientras se juega. El primer equipo en llegar a la meta gana en el acto, aunque sea a mitad de mano. Se elige 100, 150 o 250 en la sala.',
+      ] },
+      { h: 'Tu turno', items: [
+        'En la primera mano sale quien tenga el doble seis, y sale con él. Después la salida rota a la derecha y se puede salir con cualquier ficha.',
+        'Pega con una de las dos puntas de la línea. Si no tienes jugada, el juego pasa por ti a los 3 segundos.',
+      ] },
+      { h: 'Puntos en las puntas', items: [
+        'Después de cada ficha, se suman las dos puntas de la línea. Si la suma es múltiplo de 5 (5, 10, 15, 20…), tu equipo se la anota.',
+        'Un doble en una punta cuenta sus dos mitades: el 4-4 en una punta cuenta 8.',
+        'La ficha de salida cuenta sus puntos: salir con el 5-5 o el 6-4 da 10, y el 5-0 da 5.',
+      ] },
+      { h: 'Cómo termina la mano', items: [
+        'Dominó: quien se quede sin fichas gana para su equipo, que además suma los puntos que le quedan al otro equipo, redondeados al 5 más cercano (7 es 5, 8 es 10).',
+        'Tranque: el equipo con menos puntos suma los del otro, redondeados igual. Si empatan, nadie suma.',
+      ] },
+      { h: 'No incluido', items: [
+        'El spinner (la cruz): aquí el primer doble es una ficha más de la línea, así que siempre hay dos puntas.',
+      ] },
+    ],
+  },
+
   truco: {
     en: [
       { h: 'The game', items: [

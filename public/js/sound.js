@@ -110,6 +110,7 @@ const sounds = {
   },
   win: () => [523, 659, 784, 1047].forEach((f, i) => note(f, { at: i * 0.11, dur: 0.3, type: 'triangle', gain: 0.18 })),
   lose: () => [392, 330, 262, 196].forEach((f, i) => note(f, { at: i * 0.18, dur: 0.35, type: 'sawtooth', gain: 0.07 })),
+  score: () => [880, 1320].forEach((f, i) => note(f, { at: i * 0.07, dur: 0.14, type: 'triangle', gain: 0.13 })),
   roundEnd: () => [440, 554].forEach((f, i) => note(f, { at: i * 0.12, dur: 0.25, type: 'triangle', gain: 0.15 })),
 };
 

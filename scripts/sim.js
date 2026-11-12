@@ -12,7 +12,7 @@ import { parseArgs } from 'node:util';
 import { WebSocket } from 'ws';
 
 const USAGE = `usage: node scripts/sim.js [game] [options]
-  game              domino, truco, caida, parchis, cochina or rummy (default domino)
+  game              domino, fives, truco, caida, parchis, cochina or rummy (default domino)
   --bots <n>        seats for bots, 0-3 (default 0); headless players take the rest from seat 0
   --seed <s>        repeat the same deals, dice and choices (its own server only)
   --target <n>      the match's target, one of the game's choices
@@ -98,6 +98,7 @@ const STRATEGY = {
     const m = st.round.legal.length && pick(st.round.legal);
     return m ? { t: 'play', tile: m.tile, end: m.end } : null; // with nothing to play, the server passes for us
   },
+  fives: (st) => STRATEGY.domino(st),
   truco: (st) => {
     const r = st.round;
     const o = r.options;
@@ -172,6 +173,7 @@ const RACES = new Set(['Nothing to grab', 'Too late']);
 const card = (c) => `${c[0]}${c[1]}`;
 const DESCRIBE = {
   domino: (r) => r.lastAction && (r.lastAction.type === 'pass' ? 'passes' : `plays ${r.lastAction.tile.join('|')} ${r.lastAction.end}`),
+  fives: (r) => DESCRIBE.domino(r) && `${DESCRIBE.domino(r)}${r.lastAction.points ? `, scores ${r.lastAction.points}` : ''}`,
   truco: (r) => [r.lastCall && `says ${r.lastCall.what}`, r.lastAction && `plays ${card(r.lastAction.card)}`],
   caida: (r) => [
     r.lastCall && `sings ${r.lastCall.what}`,
