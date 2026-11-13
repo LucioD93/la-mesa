@@ -19,12 +19,12 @@ const BOTS = [
 ];
 const MAX_NAME = 24;
 const MAX_TEAM_NAME = 16;
-// Same ids as public/js/reactions.js, in its order. El Manguangua is a photo, not an emoji.
+// Same ids as public/js/reactions.js, in its order. El Manguangua and Vladimir are pictures, not emoji.
 export const REACTIONS = [
   '😂', '🤣', '😭', '🥲', '😮', '😱', '😡', '🤬', '🤔', '😏', '🙄', '😴', '🤡', '🥵', '😎', '🤯',
   '👏', '👍', '👎', '🙏', '🤌', '💪', '🫡', '👀', '🤝', '✌️',
   '🔥', '💯', '🎉', '🍀', '💀', '🐢', '⏳', '🧠', '🎯', '🏆',
-  'manguangua',
+  'manguangua', 'vladimir',
 ];
 const REACTION_COOLDOWN_MS = 600; // per player, so a pile-on is not throttled
 const REACTION_CROWD_MS = 3000; // same emoji from others within this joins the crowd
