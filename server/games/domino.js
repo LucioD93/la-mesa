@@ -67,23 +67,61 @@ export function boardEnds(round) {
   return [round.line[0][0], round.line[round.line.length - 1][1]];
 }
 
+// An All Fives round also has a spinner: `spinner` is the index in `line` of the first
+// double (null until one is played; plain dominoes leave it undefined), and `up` and
+// `down` are the arms off its other two sides, each tile oriented [matching, outer].
+
+/** The spinner's other two sides are open once both its long sides are taken. */
+export const spinnerOpen = (round) => round.spinner != null && round.spinner > 0 && round.spinner < round.line.length - 1;
+
+/** The open ends, as { end, value }: the line's 'L' and 'R', then the spinner's 'U' and 'D' once they open. */
+export function openEnds(round) {
+  const { line } = round;
+  if (!line.length) return [];
+  const ends = [
+    { end: 'L', value: line[0][0] },
+    { end: 'R', value: line[line.length - 1][1] },
+  ];
+  if (spinnerOpen(round)) {
+    const s = line[round.spinner][0];
+    for (const [end, arm] of [['U', round.up], ['D', round.down]]) ends.push({ end, value: arm.length ? arm[arm.length - 1][1] : s });
+  }
+  return ends;
+}
+
 export function legalMoves(round, seat) {
   const hand = round.hands[seat];
-  const ends = boardEnds(round);
+  const ends = openEnds(round);
   const moves = [];
-  if (!ends) {
+  if (!ends.length) {
     for (const tile of hand) {
       if (round.mustPlay && !sameTile(tile, round.mustPlay)) continue;
       moves.push({ tile, end: 'R' });
     }
     return moves;
   }
-  const [left, right] = ends;
-  for (const tile of hand) {
-    if (tile[0] === left || tile[1] === left) moves.push({ tile, end: 'L' });
-    if (tile[0] === right || tile[1] === right) moves.push({ tile, end: 'R' });
-  }
+  for (const tile of hand)
+    for (const { end, value } of ends) if (tile[0] === value || tile[1] === value) moves.push({ tile, end });
   return moves;
+}
+
+/** Put a tile on the table at `end`, turned to match it, without checking it's legal. */
+export function place(round, [a, b], end) {
+  const open = openEnds(round).find((e) => e.end === end);
+  if (!open) {
+    round.line.push([a, b]);
+    round.center = 0;
+  } else {
+    const [p, q] = a === open.value ? [a, b] : [b, a]; // p matches the end
+    if (end === 'L') {
+      round.line.unshift([q, p]);
+      round.center += 1;
+      if (round.spinner != null) round.spinner += 1;
+    } else if (end === 'R') round.line.push([p, q]);
+    else (end === 'U' ? round.up : round.down).push([p, q]);
+  }
+  // The first double is the spinner. The spinner's arms only open after one, so it's on the line.
+  if (round.spinner === null && a === b) round.spinner = end === 'L' ? 0 : round.line.length - 1;
 }
 
 export function isBlocked(round) {
@@ -134,16 +172,7 @@ export function play(round, seat, tile, end) {
   if (!legal) throw new MoveError('That tile does not fit there');
 
   const [a, b] = hand[idx];
-  const ends = boardEnds(round);
-  if (!ends) {
-    round.line.push([a, b]);
-    round.center = 0;
-  } else if (end === 'L') {
-    round.line.unshift(b === ends[0] ? [a, b] : [b, a]);
-    round.center += 1;
-  } else {
-    round.line.push(a === ends[1] ? [a, b] : [b, a]);
-  }
+  place(round, [a, b], end);
   hand.splice(idx, 1);
   round.mustPlay = null;
   round.lastAction = { type: 'play', seat, tile: [a, b], end };
@@ -172,7 +201,8 @@ export function botMove(round, seat) {
   const best = moves[0];
   const leftLen = round.center;
   const rightLen = round.line.length - round.center - 1;
-  const alt = moves.find((m) => sameTile(m.tile, best.tile) && m.end !== best.end);
+  const other = { L: 'R', R: 'L' }[best.end];
+  const alt = moves.find((m) => sameTile(m.tile, best.tile) && m.end === other);
   if (alt) {
     const ends = boardEnds(round);
     if (ends && ends[0] === ends[1]) return leftLen < rightLen ? { ...best, end: 'L' } : { ...best, end: 'R' };

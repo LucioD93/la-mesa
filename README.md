@@ -42,12 +42,11 @@ Created in [T3 Code](https://t3.codes).
 
 All Fives (also *Muggins*) is the domino game above, scored as you play. The deal, the opener, the forced pass and the laughing are the same.
 
-- **Points on the ends.** After each tile, add up the two ends of the line. If the sum is a multiple of 5, the player's team scores it. A double on an end counts both halves, and the opening tile counts its pips: the 5-5 or the 6-4 opens for 10.
+- **Points on the ends.** After each tile, add up the open ends. If the sum is a multiple of 5, the player's team scores it. A double on an end counts both halves, and the opening tile counts its pips: the 5-5 or the 6-4 opens for 10.
+- **The spinner.** The first double played, whether it opens or comes later, is the spinner. Once tiles are on both of its long sides, tiles can go on its other two sides as well, so the table can have four ends. While one of those sides is empty it doesn't count, and once both long sides are taken the spinner itself no longer counts.
 - **Going out** scores the pips left in the other team's hands, rounded to the nearest 5 (7 is 5, 8 is 10), on top of what the ends scored.
 - **Blocked game:** the team with fewer pips scores the other team's pips, rounded the same way. A tie adds nothing.
 - **Winning.** Points land as they happen, and the first team to the target (100, 150 or 250) wins on the spot, even mid-round.
-
-**Not implemented:** the spinner (the first double taking tiles on all four sides). The line always has two ends, as in dominoes.
 
 ### Truco rules
 
@@ -195,7 +194,7 @@ server/
     index.js       The list of games, and what a game has to provide
     common.js      Seats and teams, shuffling, MoveError, bot pacing, the catchphrase odds
     domino.js      Pure domino rules and bot AI, plus the `game` object
-    fives.js       All Fives: the domino rules with points on the ends, and a bot that goes for them
+    fives.js       All Fives: the domino rules with a spinner and points on the ends, and a bot that goes for them
     truco.js       Pure truco rules and bot AI, plus the `game` object
     caida.js       Pure caída rules and bot AI, plus the `game` object
     parchis.js     Pure parchís rules and bot AI, plus the `game` object
@@ -217,7 +216,7 @@ public/
   js/games.js      The lobby's menu of games and their icons (a new game goes here too)
   js/flight.js     Throwing a tile or card from a seat to the table
   js/deal.js       The deal: mixing the tiles or shuffling the deck, then handing everything out
-  js/board.js      Lays out the line of tiles on the table
+  js/board.js      Lays out the line of tiles on the table, and the cross around an All Fives spinner
   js/tiles.js      Tile markup
   js/cards.js      Spanish card markup (SVG, placing the suit drawings)
   js/french.js     French card markup for rummy (SVG)
@@ -338,7 +337,7 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `variant` | `1 \| 2` | Lobby, a game that offers a choice: parchís's dice |
 | `theme` | `theme: "felt" \| "pencil" \| "neon" \| "minimal" \| "dark" \| "halloween" \| "christmas"` | Lobby. Everyone in the match sees it. |
 | `start` | | Lobby, once all 4 seats are filled |
-| `play` | Domino and All Fives: `tile: [a, b]`, `end: "L" \| "R"`. Truco, caída and roba la cochina: `card: [number, suit]` | On your turn |
+| `play` | Domino and All Fives: `tile: [a, b]`, `end: "L" \| "R"` (All Fives also `"U" \| "D"`, the spinner's other sides). Truco, caída and roba la cochina: `card: [number, suit]` | On your turn |
 | `call` | `what: "flor" \| "envido" \| "cinco" \| "falta" \| "truco" \| "mazo"` | Truco, when the `options` in your state allow it |
 | `answer` | `yes: boolean` | Truco, a bet is open against your team |
 | `call` | `what: "canto"` | Caída, when `options.canto` is set |
@@ -446,7 +445,7 @@ curl -X PATCH localhost:3000/api/dev/match/demo -d '{"scores": [23, 23]}'
 **Scenarios** seat players `p0`, `p1`… from seat 0 and bots in the rest. Seat 0 is the one the moment is about. Most of them deal real rounds and let bots play every seat until the moment comes, so the hands and the deck stay consistent. `seed` repeats the same one. These work for any game (`game` in the body, or the match's current one): `lobby`, `deal`, `match-point`, `round-end`, `match-end`. Then there's one per moment worth testing in each game:
 
 - Dominoes: `domino-opening`, `domino-last-tile`, `domino-stuck`, `domino-block`
-- All Fives: `fives-score` (a tile that makes the ends 15 or more), `fives-out`
+- All Fives: `fives-score` (a tile that makes the ends 15 or more), `fives-spinner` (a tile for the spinner's other sides), `fives-out`
 - Truco: `truco-flor`, `truco-reservada`, `truco-envido`, `truco-answer`
 - Caída: `caida-ronda` (`kind`: `ronda`, `trivilin`, `patrulla`, `vigia` or `registro`), `caida-caida`, `caida-mesa-limpia`
 - Parchís: `parchis-home`, `parchis-capture`, `parchis-leave`. Each rigs seat 0's next roll.

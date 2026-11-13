@@ -5,13 +5,15 @@ import { whenLanded } from './flight.js';
 import * as sound from './sound.js';
 import { t } from './i18n.js';
 
+const endValue = (tile, half) => (tile[0] === tile[1] ? 2 : 1) * half;
+
 /** What the open ends add up to, as server/games/fives.js counts them. */
-function endsCount(line) {
+function endsCount({ line, up = [], down = [] }) {
   if (!line.length) return 0;
   if (line.length === 1) return line[0][0] + line[0][1];
-  const l = line[0];
-  const r = line[line.length - 1];
-  return (l[0] === l[1] ? 2 : 1) * l[0] + (r[0] === r[1] ? 2 : 1) * r[1];
+  let n = endValue(line[0], line[0][0]) + endValue(line[line.length - 1], line[line.length - 1][1]);
+  for (const arm of [up, down]) if (arm.length) n += endValue(arm[arm.length - 1], arm[arm.length - 1][1]);
+  return n;
 }
 
 export function createView(ctx) {
@@ -37,7 +39,7 @@ export function createView(ctx) {
       base.renderBoard(prev);
       const r = ctx.state.round;
       const el = $('endsCount');
-      const count = r?.line.length ? endsCount(r.line) : 0;
+      const count = r?.line.length ? endsCount(r) : 0;
       el.hidden = !count;
       if (!count) return;
       el.textContent = t('ends', { n: count });
