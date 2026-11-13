@@ -187,7 +187,7 @@ const fitsTable = (r, card) => r.melds.some((m) => rummy.layoffFit(m, card));
 const meldsWith = (hand, card) => rummy.candidateMelds([...hand, card]).some((cards) => cards.some((c) => rummy.sameCard(c, card)));
 /** Cards left in hand after putting down the best melds. */
 const leftAfterMelds = (hand) => hand.length - rummy.bestMelds(hand).reduce((n, m) => n + m.cards.length, 0);
-const scoresWith = (r, m) => fives.scoreFor(fives.endsCount(fives.lineAfter(r.line, m)));
+const scoresWith = (r, m) => fives.scoreFor(fives.endsCount(fives.boardAfter(r, m)));
 const blocksWith = (r, m) => {
   const after = structuredClone(r);
   domino.play(after, 0, m.tile, m.end);
@@ -269,6 +269,12 @@ export const SCENARIOS = {
     game: 'fives',
     about: "Seat 0's turn, and one of its tiles makes the ends add up to 15 or more.",
     setup: (match, opts) => search(match, 'fives', opts, (r) => r.turn === 0 && domMoves(r, 0).some((m) => scoresWith(r, m) >= 15)),
+  },
+  'fives-spinner': {
+    game: 'fives',
+    about: "Seat 0's turn, the spinner's other sides are open, and one of its tiles goes on them.",
+    setup: (match, opts) =>
+      search(match, 'fives', opts, (r) => r.turn === 0 && domMoves(r, 0).some((m) => m.end === 'U' || m.end === 'D')),
   },
   'fives-out': {
     game: 'fives',

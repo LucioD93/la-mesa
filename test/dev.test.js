@@ -105,7 +105,8 @@ const PROMISES = {
   'domino-block': (m) => m.round.turn === 0,
   'fives-score': (m) =>
     m.round.turn === 0 &&
-    fives.legalMoves(m.round, 0).some((mv) => fives.scoreFor(fives.endsCount(fives.lineAfter(m.round.line, mv))) >= 15),
+    fives.legalMoves(m.round, 0).some((mv) => fives.scoreFor(fives.endsCount(fives.boardAfter(m.round, mv))) >= 15),
+  'fives-spinner': (m) => m.round.turn === 0 && fives.legalMoves(m.round, 0).some((mv) => mv.end === 'U' || mv.end === 'D'),
   'fives-out': (m) => m.round.turn === 0 && m.round.hands[0].length === 1,
   'truco-flor': (m) => florType(m.round.dealt[0], m.round.vira) === 'flor' && m.round.turn === 0,
   'truco-reservada': (m) => florType(m.round.dealt[0], m.round.vira) === 'reservada',

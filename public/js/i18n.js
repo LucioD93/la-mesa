@@ -903,7 +903,7 @@ games.fives = {
   en: {
     ...games.domino.en,
     'rules':
-      'Dominoes, scored as you play. After each tile, if the two ends of the line add up to a multiple of 5, your team scores that sum; a double on an end counts both halves. Going out scores the other team\'s pips, rounded to the nearest 5. The first team to the target wins on the spot.',
+      'Dominoes, scored as you play. After each tile, if the open ends add up to a multiple of 5, your team scores that sum; a double on an end counts both halves. The first double is the spinner: once both its long sides are taken, tiles go above and below it too. Going out scores the other team\'s pips, rounded to the nearest 5. The first team to the target wins on the spot.',
     'shareTitle': 'Play All Fives with me',
     'shareText': 'Join my All Fives domino match',
     'ends': ({ n }) => `Ends: ${n}`,
@@ -919,7 +919,7 @@ games.fives = {
   es: {
     ...games.domino.es,
     'rules':
-      'Dominó que suma mientras se juega. Después de cada ficha, si las dos puntas suman un múltiplo de 5, tu equipo se anota esa suma; un doble en una punta cuenta sus dos mitades. Quien domina suma los puntos del otro equipo, redondeados al 5 más cercano. El primer equipo en llegar a la meta gana en el acto.',
+      'Dominó que suma mientras se juega. Después de cada ficha, si las puntas abiertas suman un múltiplo de 5, tu equipo se anota esa suma; un doble en una punta cuenta sus dos mitades. El primer doble es la cruz: cuando tiene fichas por sus dos lados largos, también se juega arriba y abajo de él. Quien domina suma los puntos del otro equipo, redondeados al 5 más cercano. El primer equipo en llegar a la meta gana en el acto.',
     'shareTitle': 'Juega dominó a los cinco conmigo',
     'shareText': 'Únete a mi partida de dominó a los cinco',
     'ends': ({ n }) => `Puntas: ${n}`,

@@ -17,24 +17,32 @@ export function createView(ctx) {
 
   const pickEnds = (key) => [...new Set(ctx.state.round.legal.filter((m) => tileKey(m.tile) === key).map((m) => m.end))];
 
-  /** Which legal end ('L' / 'R') is the pointer over? */
+  /** Which legal end ('L' / 'R', or a spinner's 'U' / 'D') is the pointer over? */
   function dropTarget(key, x, y) {
     if (within('hand', x, y)) return null; // over the hand it's rearranging, not playing
     const ends = pickEnds(key);
     if (!ctx.state.round.line.length) return within('board', x, y) && ends.length ? { end: ends[0], node: null } : null;
 
-    const unit = parseFloat(getComputedStyle($('board')).getPropertyValue('--u')) || 24;
+    const el = $('board');
+    const unit = parseFloat(getComputedStyle(el).getPropertyValue('--u')) || 24;
     const reach = Math.max(52, unit * 2.6);
+    const box = el.getBoundingClientRect();
+    const scale = box.width / el.clientWidth || 1;
+    const tile = key.split('-').map(Number);
     let best = null;
     for (const end of ends) {
-      const node = [...board.nodes.values()].find((n) => n.classList.contains(end === 'L' ? 'end-l' : 'end-r'));
+      const node = [...board.nodes.values()].find((n) => n.classList.contains(`end-${end.toLowerCase()}`));
       if (!node) continue;
       const r = node.getBoundingClientRect();
       const dist = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
       if (dist > reach) continue;
-      // A lone opening tile is both ends: pick the side the tile is dropped on.
-      const side = x < r.left + r.width / 2 ? 'L' : 'R';
-      const score = dist + (ends.length > 1 && end !== side ? 0.5 : 0);
+      // One tile can be several ends (a lone opening tile, a spinner with empty sides):
+      // pick the one whose spot is nearest where the tile is dropped.
+      const spot = board.landing(tile, end);
+      const away = spot
+        ? Math.hypot(box.left + (spot.left + spot.width / 2) * scale - x, box.top + (spot.top + spot.height / 2) * scale - y)
+        : 0;
+      const score = dist + away / 1000;
       if (!best || score < best.score) best = { end, node, score };
     }
     return best;
@@ -129,12 +137,12 @@ export function createView(ctx) {
 
     unmount() {
       board.preview(null);
-      board.set([], 0);
+      board.set({ line: [], center: 0 });
     },
 
     renderBoard() {
       const r = ctx.state.round;
-      board.set(r ? r.line : [], r ? r.center : 0);
+      board.set(r ?? { line: [], center: 0 });
       const last = r?.lastAction?.type === 'play' ? tileKey(r.lastAction.tile) : null;
       for (const [key, node] of board.nodes) {
         node.classList.toggle('last', key === last);
