@@ -358,6 +358,7 @@ export function applyMove(round, seat, move) {
 
 export const game = {
   id: 'rummikub',
+  flag: 'rummikub', // not offered until it's on in PostHog
   targets: [50, 100, 200],
   defaultTarget: 100,
   slowTurnMs: 120_000, // rearranging the table takes a while

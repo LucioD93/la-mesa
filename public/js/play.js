@@ -468,7 +468,9 @@ function toastTeamNames(prev) {
 
 /** The menu of games, with the one being played marked. */
 function paintGames() {
-  $('gameList').innerHTML = GAMES.map(
+  // A game behind a feature flag is only listed where the server offers it.
+  const listed = GAMES.filter((id) => id === state.game || (state.offered ?? GAMES).includes(id));
+  $('gameList').innerHTML = listed.map(
     (id) => `<button class="game-opt" data-pick="${id}" data-g="${id}" aria-pressed="${id === state.game}">
       ${gameIcon(id)}<span class="game-text"><b>${t(`game.${id}`)}</b><small>${t(`gameDesc.${id}`)}</small></span>
       ${id === state.game ? '<span class="game-check" aria-hidden="true">✓</span>' : ''}</button>`,

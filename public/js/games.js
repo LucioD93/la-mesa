@@ -6,6 +6,9 @@ import { cardSVG as frenchSVG } from './french.js';
 import { tileHTML as rkTileHTML } from './rummikub-tiles.js';
 
 export const GAMES = ['domino', 'fives', 'truco', 'caida', 'parchis', 'cochina', 'rummy', 'rummikub'];
+// Behind a feature flag (server/games/index.js): a lobby only lists them once the server
+// offers them, and the home page leaves them out.
+export const FLAGGED = ['rummikub'];
 
 const card = (c, cls = '') => `<span class="card ${cls}">${cardSVG(c)}</span>`;
 

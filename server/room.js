@@ -9,10 +9,10 @@
 //   connections()     the open sockets: { id, state, setState(s), send(text) }
 //   wakeAt(ms|null)   call wake() at this time (the earliest timer), or never
 //   report(id, live, usage)  who's here and the usage counters, for the admin page
-//   analytics         optional: where match events go (server/analytics.js); POSTHOG_KEY's by default
+//   analytics         optional: where match events go and flags come from (server/analytics.js); POSTHOG_KEY's by default
 import { createHash, randomBytes } from 'node:crypto';
 import { MoveError } from './games/common.js';
-import { isGame } from './games/index.js';
+import { FLAGGED, gameRules, isGame } from './games/index.js';
 import { Match, SLOW_TURN_MS, publicId } from './match.js';
 import { createAnalytics, glance } from './analytics.js';
 import { timeScale } from './dev/config.js';
@@ -41,6 +41,8 @@ export const PRESENCE_MS = 40_000; // how long the dev tools' scenario players c
 const FLUSH_MS = 60_000; // usage counters go to the stats at most this long after they start
 const LIVE_MS = 10 * 60_000; // who's here is reported again this often (the stats forget after 15 minutes)
 const MATCH_TTL_MS = 24 * 60 * 60_000; // forget a match nobody has opened for a day
+const FLAGS_MS = 5 * 60_000; // how long a match goes by PostHog's answer about its feature flags
+const FLAGS_RETRY_MS = 30_000; // asking again after no answer
 // An alarm can fire a moment before its time. Whatever is due that soon runs now: set
 // again for the same time, the alarm would count as the one that just ran, and never fire.
 const WAKE_EARLY_MS = 50;
@@ -69,6 +71,7 @@ const fresh = (id, saved) => ({
   expireAt: saved?.expireAt ?? null,
   onlineKey: saved?.onlineKey ?? '', // who the players were last shown as online
   joined: saved?.joined ?? {}, // token -> 1: reported to analytics as joined, until they leave for good
+  flagsDue: saved?.flagsDue ?? null, // when to ask PostHog about the feature flags again; null: never asked
 });
 
 export function createRoom(id, host) {
@@ -198,6 +201,32 @@ export function createRoom(id, host) {
     report();
   }
 
+  // ---- feature flags ---------------------------------------------------------------
+
+  // Without PostHog (local dev, tests, sims) every game is offered.
+  const flagsOn = () => analytics.enabled && !!analytics.flags && FLAGGED.length > 0;
+
+  /**
+   * A game behind a flag is offered once PostHog says its flag is on for this match. Until
+   * the answer comes, or if it never does, it isn't. Asked in the lobby, where the game is
+   * picked, at most every few minutes. A flag can target the match id (`match`).
+   */
+  function checkFlags() {
+    if (!flagsOn() || rec.match.phase !== 'lobby') return;
+    if (rec.flagsDue != null && Date.now() < rec.flagsDue) return;
+    rec.flagsDue = Date.now() + FLAGS_RETRY_MS; // one question at a time
+    dirty = true;
+    analytics.flags(id, { match: id }).then(
+      (on) =>
+        run(() => {
+          rec.flagsDue = Date.now() + FLAGS_MS;
+          dirty = true;
+          update((m) => m.hideGames(FLAGGED.filter((g) => !on[gameRules(g).flag])));
+        }),
+      (err) => log(err),
+    );
+  }
+
   // ---- the admin page --------------------------------------------------------------
 
   /** Tell the stats who's here (when it changed, or `force`), with the usage counted so far. */
@@ -285,7 +314,13 @@ export function createRoom(id, host) {
     patch(conn, { token, games, peer, inVoice: !!msg.inVoice }); // a handover doesn't join voice again
     delete rec.away[token];
     dirty = true;
-    const { match } = update((m) => m.join(token, msg.name, msg.game, msg.theme), conn);
+    // A match that hasn't heard from PostHog yet keeps its flagged games back.
+    const unknown = flagsOn() && rec.flagsDue == null;
+    const { match } = update((m) => {
+      if (unknown) m.hideGames(FLAGGED);
+      return m.join(token, msg.name, msg.game, msg.theme);
+    }, conn);
+    checkFlags();
     // Once per visit: a reload or a dropped connection doesn't count again, coming back later does.
     if (analytics.enabled && !rec.joined[token]) {
       rec.joined[token] = 1;

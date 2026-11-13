@@ -1,6 +1,6 @@
-// Product analytics, sent to PostHog. Off unless POSTHOG_KEY is set, so local
-// dev, tests and sims send nothing. Only match-level facts leave the server:
-// no names, photos, tokens or addresses, and never a single move.
+// Product analytics and feature flags, from PostHog. Off unless POSTHOG_KEY is set, so
+// local dev, tests and sims send nothing and have every flag on. Only match-level facts
+// leave the server: no names, photos, tokens or addresses, and never a single move.
 import { publicId } from './match.js';
 
 const DEFAULT_HOST = 'https://us.i.posthog.com';
@@ -116,5 +116,20 @@ export function createAnalytics({
 
   const player = (token) => publicId(token);
 
-  return { enabled, capture, changed, player };
+  /**
+   * The feature flags PostHog has on for `distinctId` (a match id), as { key: true }. There
+   * are no person profiles, so `properties` stand in for a person's: a flag can target them.
+   */
+  async function flags(distinctId, properties = {}) {
+    const res = await send(`${host}/flags?v=2`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ api_key: key, distinct_id: String(distinctId), person_properties: properties }),
+    });
+    if (!res.ok) throw new Error(`flags: ${res.status}`);
+    const body = await res.json();
+    return Object.fromEntries(Object.entries(body.flags ?? {}).map(([name, flag]) => [name, flag?.enabled === true]));
+  }
+
+  return { enabled, capture, changed, player, flags };
 }

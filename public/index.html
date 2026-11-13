@@ -64,9 +64,9 @@
       import { cardSVG, parseKey } from '/js/cards.js';
       import * as i18n from '/js/i18n.js';
       import * as avatar from '/js/avatar.js';
-      import { GAMES } from '/js/games.js';
+      import { FLAGGED, GAMES } from '/js/games.js';
       // The games, in the lobby's order; names follow the language.
-      document.getElementById('gameChips').innerHTML = GAMES.map(
+      document.getElementById('gameChips').innerHTML = GAMES.filter((id) => !FLAGGED.includes(id)).map(
         (id) => `<li data-g="${id}"><i aria-hidden="true"></i><span data-i18n="game.${id}"></span></li>`,
       ).join('');
       i18n.apply();

@@ -8,7 +8,7 @@ Created in [T3 Code](https://t3.codes).
 
 ## Features
 
-- **Eight games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, All Fives, truco, caída, parchís, roba la cochina, rummy and Rummikub, and everyone there sees the change. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again. A player can also go back to the lobby mid-game, from the ⋯ menu or a round's result, after confirming: it ends the game for all four and resets the score.
+- **Eight games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, All Fives, truco, caída, parchís, roba la cochina, rummy and Rummikub, and everyone there sees the change. Rummikub is behind a [feature flag](#feature-flags) for now. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again. A player can also go back to the lobby mid-game, from the ⋯ menu or a round's result, after confirming: it ends the game for all four and resets the score.
 - **Table styles.** Anyone can pick how the table looks for everyone in the match, from *Table style* in the ⋯ menu, in the lobby or at the table: Felt (the green table), Pencil (graphite on graph paper, with hatched card backs and colored-pencil teams) Neon (dark glass tiles with lit pips and a glowing grid) Minimal (flat white, hairlines, no shadows) Dark (graphite, charcoal tiles with white pips, amber highlights), Halloween (a moonlit purple night with bats and pumpkin tiles) or Christmas (a red table under falling snow, snow-white tiles with red pips and candy-cane card backs). A new match starts in the style its first player saw last. The fonts are served from `public/fonts/` (all SIL Open Font License).
 - **Team names.** In the lobby, either partner taps *Your team*, above the game, to name the team (up to 16 characters, or one of a few Venezuelan quick picks). Everyone sees it in the lobby, the score and the round results, and gets a toast when it changes. The name stays with the team when players change seats. Without one, the score says Us / Them.
 - **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches.
@@ -158,7 +158,7 @@ Rummy has many versions. This is a partnership game scored like Rummy 500, kept 
 
 ### Rummikub rules
 
-Rummikub is played one against one or every player for themselves. This is a version for two teams, scored like the dominoes.
+Rummikub is behind the PostHog feature flag `rummikub`: a lobby only offers it where the flag is on (see [Feature flags](#feature-flags)). Rummikub is played one against one or every player for themselves. This is a version for two teams, scored like the dominoes.
 
 - 106 tiles: 1 to 13 in black, blue, orange and red, twice over, and two jokers. 14 each, 2 vs 2; the other 50 stay face down in the pool. The first player rotates every round.
 - **Sets.** A group is 3 or 4 of a number, every one a different color. A run is 3 or more in a row of one color, from 1 up to 13 (no 13-1). A joker takes the place of any tile: in a run it fills a gap first, then goes on the high end, then the low end once the run reaches 13.
@@ -380,7 +380,7 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 
 | Server → client | Payload |
 | --- | --- |
-| `state` | Full personalized view: game, theme, team names, targets, phase, seats, scores, history, the round (board line and legal moves, or vira, tricks, open bets and `options`) and your hand |
+| `state` | Full personalized view: game, the games the lobby offers (`offered`), theme, team names, targets, phase, seats, scores, history, the round (board line and legal moves, or vira, tricks, open bets and `options`) and your hand |
 | `error` | `message` (illegal move) |
 | `voiceConfig` | `peer` (this connection's public voice id), `iceServers`. Sent after `hello`. |
 | `voice` | `from` (peer id), `data`: relayed voice signaling. `data.kind: "bye"` means that connection closed. |
@@ -408,7 +408,7 @@ To run the real Worker, Durable Objects and all, on your machine: `npm run dev:w
 | `METERED_APP`, `METERED_SECRET_KEY` | unset | Metered app name (`<app>.metered.live`) and secret key. When set, `/admin` shows the TURN usage Metered reports for the billing cycle. |
 | `CF_ACCOUNT_ID`, `CF_API_TOKEN` | unset | Cloudflare account id and an API token with **Account Analytics: Read**. When set, `/admin` shows Cloudflare's usage, limits and estimated bill. If the token also has **Workers Scripts: Read**, it shows deployments and class names too. |
 | `CF_PLAN` | `free` | The plan whose limits `/admin` watches: `free` or `paid`. Set in `wrangler.jsonc`. |
-| `POSTHOG_KEY`, `POSTHOG_HOST` | unset, `https://us.i.posthog.com` | PostHog project key (`phc_…`). When set, the matches report [analytics events](#analytics); use `https://eu.i.posthog.com` for an EU project. Set it with `wrangler secret put`, not in `wrangler.jsonc`, so `wrangler dev` sends nothing. |
+| `POSTHOG_KEY`, `POSTHOG_HOST` | unset, `https://us.i.posthog.com` | PostHog project key (`phc_…`). When set, the matches report [analytics events](#analytics) and follow the [feature flags](#feature-flags); use `https://eu.i.posthog.com` for an EU project. Set it with `wrangler secret put`, not in `wrangler.jsonc`, so `wrangler dev` sends nothing. |
 | `DEV_TOOLS` | unset | `1` turns on [`/api/dev`](#testing-tools) on the local server. The Worker never mounts it. |
 | `TIME_SCALE` | `1` | Multiplies every wait the server schedules: bot moves, forced passes, closing a cochina grab, the slow-player mocking. `0.1` makes bots ten times faster (the client's animations don't speed up). Ignored in the Worker. |
 | `SEED` | unset | Deals, dice and bot choices follow this seed, so the same moves in a match with the same id replay the same game. Ignored in the Worker. |
@@ -433,6 +433,17 @@ With `POSTHOG_KEY` set, each match's room sends [PostHog](https://posthog.com) e
 | `voice_joined` | someone joins the voice chat | none |
 
 `distinct_id` is the match id for match events and the player's `publicId` for `player_joined` and `voice_joined`; neither creates a person profile.
+
+### Feature flags
+
+A game can wait behind a PostHog feature flag (its `flag` in `server/games/`). Rummikub waits behind `rummikub`. The server asks PostHog, never the browser: the room of a match in the lobby asks `/flags` with the match id as the distinct id and `match` as a person property, so a flag can be rolled out to a share of matches or to particular ones (*match* equals `lucio-test`, then play at `/play/lucio-test`). The answer holds for 5 minutes, and a lobby asks again on the next player's arrival after that.
+
+- Until PostHog answers, and when it doesn't, the game isn't offered. A flag that doesn't exist in PostHog is off.
+- The match's `offered` list, in its state, is what the lobby's menu shows, and picking a game outside it does nothing. A match already playing the game carries on if the flag goes off.
+- The home page's list of games leaves flagged games out (`FLAGGED` in `public/js/games.js`).
+- Without `POSTHOG_KEY` (local dev, `wrangler dev`, tests, sims) every game is offered.
+
+To release a game, remove its `flag` and its entry in `FLAGGED`.
 
 ### Tests
 

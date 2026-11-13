@@ -8,6 +8,7 @@
 //   runAuto(match, rng)          play that automatic move
 //   waitingOn(match)             { seat, key } of the human the table waits on, when pendingAuto is null
 //   slowTurnMs                   optional: how long a turn takes before the table mocks the player
+//   flag                         optional: a PostHog feature flag; the lobby only offers the game where it's on
 //   roundView(round, seat, revealed)   what one player may see of the round
 import { game as domino } from './domino.js';
 import { game as fives } from './fives.js';
@@ -26,3 +27,5 @@ export const DEFAULT_GAME = 'domino';
 export const GAME_IDS = Object.keys(GAMES);
 export const isGame = (id) => typeof id === 'string' && Object.hasOwn(GAMES, id);
 export const gameRules = (id) => GAMES[id];
+/** The games behind a feature flag. */
+export const FLAGGED = GAME_IDS.filter((id) => GAMES[id].flag);
