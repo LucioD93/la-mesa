@@ -1500,7 +1500,8 @@ body[data-game='rummikub'] .hand {
 .hand-rk { touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: grab; transition: translate 0.18s, opacity 0.2s, box-shadow 0.2s; }
 .hand-rk.dragging { opacity: 0.25; translate: none; box-shadow: none; }
 .hand-rk.new::before { content: ''; position: absolute; right: 2px; top: 2px; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
-.rh-tiles { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 2px; --rw: 15px; }
+.result-emoji .rk-tile { --rw: 46px; }
+body[data-game='rummikub'] .rh-tiles { gap: 2px; --rw: 15px; }
 .rk-tile.drag-ghost:not(.rejected) { box-shadow: 0 0 0 3px var(--gold), 0 14px 28px rgba(0, 0, 0, 0.55); }
 
 /* ---- result details ------------------------------------------------------- */

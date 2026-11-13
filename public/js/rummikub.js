@@ -462,7 +462,8 @@ export function createView(ctx) {
       return {
         winTeam: s.winner ?? 0,
         gained: s.points,
-        emoji: '🀄',
+        emoji: '🃏',
+        icon: tileHTML(104), // the joker
         sub: how,
         lastRound: how,
         tie: s.winner == null ? { title: t('tieTitle'), sub: t('tieSub', { n: s.held[0] }) } : null,

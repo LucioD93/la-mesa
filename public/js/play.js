@@ -1014,6 +1014,7 @@ function buildResult(fresh) {
   const weWon = mine && winTeam === myTeam();
 
   let emoji, title, sub;
+  let icon = null; // markup a game can show instead of its emoji
   if (isMatch) {
     emoji = !mine ? '🏆' : weWon ? '🏆' : '😭';
     title = !mine ? t('teamWinsMatch', { team: teamLabel(winTeam) }) : weWon ? t('youWinMatch') : t('youLoseMatch');
@@ -1024,12 +1025,14 @@ function buildResult(fresh) {
     ({ title, sub } = res.tie);
   } else {
     emoji = !mine ? res.emoji : weWon ? '🎉' : '😬';
+    if (!mine) icon = res.icon ?? null;
     title = `${teamLabel(winTeam)} ${signed(res.gained[winTeam])}`;
     sub = res.sub;
   }
 
   card.className = `result-card ${isMatch ? 'match' : ''} ${isMatch && mine ? (weWon ? 'won' : 'lost') : ''}`;
-  $('resultEmoji').textContent = emoji;
+  if (icon) $('resultEmoji').innerHTML = icon;
+  else $('resultEmoji').textContent = emoji;
   $('resultTitle').textContent = title;
   $('resultSub').textContent = sub;
 
