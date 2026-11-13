@@ -807,9 +807,10 @@ function showReaction({ seat, emoji, crowd, slow }) {
     return crowdEmoji(emoji, crowd); // silent: it mocks, it doesn't need to shout
   }
   floatEmoji(seat, emoji);
-  if (crowd <= 1) return sound.play('react');
-  crowdEmoji(emoji, crowd);
-  if (emoji === 'manguangua') sound.playClip('manguangua'); // his catchphrase, as when the bot says it
+  if (crowd > 1) crowdEmoji(emoji, crowd);
+  if (emoji === 'vladimir') sound.playClip('vladimir'); // the reaction is the sound, alone or in a crowd
+  else if (crowd <= 1) sound.play('react');
+  else if (emoji === 'manguangua') sound.playClip('manguangua'); // his catchphrase, as when the bot says it
   else sound.play('crowd');
 }
 
