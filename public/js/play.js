@@ -1,6 +1,6 @@
 // The game page: connection, lobby, seats, voice, photos, reactions and the frame of
 // the result. What's on the table belongs to the game's view (domino.js, fives.js, truco.js,
-// caida.js, parchis.js, cochina.js, rummy.js).
+// caida.js, parchis.js, cochina.js, rummy.js, rummikub.js).
 import { createView as createDominoView } from './domino.js';
 import { createView as createFivesView } from './fives.js';
 import { createView as createTrucoView } from './truco.js';
@@ -8,6 +8,7 @@ import { createView as createCaidaView } from './caida.js';
 import { createView as createParchisView } from './parchis.js';
 import { createView as createCochinaView } from './cochina.js';
 import { createView as createRummyView } from './rummy.js';
+import { createView as createRummikubView } from './rummikub.js';
 import { RULES } from './rules.js';
 import { GAMES, gameIcon } from './games.js';
 import { REACTION_TABS, REACTIONS, IMAGES, FIRST_RECENT } from './reactions.js';
@@ -624,29 +625,36 @@ function onDragMove(e) {
   e.preventDefault();
   drag.ghost.style.transform = `translate(${e.clientX - drag.dx}px, ${e.clientY - drag.dy}px) rotate(-4deg) scale(${view.ghostScale})`;
   view.dragOver(drag.key, e.clientX, e.clientY);
-  if (within('hand', e.clientX, e.clientY)) moveInHand(e.clientX);
+  if (within('hand', e.clientX, e.clientY)) moveInHand(e.clientX, e.clientY);
 }
 
 /** Slide the dragged piece to the hand slot under the pointer. */
-function moveInHand(x) {
+function moveInHand(x, y) {
   const handEl = $('hand');
   const pieces = [...handEl.children];
-  const gap = parseFloat(getComputedStyle(handEl).columnGap) || 0;
-  const pitch = drag.btn.offsetWidth + gap;
-  const rect = handEl.getBoundingClientRect();
-  const left = rect.left + (rect.width - pieces.length * pitch + gap) / 2; // the row is centered
-  const to = Math.min(Math.max(Math.floor((x - left) / pitch), 0), pieces.length - 1);
   const from = pieces.indexOf(drag.btn);
+  // A hand that wraps onto more rows (Rummikub's rack) knows its own slots.
+  const to = view.slotAt ? view.slotAt(pieces, x, y) : slotInRow(handEl, pieces, x);
   if (to === from) return;
 
-  const before = pieces.map((el) => el.offsetLeft);
+  const before = pieces.map((el) => [el.offsetLeft, el.offsetTop]);
   handEl.insertBefore(drag.btn, pieces[to > from ? to + 1 : to] ?? null);
   handOrder.splice(to, 0, handOrder.splice(from, 1)[0]);
   if (reduceMotion) return;
   pieces.forEach((el, i) => {
-    const shift = before[i] - el.offsetLeft;
-    if (shift && el !== drag.btn) el.animate({ translate: [`${shift}px 0`, '0 0'] }, { duration: 120, easing: 'ease-out' });
+    const dx = before[i][0] - el.offsetLeft;
+    const dy = before[i][1] - el.offsetTop;
+    if ((dx || dy) && el !== drag.btn) el.animate({ translate: [`${dx}px ${dy}px`, '0 0'] }, { duration: 120, easing: 'ease-out' });
   });
+}
+
+/** The slot under `x` in a hand laid out as one centered row. */
+function slotInRow(handEl, pieces, x) {
+  const gap = parseFloat(getComputedStyle(handEl).columnGap) || 0;
+  const pitch = drag.btn.offsetWidth + gap;
+  const rect = handEl.getBoundingClientRect();
+  const left = rect.left + (rect.width - pieces.length * pitch + gap) / 2; // the row is centered
+  return Math.min(Math.max(Math.floor((x - left) / pitch), 0), pieces.length - 1);
 }
 
 function onDragEnd(e) {
@@ -1329,6 +1337,7 @@ const ctx = {
   redraw() {
     view.renderBoard(state);
     renderHand();
+    renderStatus();
     ctx.deal.mark();
   },
   sortHand(compare) {
@@ -1346,6 +1355,7 @@ const views = {
   parchis: createParchisView(ctx),
   cochina: createCochinaView(ctx),
   rummy: createRummyView(ctx),
+  rummikub: createRummikubView(ctx),
 };
 
 // For tests and the console: what this tab knows, and its way to talk to the server.

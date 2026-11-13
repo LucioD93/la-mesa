@@ -2,13 +2,13 @@
 
 # La Mesa
 
-Mobile-first, four-player games (2 vs 2) you play in the browser: partner dominoes, All Fives dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, parchís in pairs, roba la cochina, and partnership rummy. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
+Mobile-first, four-player games (2 vs 2) you play in the browser: partner dominoes, All Fives dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, parchís in pairs, roba la cochina, partnership rummy, and Rummikub in pairs. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
 
 Created in [T3 Code](https://t3.codes).
 
 ## Features
 
-- **Seven games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, All Fives, truco, caída, parchís, roba la cochina and rummy, and everyone there sees the change. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again. A player can also go back to the lobby mid-game, from the ⋯ menu or a round's result, after confirming: it ends the game for all four and resets the score.
+- **Eight games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, All Fives, truco, caída, parchís, roba la cochina, rummy and Rummikub, and everyone there sees the change. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again. A player can also go back to the lobby mid-game, from the ⋯ menu or a round's result, after confirming: it ends the game for all four and resets the score.
 - **Table styles.** Anyone can pick how the table looks for everyone in the match, from *Table style* in the ⋯ menu, in the lobby or at the table: Felt (the green table), Pencil (graphite on graph paper, with hatched card backs and colored-pencil teams) Neon (dark glass tiles with lit pips and a glowing grid) Minimal (flat white, hairlines, no shadows) Dark (graphite, charcoal tiles with white pips, amber highlights), Halloween (a moonlit purple night with bats and pumpkin tiles) or Christmas (a red table under falling snow, snow-white tiles with red pips and candy-cane card backs). A new match starts in the style its first player saw last. The fonts are served from `public/fonts/` (all SIL Open Font License).
 - **Team names.** In the lobby, either partner taps *Your team*, above the game, to name the team (up to 16 characters, or one of a few Venezuelan quick picks). Everyone sees it in the lobby, the score and the round results, and gets a toast when it changes. The name stays with the team when players change seats. Without one, the score says Us / Them.
 - **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches.
@@ -19,7 +19,7 @@ Created in [T3 Code](https://t3.codes).
 - **Reconnects.** Reloading or briefly losing the connection puts you back in your seat with your hand. A match's sockets stay open as long as the players do, and the client notices dead connections within seconds, reconnects with backoff, and retries right away when the network or the tab comes back. If you were swapped for a bot while away, rejoining gives you your seat back.
 - **Voice chat.** Everyone in a match (players and spectators) can join the room's voice chat with the mic button, from the lobby or the table, mute themselves, or hang up. Audio goes peer to peer over WebRTC; the server only relays the connection setup. Seated players in voice get a mic badge on their avatar. While they talk, a green halo breathes around it (outside the turn ring, so it shows on their turn too), the badge shows sound bars, and their name turns green. Without a microphone (blocked, missing, or a plain-`http` LAN page) you join as a listener. When others are in voice and you aren't, whether you arrive to find it on or someone starts it while you're there, in the lobby or at the table, a dialog shows who is in it and offers to join. *Not now* (or hanging up) holds until voice has been empty for 15 seconds. Everyone sees the mic badge on seated players in voice, even from outside it.
 - **Reactions and sound.** Reactions thrown at the table from a picker with tabs: what you sent last, faces, hands, the table, and memes (El Manguangua's face, with his catchphrase). The list is `public/js/reactions.js` (a picture reaction is an id and an image), and `REACTIONS` in `server/match.js` accepts the same ids. There are sound effects, a pass animation, and a deal at the start of every round: dominoes are mixed face down and lined up, a deck of cards is riffled, then everything is handed out round the table, with the vira, the table cards or the first discard turned up. In caída and roba la cochina the later deals of a round are handed out too. A bot opening after a deal waits for it. In truco, every card played stays in front of its player, each trick's on top of the one before. When players send the same emoji within 3 seconds, a big one pops over the table. A player who takes more than a minute over a move gets mocked by everyone else at once, silently, with a reaction picked at random (🐢 🐌 🦥 😴 🥱 💤 ⏳ or El Manguangua).
-- **Your hand, your order.** Drag a tile or card to a new slot in your hand at any point. In rummy, a drawn card joins the end of your hand without undoing your order, and a button sorts by suit or by rank.
+- **Your hand, your order.** Drag a tile or card to a new slot in your hand at any point. In rummy, a drawn card joins the end of your hand without undoing your order, and a button sorts by suit or by rank. Rummikub's rack wraps onto a second row and sorts by color (7 8 9) or by number (7 7 7).
 - **The ⋯ menu.** Beside the score at the table, and in the lobby's header: invite friends, table style, rules, language, sound, back to the lobby, and *Leave match* for the home page.
 - **Rules at the table.** The book icon in the lobby, and *Rules* in the ⋯ menu, open the rules of the game being played.
 - **English and Spanish.** The language follows the browser, and the EN button on the home page or *Language* in the ⋯ menu switches it (saved in `localStorage`). Truco's calls (¡Truco!, Quiero…) and caída's (¡Caída!, ¡Ronda!…) stay in Spanish in both.
@@ -156,6 +156,21 @@ Rummy has many versions. This is a partnership game scored like Rummy 500, kept 
 
 **Not implemented:** jokers and wild cards, picking up deeper into the discard pile, and a bonus for going out.
 
+### Rummikub rules
+
+Rummikub is played one against one or every player for themselves. This is a version for two teams, scored like the dominoes.
+
+- 106 tiles: 1 to 13 in black, blue, orange and red, twice over, and two jokers. 14 each, 2 vs 2; the other 50 stay face down in the pool. The first player rotates every round.
+- **Sets.** A group is 3 or 4 of a number, every one a different color. A run is 3 or more in a row of one color, from 1 up to 13 (no 13-1). A joker takes the place of any tile: in a run it fills a gap first, then goes on the high end, then the low end once the run reaches 13.
+- **A turn.** Play tiles from your rack, or draw one from the pool; either ends your turn, and with the pool empty you pass. While you play you can rearrange the whole table: split runs, move tiles between sets, swap a joker out and use it elsewhere. When you're done every tile that was on the table must still be on it, at least one must come from your rack, and every set must be a group or a run.
+- **The first play** is new sets of your own tiles adding up to 30 or more (a joker counts as the tile it stands for), without touching the table. A ✓ by a player's avatar means they've made it.
+- **End of the round.** Emptying your rack goes out, and your team scores what's left on the other team's two racks: each tile its number, a joker 30. If the pool is empty and all four pass in a row, the team with less left scores what the other team has left, and a tie scores nothing.
+- **Winning.** First team to the target (50, 100 or 200).
+- **At the table.** Tap tiles, on your rack or the table, to pick them, then tap a set's + or *New set* to move them there, or drag a tile from your rack onto a set. A set that isn't good yet is outlined in red. *Back to rack* takes back tiles you put out this turn, *Undo* puts the table back, and *Done* sends it. Pressing *Done* with a red set or a first play under 30 plays nothing, and the table laughs at you. The others only see your table when you press *Done*.
+- **Bots** make their first play as soon as they have 30, then put down every set they can, add tiles to the ends of sets, split runs, and borrow a spare tile from a run of four or more, or a group of four, to make a new set. They hold a joker back for a set of their own unless it's their last tile.
+
+**Not implemented:** a turn timer (the table mocks a player after two minutes instead of one), seeing another player's moves before they press *Done*, and dragging tiles that are already on the table.
+
 ## Stack
 
 | Layer    | Tech |
@@ -201,6 +216,7 @@ server/
     parchis.js     Pure parchís rules and bot AI, plus the `game` object
     cochina.js     Pure roba la cochina rules and bot AI, plus the `game` object
     rummy.js       Pure rummy rules and bot AI, plus the `game` object
+    rummikub.js    Pure Rummikub rules and bot AI, plus the `game` object
 public/
   index.html       Landing page (new match / join by code)
   play.html        Game table
@@ -213,6 +229,8 @@ public/
   js/parchis.js    Parchís table: the board, hopping pieces, the die, how a game reads
   js/cochina.js    Roba la cochina table: loose cards, both cochinas, steals, how a round reads
   js/rummy.js      Rummy table: deck, discard pile, melds, picking cards, how a round reads
+  js/rummikub.js   Rummikub table: the pool, the sets, building the next table on your turn, how a round reads
+  js/rummikub-tiles.js  Rummikub tile markup, and the set check the server makes
   js/rules.js      The full rules of each game, for the rules sheet
   js/games.js      The lobby's menu of games and their icons (a new game goes here too)
   js/flight.js     Throwing a tile or card from a seat to the table
@@ -242,9 +260,9 @@ test/              Rules of every game, match, rooms, board layout, game and sty
 
 ### How a game plugs in
 
-A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto`, `waitingOn` and `roundView`. The testing tools need two lines per game too: how a bot plays any seat (`STEP` in `server/dev/scenarios.js`) and how a headless player chooses (`STRATEGY` in `scripts/sim.js`).
+A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto`, `waitingOn` and `roundView`, plus `variants` and `slowTurnMs` where a game needs them. The testing tools need two lines per game too: how a bot plays any seat (`STEP` in `server/dev/scenarios.js`) and how a headless player chooses (`STRATEGY` in `scripts/sim.js`).
 
-On the client, `play.js` keeps one view per game (`domino.js`, `fives.js`, `truco.js`, `caida.js`, `parchis.js`, `cochina.js`, `rummy.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
+On the client, `play.js` keeps one view per game (`domino.js`, `fives.js`, `truco.js`, `caida.js`, `parchis.js`, `cochina.js`, `rummy.js`, `rummikub.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
 
 The `domino.*` browser storage keys predate truco and cover every game. Renaming them would lose players' names, seats and photos. Matches saved without a `game` load as dominoes.
 
@@ -333,8 +351,8 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `teamName` | `name` (up to 16 characters; empty clears it) | Seated players, for their own team, any time. The name stays with the team when players change seats. |
 | `sit` / `stand` | `seat` | Lobby. `sit` also lets a spectator take over a bot mid-game. |
 | `addBots` / `removeBot` | `seat` | Lobby |
-| `game` | `game: "domino" \| "fives" \| "truco" \| "caida" \| "parchis" \| "cochina" \| "rummy"` | Lobby. Resets the target to the game's default. |
-| `target` | `50 \| 75 \| 100`, `100 \| 150 \| 250`, `12 \| 24 \| 32`, `12 \| 24`, `1 \| 2 \| 3`, `1 \| 3 \| 5` or `150 \| 300` | Lobby, from the current game's list |
+| `game` | `game: "domino" \| "fives" \| "truco" \| "caida" \| "parchis" \| "cochina" \| "rummy" \| "rummikub"` | Lobby. Resets the target to the game's default. |
+| `target` | `50 \| 75 \| 100`, `100 \| 150 \| 250`, `12 \| 24 \| 32`, `12 \| 24`, `1 \| 2 \| 3`, `1 \| 3 \| 5`, `150 \| 300` or `50 \| 100 \| 200` | Lobby, from the current game's list |
 | `variant` | `1 \| 2` | Lobby, a game that offers a choice: parchís's dice |
 | `theme` | `theme: "felt" \| "pencil" \| "neon" \| "minimal" \| "dark" \| "halloween" \| "christmas"` | Lobby. Everyone in the match sees it. |
 | `start` | | Lobby, once all 4 seats are filled |
@@ -350,6 +368,8 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `meld` | `cards: [[rank, suit], …]` | Rummy, after drawing. Rank 1 to 13, suit `S`, `H`, `D` or `C`. |
 | `layoff` | `card: [rank, suit]`, `meld` (index on the table) | Rummy, after drawing |
 | `discard` | `card: [rank, suit]` | Rummy, after drawing. Ends your turn. |
+| `play` | `table: [[tile, …], …]` | Rummikub, your turn: the whole table as it should be after it, every set a list of tile ids (0-103 numbered, color by color, twice over; 104 and 105 the jokers) in any order. The server lays each set out. |
+| `draw` | | Rummikub, your turn: take a tile from the pool, or pass when it's empty |
 | `next` / `rematch` / `lobby` | | After a round or match ends |
 | `botify` | `seat` | Replace a disconnected player with a bot |
 | `react` | `emoji` | Seated players (600 ms cooldown) |
@@ -452,6 +472,7 @@ curl -X PATCH localhost:3000/api/dev/match/demo -d '{"scores": [23, 23]}'
 - Parchís: `parchis-home`, `parchis-capture`, `parchis-leave`. Each rigs seat 0's next roll.
 - Cochina: `cochina-steal`, `cochina-steal-run` (three of a number on the rivals' cochina), `cochina-run` (the same, then the next two numbers on the table), `cochina-grab`
 - Rummy: `rummy-take`, `rummy-meld`, `rummy-layoff`, `rummy-out`, `rummy-last-card`
+- Rummikub: `rummikub-first` (a first play worth 30 on the rack), `rummikub-layoff`, `rummikub-split` (a tile that splits a run), `rummikub-joker`, `rummikub-out`, `rummikub-empty-pool`
 
 `GET /api/dev` describes each one.
 

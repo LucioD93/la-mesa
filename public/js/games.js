@@ -3,8 +3,9 @@
 import { tileHTML } from './tiles.js';
 import { cardSVG } from './cards.js';
 import { cardSVG as frenchSVG } from './french.js';
+import { tileHTML as rkTileHTML } from './rummikub-tiles.js';
 
-export const GAMES = ['domino', 'fives', 'truco', 'caida', 'parchis', 'cochina', 'rummy'];
+export const GAMES = ['domino', 'fives', 'truco', 'caida', 'parchis', 'cochina', 'rummy', 'rummikub'];
 
 const card = (c, cls = '') => `<span class="card ${cls}">${cardSVG(c)}</span>`;
 
@@ -19,6 +20,7 @@ const ICONS = {
       .join('')}<circle cx="20" cy="20" r="5" fill="#fbf8ef"/></svg>`,
   cochina: () => `${card([5, 'b'], 'under')}${card([5, 'o'])}<span class="pig">🐷</span>`,
   rummy: () => `<span class="card under">${frenchSVG([7, 'H'])}</span><span class="card">${frenchSVG([1, 'S'])}</span>`,
+  rummikub: () => [10, 11 + 13, 104].map((id) => rkTileHTML(id)).join(''), // a black 11, a blue 12 and the joker
 };
 
 /** The picture of a game, for the lobby's game card and menu. */

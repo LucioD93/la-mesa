@@ -5,11 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#0b3a2c" />
     <title>La Mesa</title>
-    <meta name="description" content="Dominoes, Venezuelan truco, caída, parchís, roba la cochina or rummy for 4 players, 2 vs 2. No sign-up: send the link and play." />
+    <meta name="description" content="Dominoes, Venezuelan truco, caída, parchís, roba la cochina, rummy or Rummikub for 4 players, 2 vs 2. No sign-up: send the link and play." />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="La Mesa" />
     <meta property="og:title" content="La Mesa" />
-    <meta property="og:description" content="Dominoes, Venezuelan truco, caída, parchís, roba la cochina or rummy for 4 players, 2 vs 2. No sign-up: send the link and play." />
+    <meta property="og:description" content="Dominoes, Venezuelan truco, caída, parchís, roba la cochina, rummy or Rummikub for 4 players, 2 vs 2. No sign-up: send the link and play." />
     <meta property="og:url" content="https://jugar.la-mesa.workers.dev/" />
     <meta property="og:image" content="https://jugar.la-mesa.workers.dev/og-image.png" />
     <meta property="og:image:secure_url" content="https://jugar.la-mesa.workers.dev/og-image.png" />
@@ -65,7 +65,7 @@
       import * as i18n from '/js/i18n.js';
       import * as avatar from '/js/avatar.js';
       import { GAMES } from '/js/games.js';
-      // The six games, in the lobby's order; names follow the language.
+      // The games, in the lobby's order; names follow the language.
       document.getElementById('gameChips').innerHTML = GAMES.map(
         (id) => `<li data-g="${id}"><i aria-hidden="true"></i><span data-i18n="game.${id}"></span></li>`,
       ).join('');

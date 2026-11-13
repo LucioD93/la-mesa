@@ -317,6 +317,21 @@ test('a rummy game runs through the hub, and a tab from before rummy is told to 
   assert.deepEqual(started.targets, [150, 300]);
 });
 
+test('a rummikub game runs through the hub: 14 tiles each and 50 in the pool', async (t) => {
+  const { url } = await listen(t);
+  const p = await client(t, url, { token: 'p', name: 'P', games: GAME_IDS, game: 'rummikub' });
+  await p.next((m) => m.t === 'state' && m.game === 'rummikub');
+  p.say({ t: 'addBots' });
+  await p.next((m) => m.t === 'state' && m.seats.every(Boolean));
+  p.say({ t: 'start' });
+  const started = await p.next((m) => m.t === 'state' && m.phase === 'playing');
+  assert.deepEqual(started.targets, [50, 100, 200]);
+  assert.equal(started.round.hand.length, 14);
+  assert.equal(started.round.pool, 50);
+  assert.deepEqual(started.round.table, []);
+  assert.ok(started.seats.every((s) => s.count === 14));
+});
+
 test('a truco game runs through the hub with bots, over sockets', async (t) => {
   const { url } = await listen(t);
   const p = await client(t, url, { token: 'p', name: 'P', games: true, game: 'truco' });

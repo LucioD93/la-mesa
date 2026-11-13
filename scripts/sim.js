@@ -12,7 +12,7 @@ import { parseArgs } from 'node:util';
 import { WebSocket } from 'ws';
 
 const USAGE = `usage: node scripts/sim.js [game] [options]
-  game              domino, fives, truco, caida, parchis, cochina or rummy (default domino)
+  game              domino, fives, truco, caida, parchis, cochina, rummy or rummikub (default domino)
   --bots <n>        seats for bots, 0-3 (default 0); headless players take the rest from seat 0
   --seed <s>        repeat the same deals, dice and choices (its own server only)
   --target <n>      the match's target, one of the game's choices
@@ -64,6 +64,7 @@ if (!opt.url) {
 const { GAME_IDS } = await import('../server/games/index.js');
 const { seededRng } = await import('../server/dev/config.js');
 const { candidateMelds, layoffFit } = await import('../server/games/rummy.js');
+const rummikub = await import('../server/games/rummikub.js');
 if (!GAME_IDS.includes(game)) {
   console.error(`unknown game ${game}\n\n${USAGE}`);
   process.exit(2);
@@ -162,6 +163,16 @@ const STRATEGY = {
     const loose = free.filter((c) => !close(c));
     return { t: 'discard', card: pick(loose.length ? loose : free) };
   },
+  rummikub: (st) => {
+    const r = st.round;
+    if (!r.options.play) return null;
+    // The bot's play, worked out from this seat's own rack and the table, sometimes held back
+    // for a draw. Sets go in any order and tiles any way round: the server lays them out.
+    const move = rummikub.botMove({ hands: { [st.you]: r.hand }, table: r.table, melded: r.melded }, st.you);
+    if (move.type !== 'play' || rng() < 0.1) return { t: 'draw' };
+    const table = move.table.map((set) => (rng() < 0.5 ? set.slice().reverse() : set));
+    return { t: 'play', table: table.sort(() => rng() - 0.5) };
+  },
 
 };
 
@@ -197,6 +208,12 @@ const DESCRIBE = {
     if (a.type === 'meld') return `melds ${a.cards.map(card).join(' ')}`;
     if (a.type === 'layoff') return `lays ${card(a.card)} off on meld ${a.meld}`;
     return `discards ${card(a.card)}`;
+  },
+  rummikub: (r) => {
+    const a = r.lastAction;
+    if (!a) return null;
+    if (a.type !== 'play') return a.type === 'draw' ? 'draws' : 'passes';
+    return `plays ${a.placed.length === 1 ? '1 tile' : `${a.placed.length} tiles`}${a.first ? ' (first play)' : ''}`;
   },
 };
 const ACTORS = { truco: ['lastCall', 'lastAction'], caida: ['lastCall', 'lastAction'], parchis: ['lastRoll', 'lastAction'] };

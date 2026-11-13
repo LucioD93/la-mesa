@@ -2,7 +2,7 @@
   "name": "la-mesa",
   "version": "1.0.0",
   "private": true,
-  "description": "Mobile-first 4-player dominoes, All Fives, Venezuelan truco, caída, parchís, roba la cochina and rummy. No login: share /play/<match id> and play.",
+  "description": "Mobile-first 4-player dominoes, All Fives, Venezuelan truco, caída, parchís, roba la cochina, rummy and Rummikub. No login: share /play/<match id> and play.",
   "type": "module",
   "main": "server/index.js",
   "scripts": {

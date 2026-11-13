@@ -14,6 +14,7 @@ import { merge } from '../server/dev/tools.js';
 import { NUMBERS, florType, envidoValue } from '../server/games/truco.js';
 import { cantoOf } from '../server/games/caida.js';
 import { bestMelds } from '../server/games/rummy.js';
+import * as rummikub from '../server/games/rummikub.js';
 import * as fives from '../server/games/fives.js';
 
 /** Set env vars for one test. */
@@ -133,6 +134,12 @@ const PROMISES = {
   'rummy-layoff': (m) => m.round.turn === 0 && m.round.drawn && m.round.melds.length > 0,
   'rummy-out': (m) => m.round.turn === 0 && m.round.drawn && bestMelds(m.round.hands[0]).length > 0,
   'rummy-last-card': (m) => m.round.turn === 0 && m.round.drawn && m.round.stock.length === 0,
+  'rummikub-first': (m) => m.round.turn === 0 && !m.round.melded[0] && rummikub.bestSets(m.round.hands[0], { first: true }).length > 0,
+  'rummikub-layoff': (m) => m.round.turn === 0 && m.round.melded[0] && m.round.hands[0].some((id) => m.round.table.some((s) => rummikub.fitTile(s, id))),
+  'rummikub-split': (m) => m.round.turn === 0 && m.round.hands[0].some((id) => m.round.table.some((s) => rummikub.fitTile(s, id)?.length === 2)),
+  'rummikub-joker': (m) => m.round.turn === 0 && m.round.melded[0] && m.round.table.flat().some(rummikub.isJoker),
+  'rummikub-out': (m) => m.round.turn === 0 && rummikub.botMove(m.round, 0).table.flat().length === m.round.table.flat().length + m.round.hands[0].length,
+  'rummikub-empty-pool': (m) => m.round.turn === 0 && m.round.pool.length === 0,
 };
 
 test('every scenario has a check here', () => {

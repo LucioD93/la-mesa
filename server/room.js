@@ -186,7 +186,7 @@ export function createRoom(id, host) {
     const key = w?.key ?? null;
     // Reactions and presence don't restart the clock; a new moment does.
     if (key !== (rec.hurry?.key ?? null)) {
-      rec.hurry = key == null ? null : { key, at: rec.match.hurried === key ? null : now + SLOW_TURN_MS * timeScale() };
+      rec.hurry = key == null ? null : { key, at: rec.match.hurried === key ? null : now + (rec.match.rules.slowTurnMs ?? SLOW_TURN_MS) * timeScale() };
     }
     if (JSON.stringify([rec.auto, rec.hurry]) !== before) dirty = true;
   }

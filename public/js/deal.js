@@ -12,6 +12,7 @@ const FLY_MS = 400;
 const MAX_REST = 12; // pieces drawn for what stays in the deck
 
 const rand = (a, b) => a + Math.random() * (b - a);
+const DOMINO = { cls: 'tile v', ratio: 2, perRow: 7 };
 
 export function createDeal({ $, seatAvatar }) {
   let run = null; // { els, timers, keys (still on their way), hidden (until the end), release }
@@ -40,11 +41,12 @@ export function createDeal({ $, seatAvatar }) {
   /**
    * Deal `drops` in order: { key } lands on the hand or table piece with that data-key, which
    * stays hidden until then; { seat } goes to that seat. `mix` is 'tiles' (each drop then
-   * needs a `row` to line up in) or 'cards', or null to just deal. `rest` more cards stay in
+   * needs a `row` to line up in) or 'cards', or null to just deal. Tiles are dominoes unless
+   * `piece` says otherwise: its class, height over width, and how many line up in a row. `rest` more cards stay in
    * the deck, and `hide` lists keys hidden until the deal is done. `wait` delays the start,
    * so a card still in the air lands first.
    */
-  function start({ mix = null, drops, rest = 0, hide = [], origin = null, wait = 0 }) {
+  function start({ mix = null, drops, rest = 0, hide = [], origin = null, wait = 0, piece = DOMINO }) {
     stop();
     if (!canFly()) return;
     const b = $('board').getBoundingClientRect();
@@ -53,14 +55,16 @@ export function createDeal({ $, seatAvatar }) {
     document.body.classList.add('dealing');
     mark();
     const state = run;
-    state.timers.push(setTimeout(() => state === run && animate(state, { mix, drops, rest, origin, b }), wait));
+    state.timers.push(setTimeout(() => state === run && animate(state, { mix, drops, rest, origin, b, piece }), wait));
   }
 
-  function animate(state, { mix, drops, rest, origin, b }) {
+  function animate(state, { mix, drops, rest, origin, b, piece }) {
     const tiles = mix === 'tiles';
     const o = origin?.getBoundingClientRect();
-    const w = o?.width || (tiles ? Math.min(b.width / 9, b.height / 10, 28) : Math.min(b.width / 6, b.height / 4.5, 60));
-    const h = tiles ? w * 2 : w * 1.5;
+    // Four rows of tiles, a quarter of a tile apart.
+    const tileW = Math.min(b.width / (piece.perRow * 1.25 + 0.25), b.height / (4 * (piece.ratio + 0.25) + 1), 28);
+    const w = o?.width || (tiles ? tileW : Math.min(b.width / 6, b.height / 4.5, 60));
+    const h = tiles ? w * piece.ratio : w * 1.5;
     const cx = o ? o.left + o.width / 2 : b.left + b.width / 2;
     const cy = o ? o.top + o.height / 2 : b.top + b.height / 2;
     const at = (x, y, rot = 0, scale = 1) => `translate(${x - w / 2}px, ${y - h / 2}px) rotate(${rot}deg) scale(${scale})`;
@@ -76,14 +80,14 @@ export function createDeal({ $, seatAvatar }) {
       if (tiles) {
         const row = drops[i].row;
         const col = (counts[row] = (counts[row] ?? -1) + 1);
-        home.push([cx + (col - 3) * w * 1.25, cy + (row - 1.5) * (h + w * 0.25)]);
+        home.push([cx + (col - (piece.perRow - 1) / 2) * w * 1.25, cy + (row - 1.5) * (h + w * 0.25)]);
       } else home.push([cx - (total - i) * 0.25, cy - (total - i) * 0.45]);
     }
 
     const els = [];
     for (let i = total - 1; i >= 0; i--) {
       const el = document.createElement(tiles ? 'div' : 'span');
-      el.className = tiles ? 'tile v deal-piece' : 'card deal-piece';
+      el.className = tiles ? `${piece.cls} deal-piece` : 'card deal-piece';
       if (!tiles) el.innerHTML = '<span class="flier-back"></span>';
       el.style.width = `${w}px`;
       el.style.height = `${h}px`;

@@ -7,6 +7,7 @@
 //   pendingAuto(match)           { delay, key } if the table should play itself now
 //   runAuto(match, rng)          play that automatic move
 //   waitingOn(match)             { seat, key } of the human the table waits on, when pendingAuto is null
+//   slowTurnMs                   optional: how long a turn takes before the table mocks the player
 //   roundView(round, seat, revealed)   what one player may see of the round
 import { game as domino } from './domino.js';
 import { game as fives } from './fives.js';
@@ -15,8 +16,9 @@ import { game as caida } from './caida.js';
 import { game as parchis } from './parchis.js';
 import { game as cochina } from './cochina.js';
 import { game as rummy } from './rummy.js';
+import { game as rummikub } from './rummikub.js';
 
-const GAMES = { domino, fives, truco, caida, parchis, cochina, rummy };
+const GAMES = { domino, fives, truco, caida, parchis, cochina, rummy, rummikub };
 
 // Matches saved before there was a choice have no `game` field: those are dominoes.
 export const DEFAULT_GAME = 'domino';

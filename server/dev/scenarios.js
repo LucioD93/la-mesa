@@ -13,6 +13,7 @@ import * as caida from '../games/caida.js';
 import * as parchis from '../games/parchis.js';
 import * as cochina from '../games/cochina.js';
 import * as rummy from '../games/rummy.js';
+import * as rummikub from '../games/rummikub.js';
 import { baseRng, diceValues, rig, seededRng, unrig } from './config.js';
 
 const ATTEMPTS = 3000; // deals to try before giving up on a moment that comes up by chance
@@ -73,6 +74,9 @@ const STEP = {
   },
   rummy(r) {
     rummy.applyMove(r, r.turn, rummy.botMove(r, r.turn));
+  },
+  rummikub(r) {
+    rummikub.applyMove(r, r.turn, rummikub.botMove(r, r.turn));
   },
 };
 
@@ -187,6 +191,9 @@ const fitsTable = (r, card) => r.melds.some((m) => rummy.layoffFit(m, card));
 const meldsWith = (hand, card) => rummy.candidateMelds([...hand, card]).some((cards) => cards.some((c) => rummy.sameCard(c, card)));
 /** Cards left in hand after putting down the best melds. */
 const leftAfterMelds = (hand) => hand.length - rummy.bestMelds(hand).reduce((n, m) => n + m.cards.length, 0);
+const rkFits = (r, split) => r.hands[0].some((id) => r.table.some((set) => rummikub.fitTile(set, id)?.length === (split ? 2 : 1)));
+const rkTurn = (r) => r.turn === 0 && r.melded[0];
+const rkGoesOut = (r) => rummikub.botMove(r, 0).table?.flat().length === r.table.flat().length + r.hands[0].length;
 const scoresWith = (r, m) => fives.scoreFor(fives.endsCount(fives.lineAfter(r.line, m)));
 const blocksWith = (r, m) => {
   const after = structuredClone(r);
@@ -407,6 +414,38 @@ export const SCENARIOS = {
     game: 'rummy',
     about: 'Seat 0 drew the last card of the deck: its discard ends the round.',
     setup: (match, opts) => search(match, 'rummy', opts, (r) => r.turn === 0 && r.drawn && !r.stock.length),
+  },
+
+  'rummikub-first': {
+    game: 'rummikub',
+    about: "Seat 0's turn, and its rack holds a first play worth 30 or more.",
+    setup: (match, opts) =>
+      search(match, 'rummikub', opts, (r) => r.turn === 0 && !r.melded[0] && r.table.length > 0 && rummikub.bestSets(r.hands[0], { first: true }).length > 0),
+  },
+  'rummikub-layoff': {
+    game: 'rummikub',
+    about: 'Seat 0 has made its first play, and a tile on its rack goes on a set on the table.',
+    setup: (match, opts) => search(match, 'rummikub', opts, (r) => rkTurn(r) && rkFits(r, false)),
+  },
+  'rummikub-split': {
+    game: 'rummikub',
+    about: 'Seat 0 has made its first play, and a tile on its rack splits a run on the table in two.',
+    setup: (match, opts) => search(match, 'rummikub', opts, (r) => rkTurn(r) && rkFits(r, true)),
+  },
+  'rummikub-joker': {
+    game: 'rummikub',
+    about: 'Seat 0 has made its first play, and a joker is on the table.',
+    setup: (match, opts) => search(match, 'rummikub', opts, (r) => rkTurn(r) && r.table.flat().some(rummikub.isJoker)),
+  },
+  'rummikub-out': {
+    game: 'rummikub',
+    about: 'Seat 0 can play every tile on its rack and go out.',
+    setup: (match, opts) => search(match, 'rummikub', opts, (r) => rkTurn(r) && r.hands[0].length > 1 && rkGoesOut(r)),
+  },
+  'rummikub-empty-pool': {
+    game: 'rummikub',
+    about: "The pool is empty and it's seat 0's turn: it plays or passes.",
+    setup: (match, opts) => search(match, 'rummikub', opts, (r) => r.turn === 0 && !r.pool.length),
   },
 };
 
