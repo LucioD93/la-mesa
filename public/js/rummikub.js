@@ -447,7 +447,11 @@ export function createView(ctx) {
     status(round) {
       if (!round.options.play) return null;
       if (!melded()) return { cls: 'mine', text: changed() ? t('firstCount', { n: firstPoints() }) : t('firstPrompt') };
-      return { cls: 'mine', text: changed() ? t('placedCount', { n: placed().length }) : t('playPrompt') };
+      if (!changed()) return { cls: 'mine', text: t('playPrompt') };
+      // What still stands between this table and Done.
+      if (badSets()) return { cls: 'mine', text: t('fixSets', { n: badSets() }) };
+      if (!placed().length) return { cls: 'mine', text: t('needRack') };
+      return { cls: 'mine', text: t('placedCount', { n: placed().length }) };
     },
 
     // ---- results ------------------------------------------------------------
