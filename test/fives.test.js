@@ -11,11 +11,11 @@ function rigged(hands, { scores = [0, 0], target = 150 } = {}) {
 }
 
 test('the ends count: a lone tile its pips, a double on an end both halves', () => {
-  assert.equal(F.endsCount([]), 0);
-  assert.equal(F.endsCount([[6, 4]]), 10);
-  assert.equal(F.endsCount([[5, 5]]), 10);
-  assert.equal(F.endsCount([[4, 4], [4, 1]]), 9);
-  assert.equal(F.endsCount([[3, 3], [3, 2], [2, 2]]), 10);
+  assert.equal(F.endsCount({ line: [] }), 0);
+  assert.equal(F.endsCount({ line: [[6, 4]] }), 10);
+  assert.equal(F.endsCount({ line: [[5, 5]] }), 10);
+  assert.equal(F.endsCount({ line: [[4, 4], [4, 1]] }), 9);
+  assert.equal(F.endsCount({ line: [[3, 3], [3, 2], [2, 2]] }), 10);
   assert.equal(F.scoreFor(0), 0);
   assert.equal(F.scoreFor(15), 15);
   assert.equal(F.scoreFor(12), 0);
@@ -37,6 +37,66 @@ test('a play scores for its team when the ends make a multiple of 5', () => {
   assert.deepEqual(r.points, [10, 0]);
   F.play(r, 3, [6, 0], 'L'); // 0 … 1-1: 2
   assert.deepEqual(r.points, [10, 0]);
+});
+
+test('the first double is the spinner: its other two sides open once both long sides are taken', () => {
+  const r = rigged([
+    [[6, 6], [6, 1], [0, 0]],
+    [[6, 3], [3, 3], [0, 1]],
+    [[6, 2], [0, 2], [0, 4]],
+    [[6, 4], [0, 3], [0, 5]],
+  ]);
+  F.play(r, 0, [6, 6], 'R');
+  assert.equal(r.spinner, 0);
+  F.play(r, 1, [6, 3], 'R'); // 6-6 on the end counts 12, and the 3: 15
+  assert.deepEqual(r.points, [0, 15]);
+  assert.ok(!F.legalMoves(r, 2).some((m) => m.end === 'U' || m.end === 'D'), 'not open with one long side free');
+  F.play(r, 2, [6, 2], 'L'); // the spinner is inside the line now: 2 + 3
+  assert.equal(r.spinner, 1);
+  assert.deepEqual(r.points, [5, 15]);
+  assert.deepEqual(
+    F.legalMoves(r, 3).filter((m) => F.sameTile(m.tile, [6, 4])).map((m) => m.end),
+    ['U', 'D'],
+  );
+  F.play(r, 3, [6, 4], 'U'); // 2 + 3 + 4 = 9
+  assert.deepEqual(r.up, [[6, 4]]);
+  assert.equal(r.lastAction.points, 0);
+  F.play(r, 0, [6, 1], 'D'); // 2 + 3 + 4 + 1 = 10
+  assert.deepEqual(r.down, [[6, 1]]);
+  assert.deepEqual(r.points, [15, 15]);
+  F.play(r, 1, [3, 3], 'R'); // a second double is just a double: 2 + 6 + 4 + 1 = 13
+  assert.equal(r.spinner, 1);
+  assert.equal(F.endsCount(r), 13);
+});
+
+test('a spinner played after the opening shifts with the line, and its sides take tiles', () => {
+  const r = rigged([[[6, 4], [4, 1], [5, 0]], [[4, 4], [0, 1]], [[6, 5], [0, 2]], [[4, 2], [1, 3]]]);
+  F.play(r, 0, [6, 4], 'R');
+  F.play(r, 1, [4, 4], 'R'); // 6 + 8 = 14
+  assert.equal(r.spinner, 1);
+  F.play(r, 2, [6, 5], 'L'); // 5 + 8 = 13
+  assert.equal(r.spinner, 2);
+  F.play(r, 3, [4, 2], 'R'); // 5 + 2 = 7, and the spinner's sides open
+  assert.deepEqual(F.legalMoves(r, 0), [
+    { tile: [4, 1], end: 'U' },
+    { tile: [4, 1], end: 'D' },
+    { tile: [5, 0], end: 'L' },
+  ]);
+  F.play(r, 0, [4, 1], 'D'); // 5 + 2 + 1 = 8
+  assert.deepEqual(r.down, [[4, 1]]);
+  assert.equal(F.endsCount(r), 8);
+  assert.deepEqual(F.boardAfter(r, { tile: [5, 0], end: 'L' }).line[0], [0, 5]);
+});
+
+test('plain dominoes never spin', async () => {
+  const D = await import('../server/games/domino.js');
+  const r = D.newRound({ starter: 0 });
+  r.hands = [[[6, 6], [0, 0]], [[6, 3], [0, 1]], [[6, 2], [0, 2]], [[6, 4], [1, 5]]];
+  D.play(r, 0, [6, 6], 'R');
+  D.play(r, 1, [6, 3], 'R');
+  D.play(r, 2, [6, 2], 'L');
+  assert.equal(r.spinner, undefined);
+  assert.deepEqual(D.legalMoves(r, 3), []);
 });
 
 test('going out scores the other team\'s pips, to the nearest 5, on top of the ends', () => {

@@ -194,7 +194,7 @@ const leftAfterMelds = (hand) => hand.length - rummy.bestMelds(hand).reduce((n, 
 const rkFits = (r, split) => r.hands[0].some((id) => r.table.some((set) => rummikub.fitTile(set, id)?.length === (split ? 2 : 1)));
 const rkTurn = (r) => r.turn === 0 && r.melded[0];
 const rkGoesOut = (r) => rummikub.botMove(r, 0).table?.flat().length === r.table.flat().length + r.hands[0].length;
-const scoresWith = (r, m) => fives.scoreFor(fives.endsCount(fives.lineAfter(r.line, m)));
+const scoresWith = (r, m) => fives.scoreFor(fives.endsCount(fives.boardAfter(r, m)));
 const blocksWith = (r, m) => {
   const after = structuredClone(r);
   domino.play(after, 0, m.tile, m.end);
@@ -276,6 +276,12 @@ export const SCENARIOS = {
     game: 'fives',
     about: "Seat 0's turn, and one of its tiles makes the ends add up to 15 or more.",
     setup: (match, opts) => search(match, 'fives', opts, (r) => r.turn === 0 && domMoves(r, 0).some((m) => scoresWith(r, m) >= 15)),
+  },
+  'fives-spinner': {
+    game: 'fives',
+    about: "Seat 0's turn, the spinner's other sides are open, and one of its tiles goes on them.",
+    setup: (match, opts) =>
+      search(match, 'fives', opts, (r) => r.turn === 0 && domMoves(r, 0).some((m) => m.end === 'U' || m.end === 'D')),
   },
   'fives-out': {
     game: 'fives',

@@ -45,19 +45,21 @@ export const RULES = {
       ] },
       { h: 'Your turn', items: [
         'In the first round, whoever holds the double six opens with it. After that the opener rotates to the right and can open with any tile.',
-        'Match one of the two ends of the line. With no legal move, the game passes for you after 3 seconds.',
+        'Match one of the open ends. With no legal move, the game passes for you after 3 seconds.',
+      ] },
+      { h: 'The spinner', items: [
+        'The first double played is the spinner, whether it opens or comes later.',
+        'Once tiles are on both of its long sides, its other two sides open too: drag a tile above or below it. The table can then have four ends.',
       ] },
       { h: 'Scoring on the ends', items: [
-        'After each tile, add up the two ends of the line. If the sum is a multiple of 5 (5, 10, 15, 20…), your team scores it.',
+        'After each tile, add up the open ends. If the sum is a multiple of 5 (5, 10, 15, 20…), your team scores it.',
         'A double on an end counts both halves: the 4-4 on an end counts 8.',
+        'The spinner\'s other sides count once a tile is on them, and the spinner stops counting once both its long sides are taken.',
         'The opening tile counts its pips: opening with the 5-5 or the 6-4 scores 10, and the 5-0 scores 5.',
       ] },
       { h: 'Ending a round', items: [
         'Domino: the player who empties their hand wins for their team, which also scores the pips left in the other team\'s hands, rounded to the nearest 5 (7 is 5, 8 is 10).',
         'Tranque (blocked game): the team with fewer pips scores the other team\'s pips, rounded the same way. A tie adds nothing.',
-      ] },
-      { h: 'Not included', items: [
-        'The spinner: here the first double is just a tile in the line, so there are always two ends.',
       ] },
     ],
     es: [
@@ -67,19 +69,21 @@ export const RULES = {
       ] },
       { h: 'Tu turno', items: [
         'En la primera mano sale quien tenga el doble seis, y sale con él. Después la salida rota a la derecha y se puede salir con cualquier ficha.',
-        'Pega con una de las dos puntas de la línea. Si no tienes jugada, el juego pasa por ti a los 3 segundos.',
+        'Pega con una de las puntas abiertas. Si no tienes jugada, el juego pasa por ti a los 3 segundos.',
+      ] },
+      { h: 'La cruz', items: [
+        'El primer doble que se juega es la cruz (el spinner), sea la salida o venga después.',
+        'Cuando tiene fichas por sus dos lados largos, se abren también los otros dos: arrastra una ficha arriba o abajo de él. La mesa puede tener entonces cuatro puntas.',
       ] },
       { h: 'Puntos en las puntas', items: [
-        'Después de cada ficha, se suman las dos puntas de la línea. Si la suma es múltiplo de 5 (5, 10, 15, 20…), tu equipo se la anota.',
+        'Después de cada ficha, se suman las puntas abiertas. Si la suma es múltiplo de 5 (5, 10, 15, 20…), tu equipo se la anota.',
         'Un doble en una punta cuenta sus dos mitades: el 4-4 en una punta cuenta 8.',
+        'Los otros lados de la cruz cuentan cuando tienen una ficha, y la cruz deja de contar cuando tiene fichas por sus dos lados largos.',
         'La ficha de salida cuenta sus puntos: salir con el 5-5 o el 6-4 da 10, y el 5-0 da 5.',
       ] },
       { h: 'Cómo termina la mano', items: [
         'Dominó: quien se quede sin fichas gana para su equipo, que además suma los puntos que le quedan al otro equipo, redondeados al 5 más cercano (7 es 5, 8 es 10).',
         'Tranque: el equipo con menos puntos suma los del otro, redondeados igual. Si empatan, nadie suma.',
-      ] },
-      { h: 'No incluido', items: [
-        'El spinner (la cruz): aquí el primer doble es una ficha más de la línea, así que siempre hay dos puntas.',
       ] },
     ],
   },
