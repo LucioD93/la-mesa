@@ -3,7 +3,7 @@
 // match can be loaded and saved by any server instance.
 import { createHash } from 'node:crypto';
 import { MoveError, teamOf } from './games/common.js';
-import { DEFAULT_GAME, gameRules, isGame } from './games/index.js';
+import { DEFAULT_GAME, GAME_IDS, gameRules, isGame } from './games/index.js';
 import { matchRng } from './dev/config.js';
 
 // Venezuelan memes.
@@ -55,6 +55,7 @@ export class Match {
   constructor(id, data = null) {
     this.id = id;
     this.game = isGame(data?.game) ? data.game : DEFAULT_GAME;
+    this.hiddenGames = []; // games whose feature flag is off for this match: the lobby doesn't offer them
     /** @type {({token: string|null, name: string, bot: boolean, emoji?: string, replaced?: string} | null)[]} */
     this.seats = [null, null, null, null];
     this.names = {}; // token -> display name (spectators included)
@@ -79,8 +80,8 @@ export class Match {
   }
 
   toJSON() {
-    const { id, game, theme, teamNames, seats, names, phase, target, variant, scores, history, round, roundNo, startedAt, nextStarter, reaction, hurried, blunder, v } = this;
-    return { id, game, theme, teamNames, seats, names, phase, target, variant, scores, history, round, roundNo, startedAt, nextStarter, reaction, hurried, blunder, v };
+    const { id, game, hiddenGames, theme, teamNames, seats, names, phase, target, variant, scores, history, round, roundNo, startedAt, nextStarter, reaction, hurried, blunder, v } = this;
+    return { id, game, hiddenGames, theme, teamNames, seats, names, phase, target, variant, scores, history, round, roundNo, startedAt, nextStarter, reaction, hurried, blunder, v };
   }
 
   /** The rules of the game this match is playing. */
@@ -90,10 +91,18 @@ export class Match {
 
   /** Switch game (lobby only). Each game has its own targets and variants, so they reset. */
   setGame(id) {
-    if (this.phase !== 'lobby' || !isGame(id) || id === this.game) return false;
+    if (this.phase !== 'lobby' || !isGame(id) || id === this.game || this.hiddenGames.includes(id)) return false;
     this.game = id;
     this.target = this.rules.defaultTarget;
     this.variant = this.rules.defaultVariant ?? null;
+    return true;
+  }
+
+  /** Stop offering these games (their flags are off), and offer the rest. A game already picked stays. */
+  hideGames(ids) {
+    const hidden = GAME_IDS.filter((id) => ids.includes(id));
+    if (hidden.join() === this.hiddenGames.join()) return false;
+    this.hiddenGames = hidden;
     return true;
   }
 
@@ -347,6 +356,7 @@ export class Match {
       game: this.game,
       theme: this.theme,
       teamNames: this.teamNames,
+      offered: GAME_IDS.filter((id) => !this.hiddenGames.includes(id)), // what the lobby's menu lists
       targets: this.rules.targets,
       variants: this.rules.variants ?? null,
       variant: this.variant,

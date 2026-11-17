@@ -12,6 +12,16 @@ import { GAME_IDS } from '../server/games/index.js';
 
 const names = (events) => events.map(([name]) => name);
 
+/** PostHog's two endpoints: events land in `sent`, and flag questions get `flags` back (key: on). */
+function fakePostHog(sent, flags = {}, asked = []) {
+  return async (url, init) => {
+    const body = JSON.parse(init.body);
+    if (!url.includes('/flags')) return sent.push(body), { ok: true };
+    asked.push({ url, body });
+    return { ok: true, json: async () => ({ flags: Object.fromEntries(Object.entries(flags).map(([k, on]) => [k, { key: k, enabled: on }])) }) };
+  };
+}
+
 /** A match the store has saved once, as it is after the first player joins. */
 function joined(...tokens) {
   const m = new Match('abc');
@@ -111,7 +121,7 @@ test('a country is a two-letter code, or nothing', () => {
 function analyticsRoom(sent) {
   const analytics = createAnalytics({
     key: 'phc_test',
-    fetch: async (_url, init) => (sent.push(JSON.parse(init.body)), { ok: true }),
+    fetch: fakePostHog(sent),
   });
   const conns = new Map();
   let saved;
@@ -176,7 +186,7 @@ test('a player starting a match with bots over a socket is reported with no name
   const sent = [];
   const analytics = createAnalytics({
     key: 'phc_test',
-    fetch: async (_url, init) => (sent.push(JSON.parse(init.body)), { ok: true }),
+    fetch: fakePostHog(sent),
   });
   const { server } = createApp({ analytics });
   server.listen(0);
@@ -210,4 +220,75 @@ test('a player starting a match with bots over a socket is reported with no name
   const everything = JSON.stringify(sent);
   assert.ok(!everything.includes('secret-token-1'), 'the token stays secret');
   assert.ok(!everything.includes('Lucio'), 'names stay home');
+});
+
+// ---- feature flags ------------------------------------------------------------------
+
+test('flags are asked about a match, with the match as a property a flag can target', async () => {
+  const asked = [];
+  const analytics = createAnalytics({ key: 'phc_test', host: 'https://ph.example', fetch: fakePostHog([], { rummikub: true, other: false }, asked) });
+  assert.deepEqual(await analytics.flags('sala', { match: 'sala' }), { rummikub: true, other: false });
+  assert.equal(asked[0].url, 'https://ph.example/flags?v=2');
+  assert.deepEqual(asked[0].body, { api_key: 'phc_test', distinct_id: 'sala', person_properties: { match: 'sala' } });
+});
+
+/** A room on PostHog with these flags; `say` sends as player `p`, `state` is the last one it got. */
+function flaggedRoom(flags, fetch) {
+  const asked = [];
+  const analytics = createAnalytics({ key: 'phc_test', fetch: fetch ?? fakePostHog([], flags, asked) });
+  const conn = { id: '1', state: null, inbox: [], setState: (st) => (conn.state = st), send: (text) => conn.inbox.push(JSON.parse(text)) };
+  let saved;
+  const room = createRoom('flags-1', {
+    load: () => structuredClone(saved),
+    save: (record) => (saved = structuredClone(record)),
+    forget: () => {},
+    connections: () => [conn],
+    wakeAt: () => {},
+    report: () => {},
+    analytics,
+  });
+  room.connect(conn);
+  const say = (msg) => room.message(conn, JSON.stringify(msg));
+  say({ t: 'hello', token: 'p', name: 'P', games: GAME_IDS });
+  return { asked, say, state: () => conn.inbox.findLast((m) => m.t === 'state') };
+}
+const settle = () => new Promise((r) => setImmediate(r));
+
+test('a game behind a flag is not offered until PostHog says the flag is on for the match', async () => {
+  const off = flaggedRoom({});
+  assert.ok(!off.state().offered.includes('rummikub'), 'held back while PostHog answers');
+  await settle();
+  assert.equal(off.asked.length, 1);
+  assert.ok(!off.state().offered.includes('rummikub'));
+  assert.ok(off.state().offered.includes('rummy'), 'games without a flag are always there');
+  off.say({ t: 'game', game: 'rummikub' });
+  assert.equal(off.state().game, 'domino', 'it cannot be picked either');
+
+  const on = flaggedRoom({ rummikub: true });
+  await settle();
+  assert.ok(on.state().offered.includes('rummikub'));
+  on.say({ t: 'game', game: 'rummikub' });
+  assert.equal(on.state().game, 'rummikub');
+});
+
+test('no answer from PostHog keeps the flagged games back', async () => {
+  const errors = [];
+  const original = console.error;
+  console.error = (...a) => errors.push(a);
+  try {
+    const room = flaggedRoom(null, async (url) => (url.includes('/flags') ? { ok: false, status: 500 } : { ok: true }));
+    await settle();
+    await settle();
+    assert.ok(!room.state().offered.includes('rummikub'));
+    assert.equal(errors.length, 1);
+  } finally {
+    console.error = original;
+  }
+});
+
+test('without PostHog every game is offered', () => {
+  const m = new Match('local');
+  m.join('p', 'P');
+  assert.ok(m.stateFor('p', new Set(['p'])).offered.includes('rummikub'));
+  assert.equal(m.setGame('rummikub'), true);
 });
