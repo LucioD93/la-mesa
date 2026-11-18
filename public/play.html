@@ -6,11 +6,11 @@
     <meta name="theme-color" content="#0b3a2c" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <title>La Mesa</title>
-    <meta name="description" content="Dominoes, Venezuelan truco, caída, parchís, roba la cochina, rummy or Rummikub for 4 players, 2 vs 2. No sign-up: send the link and play." />
+    <meta name="description" content="Dominoes, Venezuelan truco, caída, parchís, roba la cochina, rummy, Rummikub or Irish Snap for 4 players. No sign-up: send the link and play." />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="La Mesa" />
     <meta property="og:title" content="Come play with me at La Mesa" />
-    <meta property="og:description" content="Dominoes, Venezuelan truco, caída, parchís, roba la cochina, rummy or Rummikub for 4 players, 2 vs 2. No sign-up: send the link and play." />
+    <meta property="og:description" content="Dominoes, Venezuelan truco, caída, parchís, roba la cochina, rummy, Rummikub or Irish Snap for 4 players. No sign-up: send the link and play." />
     <meta property="og:image" content="https://jugar.la-mesa.workers.dev/og-image.png" />
     <meta property="og:image:secure_url" content="https://jugar.la-mesa.workers.dev/og-image.png" />
     <meta property="og:image:type" content="image/png" />
@@ -131,7 +131,7 @@
         </div>
 
         <div class="lobby-seats">
-          <p class="section-title"><span data-i18n="seats">Seats</span> <small data-i18n="seatsNote">— partners sit across from each other</small></p>
+          <p class="section-title"><span data-i18n="seats">Seats</span> <small id="seatsNote" data-i18n="seatsNote">— partners sit across from each other</small></p>
           <div class="lobby-table" id="lobbySeats"></div>
         </div>
 
@@ -189,7 +189,7 @@
           <h2 data-i18n="score">Score</h2>
           <button class="icon-btn" data-close aria-label="Close" data-i18n-aria="aria.close">✕</button>
         </div>
-        <table class="history">
+        <table class="history" id="history">
           <thead>
             <tr><th>#</th><th class="c0" id="hLabel0">Us</th><th class="c1" id="hLabel1">Them</th><th data-i18n="how">How</th></tr>
           </thead>
@@ -198,6 +198,14 @@
             <tr><th data-i18n="total">Total</th><th class="c0" id="total0">0</th><th class="c1" id="total1">0</th><th id="totalTarget"></th></tr>
           </tfoot>
         </table>
+        <!-- A game without teams: who won each round, and everyone's total -->
+        <table class="history solo-history" id="soloHistory" hidden>
+          <thead>
+            <tr><th>#</th><th data-i18n="winner">Winner</th><th data-i18n="how">How</th></tr>
+          </thead>
+          <tbody id="soloBody"></tbody>
+        </table>
+        <div class="solo-totals" id="soloTotals" hidden></div>
         <p class="rules" data-i18n="rules"></p>
       </div>
     </section>
