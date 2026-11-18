@@ -14,6 +14,7 @@ import * as parchis from '../games/parchis.js';
 import * as cochina from '../games/cochina.js';
 import * as rummy from '../games/rummy.js';
 import * as rummikub from '../games/rummikub.js';
+import * as kemps from '../games/kemps.js';
 import { baseRng, diceValues, rig, seededRng, unrig } from './config.js';
 
 const ATTEMPTS = 3000; // deals to try before giving up on a moment that comes up by chance
@@ -78,6 +79,11 @@ const STEP = {
   rummikub(r) {
     rummikub.applyMove(r, r.turn, rummikub.botMove(r, r.turn));
   },
+  // Everyone plays at once: the earliest thing any seat's bot would do, at its own time.
+  kemps(r, rng) {
+    const [ev] = kemps.plan(r, () => true);
+    kemps.runEvent(r, ev, rng, ev.at);
+  },
 };
 
 /** Play bot moves until `done(round)` holds (true) or the round ends without it (false). */
@@ -108,6 +114,12 @@ function search(match, game, opts, done, { prepare } = {}) {
     if (playUntil(match, done, rng)) return;
   }
   throw new Error(`no deal reached that moment in ${ATTEMPTS} tries`);
+}
+
+/** A Kemps moment, with the round's clock brought to now so the bots carry on at their pace. */
+function kmSearch(match, opts, done) {
+  search(match, 'kemps', opts, done);
+  kemps.rebase(match.round);
 }
 
 const rngFor = (match, opts) => (opts.seed != null ? seededRng(String(opts.seed)) : baseRng(match, 'scenario'));
@@ -194,6 +206,8 @@ const leftAfterMelds = (hand) => hand.length - rummy.bestMelds(hand).reduce((n, 
 const rkFits = (r, split) => r.hands[0].some((id) => r.table.some((set) => rummikub.fitTile(set, id)?.length === (split ? 2 : 1)));
 const rkTurn = (r) => r.turn === 0 && r.melded[0];
 const rkGoesOut = (r) => rummikub.botMove(r, 0).table?.flat().length === r.table.flat().length + r.hands[0].length;
+const kmThree = (r) => r.hands[0].some(([n]) => r.hands[0].filter((c) => c[0] === n).length === 3 && r.middle.some((c) => c[0] === n));
+const kmSignaled = (r, seat) => r.gesture?.seat === seat && r.gesture.sign === r.signals[seat % 2] && kemps.isFour(r.hands[seat]);
 const scoresWith = (r, m) => fives.scoreFor(fives.endsCount(fives.boardAfter(r, m)));
 const blocksWith = (r, m) => {
   const after = structuredClone(r);
@@ -447,6 +461,35 @@ export const SCENARIOS = {
     game: 'rummikub',
     about: 'Seat 0 can play every tile on its rack and go out.',
     setup: (match, opts) => search(match, 'rummikub', opts, (r) => rkTurn(r) && r.hands[0].length > 1 && rkGoesOut(r)),
+  },
+  'kemps-three': {
+    game: 'kemps',
+    about: 'Seat 0 holds three of a kind, and the fourth is in the middle: swap for it.',
+    setup: (match, opts) => kmSearch(match, opts, kmThree),
+  },
+  'kemps-four': {
+    game: 'kemps',
+    about: "Seat 0 just got four of a kind. Its partner waits for the team's signal.",
+    setup: (match, opts) => kmSearch(match, opts, (r) => kemps.isFour(r.hands[0])),
+  },
+  'kemps-signal': {
+    game: 'kemps',
+    about: "Seat 0's partner holds four of a kind and just made the team's signal: call Kemps.",
+    setup: (match, opts) => kmSearch(match, opts, (r) => kmSignaled(r, 2)),
+  },
+  'kemps-corta': {
+    game: 'kemps',
+    about: 'The rival on seat 1 holds four of a kind and just made its signal: call Stop Kemps on it before its partner calls.',
+    setup: (match, opts) => kmSearch(match, opts, (r) => kmSignaled(r, 1)),
+  },
+  'kemps-exposed': {
+    game: 'kemps',
+    about: "A new hand where the bots know seat 0's team signal: making it gets seat 0 cut.",
+    setup(match, opts) {
+      seatTable(match, 'kemps', opts);
+      match.startRound(rngFor(match, opts));
+      match.round.learned[0] = match.round.signals[0];
+    },
   },
   'rummikub-empty-pool': {
     game: 'rummikub',

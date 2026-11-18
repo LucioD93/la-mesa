@@ -12,7 +12,7 @@ import { parseArgs } from 'node:util';
 import { WebSocket } from 'ws';
 
 const USAGE = `usage: node scripts/sim.js [game] [options]
-  game              domino, fives, truco, caida, parchis, cochina, rummy or rummikub (default domino)
+  game              domino, fives, truco, caida, parchis, cochina, rummy, rummikub or kemps (default domino)
   --bots <n>        seats for bots, 0-3 (default 0); headless players take the rest from seat 0
   --seed <s>        repeat the same deals, dice and choices (its own server only)
   --target <n>      the match's target, one of the game's choices
@@ -65,6 +65,7 @@ const { GAME_IDS } = await import('../server/games/index.js');
 const { seededRng } = await import('../server/dev/config.js');
 const { candidateMelds, layoffFit } = await import('../server/games/rummy.js');
 const rummikub = await import('../server/games/rummikub.js');
+const kemps = await import('../server/games/kemps.js');
 if (!GAME_IDS.includes(game)) {
   console.error(`unknown game ${game}\n\n${USAGE}`);
   process.exit(2);
@@ -92,6 +93,8 @@ const wsUrl = `${base.replace(/^http/, 'ws')}/api/ws?match=${encodeURIComponent(
 // ---- what a headless player does -----------------------------------------------
 
 const sameCard = (a, b) => a[0] === b[0] && a[1] === b[1];
+
+const kmSent = {}; // seat -> the Kemps swap it sent last
 
 /** The message this seat sends now, or null to wait. Only uses what its own state shows. */
 const STRATEGY = {
@@ -173,11 +176,29 @@ const STRATEGY = {
     const table = move.table.map((set) => (rng() < 0.5 ? set.slice().reverse() : set));
     return { t: 'play', table: table.sort(() => rng() - 0.5) };
   },
+  kemps: (st) => {
+    const r = st.round;
+    if (!r.options.swap) return null;
+    const g = r.gesture;
+    // Our partner made our signal: call it. Sometimes we call Stop Kemps on a rival out of the blue.
+    if (g && g.seat === (st.you + 2) % 4 && g.sign === r.signal) return { t: 'kemps' };
+    if (kemps.isFour(r.hand)) return g?.seat === st.you && g.sign === r.signal ? null : { t: 'gesture', sign: r.signal };
+    if (rng() < 0.01) return { t: 'corta', seat: pick(r.options.corta) };
+    if (rng() < 0.05) return { t: 'gesture', sign: pick(kemps.SIGNS.filter((s) => s !== r.signal)) };
+    // A swap still on its way: the card we gave is in hand and the one we took in the middle.
+    const sent = kmSent[st.you];
+    if (sent && r.hand.some((c) => sameCard(c, sent.give)) && r.middle.some((c) => sameCard(c, sent.take))) return null;
+    const move = kemps.bestSwap(r.hand, r.middle);
+    kmSent[st.you] = move;
+    if (move) return { t: 'swap', ...move };
+    return r.options.pass ? { t: 'pass' } : null;
+  },
 
 };
 
-// Cochina's grab window can close between our seeing it and our grab landing; that's the game, not a bug.
-const RACES = new Set(['Nothing to grab', 'Too late']);
+// Cochina's grab window can close between our seeing it and our grab landing, and in Kemps someone
+// else can take the card first or our gestures come too close together; that's the game, not a bug.
+const RACES = new Set(['Nothing to grab', 'Too late', 'That card is gone', 'Too fast']);
 
 // ---- what happened, for the log ----------------------------------------------------
 
@@ -215,8 +236,12 @@ const DESCRIBE = {
     if (a.type !== 'play') return a.type === 'draw' ? 'draws' : 'passes';
     return `plays ${a.placed.length === 1 ? '1 tile' : `${a.placed.length} tiles`}${a.first ? ' (first play)' : ''}`;
   },
+  kemps: (r) => [
+    r.lastAction?.type === 'swap' && `takes ${card(r.lastAction.take)} for ${card(r.lastAction.give)}`,
+    r.gesture && `makes a gesture: ${r.gesture.sign}`,
+  ],
 };
-const ACTORS = { truco: ['lastCall', 'lastAction'], caida: ['lastCall', 'lastAction'], parchis: ['lastRoll', 'lastAction'] };
+const ACTORS = { truco: ['lastCall', 'lastAction'], caida: ['lastCall', 'lastAction'], parchis: ['lastRoll', 'lastAction'], kemps: ['lastAction', 'gesture'] };
 
 const said = new Map(); // what was last printed for each kind of action
 function logActions(st) {

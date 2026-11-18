@@ -1,6 +1,6 @@
 // The game page: connection, lobby, seats, voice, photos, reactions and the frame of
 // the result. What's on the table belongs to the game's view (domino.js, fives.js, truco.js,
-// caida.js, parchis.js, cochina.js, rummy.js, rummikub.js).
+// caida.js, parchis.js, cochina.js, rummy.js, rummikub.js, kemps.js).
 import { createView as createDominoView } from './domino.js';
 import { createView as createFivesView } from './fives.js';
 import { createView as createTrucoView } from './truco.js';
@@ -9,6 +9,7 @@ import { createView as createParchisView } from './parchis.js';
 import { createView as createCochinaView } from './cochina.js';
 import { createView as createRummyView } from './rummy.js';
 import { createView as createRummikubView } from './rummikub.js';
+import { createView as createKempsView } from './kemps.js';
 import { RULES } from './rules.js';
 import { GAMES, gameIcon } from './games.js';
 import { REACTION_TABS, REACTIONS, IMAGES, FIRST_RECENT } from './reactions.js';
@@ -1362,6 +1363,7 @@ const views = {
   cochina: createCochinaView(ctx),
   rummy: createRummyView(ctx),
   rummikub: createRummikubView(ctx),
+  kemps: createKempsView(ctx),
 };
 
 // For tests and the console: what this tab knows, and its way to talk to the server.

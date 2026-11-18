@@ -16,6 +16,7 @@ import { cantoOf } from '../server/games/caida.js';
 import { bestMelds } from '../server/games/rummy.js';
 import * as rummikub from '../server/games/rummikub.js';
 import * as fives from '../server/games/fives.js';
+import * as kemps from '../server/games/kemps.js';
 
 /** Set env vars for one test. */
 function withEnv(t, vars) {
@@ -141,6 +142,11 @@ const PROMISES = {
   'rummikub-joker': (m) => m.round.turn === 0 && m.round.melded[0] && m.round.table.flat().some(rummikub.isJoker),
   'rummikub-out': (m) => m.round.turn === 0 && rummikub.botMove(m.round, 0).table.flat().length === m.round.table.flat().length + m.round.hands[0].length,
   'rummikub-empty-pool': (m) => m.round.turn === 0 && m.round.pool.length === 0,
+  'kemps-three': (m) => m.round.hands[0].some(([n]) => m.round.hands[0].filter((c) => c[0] === n).length === 3 && m.round.middle.some((c) => c[0] === n)),
+  'kemps-four': (m) => kemps.isFour(m.round.hands[0]),
+  'kemps-signal': (m) => m.round.gesture.seat === 2 && m.round.gesture.sign === m.round.signals[0] && kemps.isFour(m.round.hands[2]),
+  'kemps-corta': (m) => m.round.gesture.seat === 1 && m.round.gesture.sign === m.round.signals[1] && kemps.isFour(m.round.hands[1]),
+  'kemps-exposed': (m) => m.round.learned[0] === m.round.signals[0],
 };
 
 test('every scenario has a check here', () => {

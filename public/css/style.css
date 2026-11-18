@@ -60,6 +60,7 @@ body[data-game='caida'] { --accent: #b45309; --accent-glow: rgba(180, 83, 9, 0.4
 body[data-game='cochina'] { --accent: #be185d; --accent-glow: rgba(190, 24, 93, 0.4); }
 body[data-game='rummy'] { --accent: #7c3aed; --accent-glow: rgba(124, 58, 237, 0.4); }
 body[data-game='rummikub'] { --accent: #0f766e; --accent-glow: rgba(15, 118, 110, 0.4); }
+body[data-game='kemps'] { --accent: #15803d; --accent-glow: rgba(21, 128, 61, 0.4); }
 
 [data-team='0'] { --team: var(--t0); }
 [data-team='1'] { --team: var(--t1); }
@@ -600,7 +601,7 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .flier-
   background: repeating-linear-gradient(45deg, var(--back-a), var(--back-a) 4px, var(--back-b) 4px, var(--back-b) 8px);
   box-shadow: inset 0 0 0 3px var(--card);
 }
-body[data-game='rummy'] .flier-back { background: var(--card-back); box-shadow: inset 0 0 0 3px #fffdf6; }
+body:is([data-game='rummy'], [data-game='kemps']) .flier-back { background: var(--card-back); box-shadow: inset 0 0 0 3px #fffdf6; }
 .flier-back[hidden] { display: none; }
 .avatar.throw { animation: throw 0.4s ease-out; }
 @keyframes throw { 40% { transform: scale(1.25); } }
@@ -781,6 +782,7 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .impact
 [data-g='cochina'] { --g: #be185d; }
 [data-g='rummy'] { --g: #4f46e5; }
 [data-g='rummikub'] { --g: #0f766e; }
+[data-g='kemps'] { --g: #15803d; }
 .game-card, .game-opt {
   display: flex;
   align-items: center;
@@ -807,6 +809,7 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .impact
 .game-icon .five { position: absolute; right: -2px; bottom: -3px; font: 800 17px/1 system-ui, sans-serif; color: var(--g, var(--gold)); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); }
 .game-icon[data-g='rummikub'] { display: flex; align-items: center; justify-content: center; gap: 1px; --rw: 12.5px; }
 .game-icon[data-g='rummikub'] .rk-tile:nth-child(2) { translate: 0 -3px; }
+.game-icon .wink { position: absolute; right: -6px; bottom: -3px; font-size: 17px; line-height: 1; }
 .game-icon .pig { position: absolute; right: -4px; bottom: -2px; font-size: 18px; line-height: 1; }
 .game-list { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
 .game-opt { width: 100%; min-height: 60px; padding: 8px 12px 8px 10px; background: transparent; }
@@ -1342,7 +1345,7 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .hand {
 .hand-card.dragging { opacity: 0.25; transform: none; box-shadow: none; }
 
 /* ---- rummy table -------------------------------------------------------- */
-body[data-game='rummy'] {
+body:is([data-game='rummy'], [data-game='kemps']) {
   --card-back: repeating-linear-gradient(45deg, #7f1d1d, #7f1d1d 4px, #a32222 4px, #a32222 8px);
 }
 body[data-game='rummy'] .board { --cw: min(13vw, 9dvh, 64px); --mw: min(10vw, 7dvh, 44px); display: flex; flex-direction: column; gap: 8px; }
@@ -1506,6 +1509,46 @@ body[data-game='rummikub'] .hand {
 .result-emoji .rk-tile { --rw: 46px; }
 body[data-game='rummikub'] .rh-tiles { gap: 2px; --rw: 15px; }
 .rk-tile.drag-ghost:not(.rejected) { box-shadow: 0 0 0 3px var(--gold), 0 14px 28px rgba(0, 0, 0, 0.55); }
+
+/* ---- kemps table -------------------------------------------------------- */
+body[data-game='kemps'] .board { --cw: min(15vw, 11dvh, 88px); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
+.km-info { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
+.km-deck { display: inline-flex; align-items: center; gap: 2px; font-size: 14px; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.km-middle { display: flex; justify-content: center; gap: 8px; }
+.km-slot { display: block; padding: 0; border: 0; background: none; border-radius: calc(var(--cw) * 0.09); cursor: pointer; }
+.km-slot .card { transition: transform 0.15s ease-out, box-shadow 0.15s; }
+.km-slot:is(.picked, .drop-hover) .card { transform: translateY(-8px); box-shadow: 0 0 0 3px var(--gold), 0 0 18px rgba(252, 211, 77, 0.6); }
+.km-slot.swapped .card { box-shadow: 0 0 0 3px var(--team), 0 2px 6px rgba(0, 0, 0, 0.45); animation: card-drop 0.3s cubic-bezier(0.2, 1.4, 0.4, 1); }
+.km-slot.dealt .card { animation: card-drop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1) calc(var(--i, 0) * 90ms) backwards; }
+.km-hint { max-width: 320px; margin: 0; padding: 0 12px; font-size: 12px; color: var(--muted); text-align: center; }
+.km-hint.warn { color: #f59e0b; font-weight: 700; }
+body[data-game='kemps'] .hand {
+  --cw: min(20vw, 15dvh, 96px);
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  min-height: calc(var(--cw) * 1.5 + 16px);
+  padding-top: 16px;
+}
+body[data-game='kemps'] .hand-card.selected { transform: translateY(-14px); box-shadow: 0 0 0 3px var(--gold), 0 10px 20px rgba(0, 0, 0, 0.5); }
+body[data-game='kemps'] .hand.km-four .hand-card { box-shadow: 0 0 0 3px var(--gold), 0 0 16px rgba(252, 211, 77, 0.55); animation: flor-pulse 1.2s ease-in-out infinite; }
+body[data-game='kemps'] .actions { flex-direction: column; align-items: center; gap: 6px; }
+.km-signs { display: flex; justify-content: center; gap: 6px; }
+.km-sign { position: relative; width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; background: var(--panel-2); box-shadow: inset 0 0 0 1px var(--edge); font-size: 23px; line-height: 1; }
+.km-sign:active { transform: scale(0.9); }
+.km-sign.ours { box-shadow: inset 0 0 0 2px var(--gold); }
+.km-sign b { position: absolute; right: -3px; top: -5px; font-size: 13px; color: var(--gold); text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); }
+.km-signs.choosing .km-sign { animation: flor-pulse 1s ease-in-out infinite; }
+.km-calls { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; }
+.call.km-kemps { background: #16a34a; color: var(--on-color); font-size: 16px; }
+.call.km-corta { background: #b91c1c; color: var(--on-color); }
+.call.km-pass.off { opacity: 0.55; }
+.km-note { font-size: 13px; color: var(--muted); }
+.km-known { display: flex; justify-content: center; margin-top: 3px; }
+.km-known .card.mini { --cw: 18px; border-radius: 2px; }
+.km-known .card + .card { margin-left: -7px; }
+.shout.km-gesture { padding: 0 6px; background: transparent; box-shadow: none; font-size: 48px; }
+@media (max-width: 360px) { .km-sign { width: 40px; height: 40px; font-size: 21px; } }
 
 /* ---- result details ------------------------------------------------------- */
 .result-awards { display: grid; gap: 4px; margin: 4px 0 10px; }
@@ -2074,3 +2117,4 @@ body.admin { height: auto; min-height: 100dvh; background: var(--felt-dark); pad
 .scoreboard.named .team { min-width: 0; }
 .scoreboard.named .pts { flex: none; }
 .scoreboard.named .label { min-width: 0; font-size: 12px; text-transform: none; letter-spacing: 0; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+

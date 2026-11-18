@@ -486,4 +486,57 @@ export const RULES = {
       ] },
     ],
   },
+
+  kemps: {
+    en: [
+      { h: 'The game', items: [
+        'One 52-card French deck, 2 vs 2; partners sit across from each other. Each team has a secret signal, one of six gestures, that only its two players see (★ on its button). It starts at random and stays from hand to hand until you change it.',
+        'Everyone gets 4 cards, and 4 more go face up in the middle.',
+        'The aim is four of a kind: four cards of one number in one hand.',
+      ] },
+      { h: 'Swapping', items: [
+        'There are no turns. Anyone, at any moment, swaps one card of their hand for one in the middle: drag yours onto it, or tap one of each. Your hand always has 4 cards. Whoever gets there first takes the card.',
+        'Everyone sees what you take: the cards each player took from the middle and still holds show by their seat.',
+        'When there is nothing in the middle for you, press Nothing for me. Once all four have, or nobody has swapped for 12 seconds, the middle is discarded and four new cards take its place. When the deck runs out the discards are shuffled back in, twice; after that the hand is dead and nobody scores.',
+      ] },
+      { h: 'Signals and calls', items: [
+        'Any gesture you tap shows over your seat for everyone. Only your team knows which one is the signal, so make the others too, to bluff.',
+        'Kemps!: your partner holds four of a kind. If they do, your team wins the hand. If not, the other team wins it. You can\'t call it on your own hand: your partner has to see your signal.',
+        'Stop Kemps!: pick a rival you think holds four of a kind. If they do, your team wins the hand; if not, theirs does.',
+        'A hand won is worth 1. First team to the target wins: 3, 5 or 7, picked in the lobby.',
+      ] },
+      { h: 'Bots', items: [
+        'Bots go for the number they hold most of, signal as soon as they have four, and make a gesture now and then that means nothing.',
+        'They remember the gesture a team gave itself away with, and cut a rival who makes it again. A team of two bots changes its signal once it is caught; with a person on the team, changing it is up to them.',
+      ] },
+      { h: 'House rules', items: [
+        'Kemps is usually played face to face, with real winks and nose scratches, and scored by letters (the first team to spell K-E-M-P-S loses). Here the gestures are buttons, a hand won is a point, and the middle is replaced on a clock instead of by the dealer.',
+      ] },
+    ],
+    es: [
+      { h: 'El juego', items: [
+        'Una baraja francesa de 52 cartas, 2 contra 2; los compañeros se sientan enfrente. Cada equipo tiene una seña secreta, uno de seis gestos, que solo ven sus dos jugadores (★ en su botón). Empieza al azar y sigue de mano en mano hasta que la cambien.',
+        'Cada uno recibe 4 cartas, y otras 4 van boca arriba en el medio.',
+        'Se buscan cuatro iguales: cuatro cartas del mismo número en una mano.',
+      ] },
+      { h: 'Cambiar', items: [
+        'No hay turnos. Cualquiera, en cualquier momento, cambia una carta de su mano por una del medio: arrastra la tuya encima, o toca una de cada lado. Tu mano siempre tiene 4 cartas. El que llega primero se lleva la carta.',
+        'Todos ven lo que tomas: junto a cada puesto se ven las cartas que ese jugador tomó del medio y todavía tiene.',
+        'Cuando no haya nada para ti en el medio, dale a Nada para mí. Cuando los cuatro lo hayan hecho, o nadie haya cambiado en 12 segundos, el medio se descarta y cuatro cartas nuevas ocupan su lugar. Si se acaba el mazo se barajan los descartes, dos veces; después la mano queda muerta y nadie suma.',
+      ] },
+      { h: 'Señas y cantos', items: [
+        'Cualquier gesto que toques aparece sobre tu puesto para todos. Solo tu equipo sabe cuál es la seña, así que haz los otros también, para disimular.',
+        '¡Kimi!: tu pareja tiene cuatro iguales. Si las tiene, tu equipo gana la mano. Si no, la gana el otro. No lo puedes cantar con tu propia mano: tu pareja tiene que ver tu seña.',
+        '¡Corta!: elige a un rival que creas que tiene cuatro iguales. Si las tiene, tu equipo gana la mano; si no, la gana el suyo.',
+        'Cada mano ganada vale 1. Gana el primer equipo que llegue a la meta: 3, 5 o 7, se elige en la sala.',
+      ] },
+      { h: 'Bots', items: [
+        'Los bots van por el número del que más tienen, hacen la seña en cuanto tienen cuatro, y de vez en cuando hacen un gesto que no quiere decir nada.',
+        'Se acuerdan del gesto con el que un equipo se delató, y le cortan al rival que lo vuelva a hacer. Un equipo de dos bots cambia de seña cuando se la pillan; si en el equipo hay una persona, cambiarla le toca a ella.',
+      ] },
+      { h: 'Reglas de la casa', items: [
+        'El kimi (kemps) se juega cara a cara, con guiños y rascadas de nariz de verdad, y se cuenta por letras (pierde el primer equipo que complete K-E-M-P-S). Aquí los gestos son botones, cada mano ganada es un punto, y el medio se cambia con un reloj en vez de que lo cambie el que reparte.',
+      ] },
+    ],
+  },
 };

@@ -2,13 +2,13 @@
 
 # La Mesa
 
-Mobile-first, four-player games (2 vs 2) you play in the browser: partner dominoes, All Fives dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, parchís in pairs, roba la cochina, partnership rummy, and Rummikub in pairs. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
+Mobile-first, four-player games (2 vs 2) you play in the browser: partner dominoes, All Fives dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, parchís in pairs, roba la cochina, partnership rummy, Rummikub in pairs, and Kemps (kimi), where partners pass a secret signal. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
 
 Created in [T3 Code](https://t3.codes).
 
 ## Features
 
-- **Eight games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, All Fives, truco, caída, parchís, roba la cochina, rummy and Rummikub, and everyone there sees the change. Rummikub is behind a [feature flag](#feature-flags) for now. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again. A player can also go back to the lobby mid-game, from the ⋯ menu or a round's result, after confirming: it ends the game for all four and resets the score.
+- **Nine games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, All Fives, truco, caída, parchís, roba la cochina, rummy, Rummikub and Kemps, and everyone there sees the change. Rummikub is behind a [feature flag](#feature-flags) for now. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again. A player can also go back to the lobby mid-game, from the ⋯ menu or a round's result, after confirming: it ends the game for all four and resets the score.
 - **Table styles.** Anyone can pick how the table looks for everyone in the match, from *Table style* in the ⋯ menu, in the lobby or at the table: Felt (the green table), Pencil (graphite on graph paper, with hatched card backs and colored-pencil teams) Neon (dark glass tiles with lit pips and a glowing grid) Minimal (flat white, hairlines, no shadows) Dark (graphite, charcoal tiles with white pips, amber highlights), Halloween (a moonlit purple night with bats and pumpkin tiles) or Christmas (a red table under falling snow, snow-white tiles with red pips and candy-cane card backs). A new match starts in the style its first player saw last. The fonts are served from `public/fonts/` (all SIL Open Font License).
 - **Team names.** In the lobby, either partner taps *Your team*, above the game, to name the team (up to 16 characters, or one of a few Venezuelan quick picks). Everyone sees it in the lobby, the score and the round results, and gets a toast when it changes. The name stays with the team when players change seats. Without one, the score says Us / Them.
 - **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches.
@@ -170,6 +170,21 @@ Rummikub is behind the PostHog feature flag `rummikub`: a lobby only offers it w
 
 **Not implemented:** a turn timer (the table mocks a player after two minutes instead of one), seeing another player's moves before they press *Done*, and dragging tiles that are already on the table.
 
+### Kemps rules
+
+Kemps (*kimi* in Spanish) is a party game for partners with secret signals. Rules vary from table to table; this follows [Pagat](https://www.pagat.com/commerce/kemps.html) and [Wikipedia](https://en.wikipedia.org/wiki/Kemps_(card_game)), adapted to a screen. The timings and the bots' habits are constants at the top of `server/games/kemps.js`.
+
+- One 52-card French deck, 4 cards each, 4 face up in the middle, 2 vs 2. The aim is four of a kind.
+- **No turns.** Anyone, at any moment, swaps one card from their hand for one in the middle, by dragging it there or tapping one of each. Whoever gets there first takes the card. The cards each player took and still holds show by their seat.
+- **A new middle.** *Nothing for me* says you're done with it. Once all four are (bots count as done when no swap helps them), or nobody has swapped for 12 seconds, the middle is discarded and four new cards are laid. An empty deck takes the discards back, twice; after that the hand is dead and nobody scores.
+- **Signals.** Each team has a secret signal, one of six gestures (wink, nose, ear, tongue, eyebrow, shrug), shown only to its two players with a ★. Any gesture a player taps shows over their seat for everyone, so the others are for bluffing. Either partner can change the team's signal mid-hand. It carries over to the next hand, starting at random.
+- **Kemps!** (*¡Kimi!*): your partner holds four of a kind. Right, your team wins the hand; wrong, the other team does.
+- **Stop Kemps!** (*¡Corta!*): name a rival who holds four of a kind. Right, your team wins the hand; wrong, theirs does.
+- **Winning.** A hand is worth 1, and the first team to the target (3, 5 or 7) wins.
+- **Bots** go for the number they hold most of, make their signal once they have four (and again every few seconds while a human partner misses it), throw in a meaningless gesture now and then, and call Kemps on their partner's signal. They remember the gesture a team gave itself away with (the result shows it to everyone) and cut a rival who makes it again, most of the time. A team of two bots changes a caught signal; a person sees a warning instead.
+
+**Not implemented:** scoring by letters (K-E-M-P-S), real winks, and a dealer deciding when the middle is replaced. The table doesn't mock a slow player, since the middle moves on by itself.
+
 ## Stack
 
 | Layer    | Tech |
@@ -216,6 +231,7 @@ server/
     cochina.js     Pure roba la cochina rules and bot AI, plus the `game` object
     rummy.js       Pure rummy rules and bot AI, plus the `game` object
     rummikub.js    Pure Rummikub rules and bot AI, plus the `game` object
+    kemps.js       Pure Kemps rules, and the bots' and the middle's clock planned from the round, plus the `game` object
 public/
   index.html       Landing page (new match / join by code)
   play.html        Game table
@@ -229,6 +245,7 @@ public/
   js/cochina.js    Roba la cochina table: loose cards, both cochinas, steals, how a round reads
   js/rummy.js      Rummy table: deck, discard pile, melds, picking cards, how a round reads
   js/rummikub.js   Rummikub table: the pool, the sets, building the next table on your turn, how a round reads
+  js/kemps.js      Kemps table: the middle, swapping into it, gestures and your signal, the calls, how a hand reads
   js/rummikub-tiles.js  Rummikub tile markup, and the set check the server makes
   js/rules.js      The full rules of each game, for the rules sheet
   js/games.js      The lobby's menu of games and their icons (a new game goes here too)
@@ -261,7 +278,7 @@ test/              Rules of every game, match, rooms, board layout, game and sty
 
 A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto`, `waitingOn` and `roundView`, plus `variants` and `slowTurnMs` where a game needs them. The testing tools need two lines per game too: how a bot plays any seat (`STEP` in `server/dev/scenarios.js`) and how a headless player chooses (`STRATEGY` in `scripts/sim.js`).
 
-On the client, `play.js` keeps one view per game (`domino.js`, `fives.js`, `truco.js`, `caida.js`, `parchis.js`, `cochina.js`, `rummy.js`, `rummikub.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
+On the client, `play.js` keeps one view per game (`domino.js`, `fives.js`, `truco.js`, `caida.js`, `parchis.js`, `cochina.js`, `rummy.js`, `rummikub.js`, `kemps.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
 
 The `domino.*` browser storage keys predate truco and cover every game. Renaming them would lose players' names, seats and photos. Matches saved without a `game` load as dominoes.
 
@@ -350,8 +367,8 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `teamName` | `name` (up to 16 characters; empty clears it) | Seated players, for their own team, any time. The name stays with the team when players change seats. |
 | `sit` / `stand` | `seat` | Lobby. `sit` also lets a spectator take over a bot mid-game. |
 | `addBots` / `removeBot` | `seat` | Lobby |
-| `game` | `game: "domino" \| "fives" \| "truco" \| "caida" \| "parchis" \| "cochina" \| "rummy" \| "rummikub"` | Lobby. Resets the target to the game's default. |
-| `target` | `50 \| 75 \| 100`, `100 \| 150 \| 250`, `12 \| 24 \| 32`, `12 \| 24`, `1 \| 2 \| 3`, `1 \| 3 \| 5`, `150 \| 300` or `50 \| 100 \| 200` | Lobby, from the current game's list |
+| `game` | `game: "domino" \| "fives" \| "truco" \| "caida" \| "parchis" \| "cochina" \| "rummy" \| "rummikub" \| "kemps"` | Lobby. Resets the target to the game's default. |
+| `target` | `50 \| 75 \| 100`, `100 \| 150 \| 250`, `12 \| 24 \| 32`, `12 \| 24`, `1 \| 2 \| 3`, `1 \| 3 \| 5`, `150 \| 300`, `50 \| 100 \| 200` or `3 \| 5 \| 7` | Lobby, from the current game's list |
 | `variant` | `1 \| 2` | Lobby, a game that offers a choice: parchís's dice |
 | `theme` | `theme: "felt" \| "pencil" \| "neon" \| "minimal" \| "dark" \| "halloween" \| "christmas"` | Lobby. Everyone in the match sees it. |
 | `start` | | Lobby, once all 4 seats are filled |
@@ -369,6 +386,12 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `discard` | `card: [rank, suit]` | Rummy, after drawing. Ends your turn. |
 | `play` | `table: [[tile, …], …]` | Rummikub, your turn: the whole table as it should be after it, every set a list of tile ids (0-103 numbered, color by color, twice over; 104 and 105 the jokers) in any order. The server lays each set out. |
 | `draw` | | Rummikub, your turn: take a tile from the pool, or pass when it's empty |
+| `swap` | `take: [rank, suit]`, `give: [rank, suit]` | Kemps, any time: a card from the middle for one from your hand. Someone else may have taken it first (`That card is gone`). |
+| `pass` | | Kemps: nothing in the middle for you. A second one changes nothing. |
+| `gesture` | `sign: "wink" \| "nose" \| "ear" \| "tongue" \| "brow" \| "shrug"` | Kemps: shows over your seat for everyone (700 ms apart) |
+| `signal` | `sign` | Kemps: your team's new secret signal. Only your partner sees it. |
+| `kemps` | | Kemps: your partner holds four of a kind |
+| `corta` | `seat` | Kemps: that rival holds four of a kind (Stop Kemps) |
 | `next` / `rematch` / `lobby` | | After a round or match ends |
 | `botify` | `seat` | Replace a disconnected player with a bot |
 | `react` | `emoji` | Seated players (600 ms cooldown) |
@@ -483,6 +506,7 @@ curl -X PATCH localhost:3000/api/dev/match/demo -d '{"scores": [23, 23]}'
 - Cochina: `cochina-steal`, `cochina-steal-run` (three of a number on the rivals' cochina), `cochina-run` (the same, then the next two numbers on the table), `cochina-grab`
 - Rummy: `rummy-take`, `rummy-meld`, `rummy-layoff`, `rummy-out`, `rummy-last-card`
 - Rummikub: `rummikub-first` (a first play worth 30 on the rack), `rummikub-layoff`, `rummikub-split` (a tile that splits a run), `rummikub-joker`, `rummikub-out`, `rummikub-empty-pool`
+- Kemps: `kemps-three` (the fourth is in the middle), `kemps-four`, `kemps-signal` (the partner just made the signal: call it), `kemps-corta` (a rival just made its signal: cut it before its partner calls, which takes a bot about a second), `kemps-exposed` (the bots know seat 0's signal)
 
 `GET /api/dev` describes each one.
 
