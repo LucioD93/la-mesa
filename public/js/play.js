@@ -1,6 +1,6 @@
 // The game page: connection, lobby, seats, voice, photos, reactions and the frame of
 // the result. What's on the table belongs to the game's view (domino.js, fives.js, truco.js,
-// caida.js, parchis.js, cochina.js, rummy.js, rummikub.js, slap.js). A game without teams
+// caida.js, parchis.js, cochina.js, rummy.js, rummikub.js, war.js, slap.js). A game without teams
 // (`state.solo`) has a score per seat, and no team names.
 import { createView as createDominoView } from './domino.js';
 import { createView as createFivesView } from './fives.js';
@@ -11,6 +11,7 @@ import { createView as createCochinaView } from './cochina.js';
 import { createView as createRummyView } from './rummy.js';
 import { createView as createRummikubView } from './rummikub.js';
 import { createView as createSlapView } from './slap.js';
+import { createView as createWarView } from './war.js';
 import { RULES } from './rules.js';
 import { GAMES, gameIcon } from './games.js';
 import { REACTION_TABS, REACTIONS, IMAGES, FIRST_RECENT } from './reactions.js';
@@ -1441,6 +1442,7 @@ const views = {
   rummy: createRummyView(ctx),
   rummikub: createRummikubView(ctx),
   slap: createSlapView(ctx),
+  war: createWarView(ctx),
 };
 
 // For tests and the console: what this tab knows, and its way to talk to the server.

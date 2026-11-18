@@ -15,6 +15,7 @@ import * as cochina from '../games/cochina.js';
 import * as rummy from '../games/rummy.js';
 import * as rummikub from '../games/rummikub.js';
 import * as slap from '../games/slap.js';
+import * as war from '../games/war.js';
 import { baseRng, diceValues, rig, seededRng, unrig } from './config.js';
 
 const ATTEMPTS = 3000; // deals to try before giving up on a moment that comes up by chance
@@ -84,6 +85,10 @@ const STEP = {
     if (!r.window) return void slap.flip(r, r.turn, { rng });
     const left = [0, 1, 2, 3].filter((s) => !r.window.slaps.includes(s));
     slap.slap(r, left[Math.floor(rng() * left.length)], r.flip.n);
+  },
+  war(r) {
+    if (r.result) war.collect(r);
+    else war.flip(r, r.toFlip[0]);
   },
 };
 
@@ -227,6 +232,13 @@ const meldsWith = (hand, card) => rummy.candidateMelds([...hand, card]).some((ca
 const leftAfterMelds = (hand) => hand.length - rummy.bestMelds(hand).reduce((n, m) => n + m.cards.length, 0);
 const rkFits = (r, split) => r.hands[0].some((id) => r.table.some((set) => rummikub.fitTile(set, id)?.length === (split ? 2 : 1)));
 const rkTurn = (r) => r.turn === 0 && r.melded[0];
+/** A battle just opened with seat 0 in it, and what each seat will turn up. */
+const warOpen = (r) => !r.result && !r.war && r.toFlip.length === r.fighting.length && r.toFlip.includes(0);
+const warTies = (r) => {
+  const best = Math.max(...r.fighting.map((s) => war.rankOf(r.hands[s].at(-1))));
+  const top = (s) => r.fighting.includes(s) && war.rankOf(r.hands[s].at(-1)) === best;
+  return top(0) && (top(1) || top(3));
+};
 const rkGoesOut = (r) => rummikub.botMove(r, 0).table?.flat().length === r.table.flat().length + r.hands[0].length;
 const scoresWith = (r, m) => fives.scoreFor(fives.endsCount(fives.boardAfter(r, m)));
 const blocksWith = (r, m) => {
@@ -507,6 +519,16 @@ export const SCENARIOS = {
     game: 'slap',
     about: "Seat 0's turn with 12 or more cards on the stack and none of them a match: slap now to see a false slap take it all.",
     setup: (match, opts) => search(match, 'slap', opts, (r) => r.turn === 0 && !r.window && r.stack.length >= 12 && r.hands[0].length > 1),
+  },
+  'war-war': {
+    game: 'war',
+    about: "A battle just opened, and seat 0's card ties a rival's as the highest: turning it starts a war.",
+    setup: (match, opts) => search(match, 'war', opts, (r) => warOpen(r) && warTies(r)),
+  },
+  'war-last': {
+    game: 'war',
+    about: 'A battle just opened, and seat 0 has one card left.',
+    setup: (match, opts) => search(match, 'war', opts, (r) => warOpen(r) && r.hands[0].length === 1),
   },
 };
 

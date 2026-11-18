@@ -17,6 +17,7 @@ import { bestMelds } from '../server/games/rummy.js';
 import * as rummikub from '../server/games/rummikub.js';
 import * as fives from '../server/games/fives.js';
 import { calledAt } from '../server/games/slap.js';
+import * as war from '../server/games/war.js';
 
 /** Set env vars for one test. */
 function withEnv(t, vars) {
@@ -149,6 +150,13 @@ const PROMISES = {
   'slap-last-card': (m) => m.round.turn === 0 && m.round.hands[0].length === 1 && slapsNext(m.round),
   'slap-out': (m) => m.round.out.includes(0) && m.seats[m.round.turn].bot && slapsNext(m.round),
   'slap-big-stack': (m) => m.round.turn === 0 && !m.round.window && m.round.stack.length >= 12,
+  'war-war': (m) => {
+    const r = m.round;
+    const top = (s) => war.rankOf(r.hands[s].at(-1));
+    const best = Math.max(...r.fighting.map(top));
+    return r.toFlip.includes(0) && top(0) === best && [1, 3].some((s) => r.fighting.includes(s) && top(s) === best);
+  },
+  'war-last': (m) => m.round.toFlip.includes(0) && m.round.hands[0].length === 1,
 };
 
 test('every scenario has a check here', () => {

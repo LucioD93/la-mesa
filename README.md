@@ -2,13 +2,13 @@
 
 # La Mesa
 
-Mobile-first, four-player games you play in the browser: partner dominoes, All Fives dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, parchís in pairs, roba la cochina, partnership rummy and Rummikub in pairs, all 2 vs 2, and Irish Snap (manotazo), every player for themselves. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
+Mobile-first, four-player games you play in the browser: partner dominoes, All Fives dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, parchís in pairs, roba la cochina, partnership rummy and Rummikub in pairs and War, all 2 vs 2, and Irish Snap (manotazo), every player for themselves. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
 
 Created in [T3 Code](https://t3.codes).
 
 ## Features
 
-- **Nine games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, All Fives, truco, caída, parchís, roba la cochina, rummy, Rummikub and Irish Snap, and everyone there sees the change. Rummikub is behind a [feature flag](#feature-flags) for now. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again. A player can also go back to the lobby mid-game, from the ⋯ menu or a round's result, after confirming: it ends the game for all four and resets the score.
+- **Ten games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, All Fives, truco, caída, parchís, roba la cochina, rummy, Rummikub, War and Irish Snap, and everyone there sees the change. Rummikub is behind a [feature flag](#feature-flags) for now. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again. A player can also go back to the lobby mid-game, from the ⋯ menu or a round's result, after confirming: it ends the game for all four and resets the score.
 - **Table styles.** Anyone can pick how the table looks for everyone in the match, from *Table style* in the ⋯ menu, in the lobby or at the table: Felt (the green table), Pencil (graphite on graph paper, with hatched card backs and colored-pencil teams) Neon (dark glass tiles with lit pips and a glowing grid) Minimal (flat white, hairlines, no shadows) Dark (graphite, charcoal tiles with white pips, amber highlights), Halloween (a moonlit purple night with bats and pumpkin tiles) or Christmas (a red table under falling snow, snow-white tiles with red pips and candy-cane card backs). A new match starts in the style its first player saw last. The fonts are served from `public/fonts/` (all SIL Open Font License).
 - **Team names.** In the lobby, either partner taps *Your team*, above the game, to name the team (up to 16 characters, or one of a few Venezuelan quick picks). Everyone sees it in the lobby, the score and the round results, and gets a toast when it changes. The name stays with the team when players change seats. Without one, the score says Us / Them. A game without teams (Irish Snap) hides all of this: the scoreboard shows you against the best of the others, and the result and score sheet list all four players.
 - **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches.
@@ -186,6 +186,16 @@ The slap game: Irish Snap in English, manotazo in Spanish. Every table plays it 
 - **Pace.** A round is about 45 flips, which is under a minute with bots in every seat. A player who takes 20 seconds to flip gets mocked.
 
 **Not implemented:** burning a card as the penalty for a false slap instead of taking the stack, a voice calling the count aloud, and a team version.
+### War rules
+
+War (*guerra*) is usually two players taking the cards they win back into their decks until one holds them all, which can go on for hours. This is a version for two teams that plays through the deck once. The pacing is at the top of `server/games/war.js`.
+
+- One 52-card French deck, 13 cards each, face down, 2 vs 2. Nobody sees their own cards. Aces are high, and suits don't count.
+- **A battle.** All four turn up their top card at once: tap your deck, or drag it onto the table. There are no turns. The highest card takes all four for its team, and partners tied on top take it just the same. The cards stay up for a moment, then slide onto that team's pile.
+- **¡Guerra!** If the highest card is tied between the teams, the tied players (only them) each lay one card face down and turn up the next, with one tap. The highest new card takes everything on the table; tied again, it's war again. With one card left it goes up without one face down. A player out of cards drops out of the war; if a whole side runs out the other takes it, and if nobody can go on, nobody gets those cards.
+- **End of the round.** A player out of cards sits out the battles that are left, and the round ends when every card has been played. The team that took more cards wins the round and scores 1; equal piles score nothing.
+- **Winning.** First team to win 1, 3 or 5 rounds, picked in the lobby.
+- **At the table.** A battle waits on everyone, so the table mocks a slow player after 15 seconds instead of a minute. Your deck only beeps for a war, where the others wait on you.
 
 ## Stack
 
@@ -234,6 +244,7 @@ server/
     rummy.js       Pure rummy rules and bot AI, plus the `game` object
     rummikub.js    Pure Rummikub rules and bot AI, plus the `game` object
     slap.js        Pure Irish Snap (manotazo) rules and the bots' timing, plus the `game` object
+    war.js         Pure War rules and the bots' pace, plus the `game` object
 public/
   index.html       Landing page (new match / join by code)
   play.html        Game table
@@ -248,6 +259,7 @@ public/
   js/rummy.js      Rummy table: deck, discard pile, melds, picking cards, how a round reads
   js/rummikub.js   Rummikub table: the pool, the sets, building the next table on your turn, how a round reads
   js/rummikub-tiles.js  Rummikub tile markup, and the set check the server makes
+  js/war.js        War table: each seat's cards, the piles taken, your deck to tap, how a round reads
   js/slap.js       Irish Snap table: the stack, the number called, your face-down pile, the hands landing on a match
   js/rules.js      The full rules of each game, for the rules sheet
   js/games.js      The lobby's menu of games and their icons (a new game goes here too)
@@ -280,7 +292,7 @@ test/              Rules of every game, match, rooms, board layout, game and sty
 
 A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto`, `waitingOn` and `roundView`, plus `variants`, `slowTurnMs` and `solo` (every player for themselves: a score per seat instead of per team) where a game needs them. The testing tools need two lines per game too: how a bot plays any seat (`STEP` in `server/dev/scenarios.js`) and how a headless player chooses (`STRATEGY` in `scripts/sim.js`).
 
-On the client, `play.js` keeps one view per game (`domino.js`, `fives.js`, `truco.js`, `caida.js`, `parchis.js`, `cochina.js`, `rummy.js`, `rummikub.js`, `slap.js`) and calls the current one for the table, the hand, the status line and the details of the result. With `solo` in the state, `play.js` draws the scoreboard, result and score sheet per player rather than per team. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
+On the client, `play.js` keeps one view per game (`domino.js`, `fives.js`, `truco.js`, `caida.js`, `parchis.js`, `cochina.js`, `rummy.js`, `rummikub.js`, `war.js`, `slap.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
 
 The `domino.*` browser storage keys predate truco and cover every game. Renaming them would lose players' names, seats and photos. Matches saved without a `game` load as dominoes.
 
@@ -369,8 +381,8 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `teamName` | `name` (up to 16 characters; empty clears it) | Seated players, for their own team, any time. The name stays with the team when players change seats. |
 | `sit` / `stand` | `seat` | Lobby. `sit` also lets a spectator take over a bot mid-game. |
 | `addBots` / `removeBot` | `seat` | Lobby |
-| `game` | `game: "domino" \| "fives" \| "truco" \| "caida" \| "parchis" \| "cochina" \| "rummy" \| "rummikub" \| "slap"` | Lobby. Resets the target to the game's default. |
-| `target` | `50 \| 75 \| 100`, `100 \| 150 \| 250`, `12 \| 24 \| 32`, `12 \| 24`, `1 \| 2 \| 3`, `1 \| 3 \| 5`, `150 \| 300` or `50 \| 100 \| 200` | Lobby, from the current game's list |
+| `game` | `game: "domino" \| "fives" \| "truco" \| "caida" \| "parchis" \| "cochina" \| "rummy" \| "rummikub" \| "war" \| "slap"` | Lobby. Resets the target to the game's default. |
+| `target` | `50 \| 75 \| 100`, `100 \| 150 \| 250`, `12 \| 24 \| 32`, `12 \| 24`, `1 \| 2 \| 3`, `1 \| 3 \| 5` (roba la cochina, War and Irish Snap), `150 \| 300` or `50 \| 100 \| 200` | Lobby, from the current game's list |
 | `variant` | `1 \| 2` | Lobby, a game that offers a choice: parchís's dice |
 | `theme` | `theme: "felt" \| "pencil" \| "neon" \| "minimal" \| "dark" \| "halloween" \| "christmas"` | Lobby. Everyone in the match sees it. |
 | `start` | | Lobby, once all 4 seats are filled |
@@ -390,6 +402,7 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `draw` | | Rummikub, your turn: take a tile from the pool, or pass when it's empty |
 | `flip` | `n` (the round's `seq` you saw) | Irish Snap, while `options.flip` is set: your top card onto the stack. A flip sent from an older moment is refused as too late, so a double tap flips one card. |
 | `slap` | `n` (the `flip.n` of the card on top) | Irish Snap, any time there's a card on the stack: a hand on a match joins `window.slaps` in arrival order; on any other card it's a false slap and takes the stack. A slap for a card that's gone is refused as too late. |
+| `flip` | | War, while `options.flip` is set: turn your top card up (in a war, one face down first) |
 | `next` / `rematch` / `lobby` | | After a round or match ends |
 | `botify` | `seat` | Replace a disconnected player with a bot |
 | `react` | `emoji` | Seated players (600 ms cooldown) |
@@ -505,6 +518,7 @@ curl -X PATCH localhost:3000/api/dev/match/demo -d '{"scores": [23, 23]}'
 - Rummy: `rummy-take`, `rummy-meld`, `rummy-layoff`, `rummy-out`, `rummy-last-card`
 - Rummikub: `rummikub-first` (a first play worth 30 on the rack), `rummikub-layoff`, `rummikub-split` (a tile that splits a run), `rummikub-joker`, `rummikub-out`, `rummikub-empty-pool`
 - Irish Snap: `slap-match` (seat 0's next card is the number about to be called), `slap-last-card` (the same, with its last card), `slap-out` (seat 0 is out and a bot is about to flip a match), `slap-big-stack` (12 or more on the stack, to try a false slap). A slap window only lasts 3 seconds, so slap from the page, or with `send`, right after the flip.
+- War: `war-war` (seat 0's next card ties a rival's on top), `war-last` (seat 0's last card)
 
 `GET /api/dev` describes each one.
 

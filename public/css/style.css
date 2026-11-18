@@ -601,7 +601,7 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina'], [data-g
   background: repeating-linear-gradient(45deg, var(--back-a), var(--back-a) 4px, var(--back-b) 4px, var(--back-b) 8px);
   box-shadow: inset 0 0 0 3px var(--card);
 }
-body[data-game='rummy'] .flier-back { background: var(--card-back); box-shadow: inset 0 0 0 3px #fffdf6; }
+body:is([data-game='rummy'], [data-game='war']) .flier-back { background: var(--card-back); box-shadow: inset 0 0 0 3px #fffdf6; }
 .flier-back[hidden] { display: none; }
 .avatar.throw { animation: throw 0.4s ease-out; }
 @keyframes throw { 40% { transform: scale(1.25); } }
@@ -616,7 +616,7 @@ body[data-game='rummy'] .flier-back { background: var(--card-back); box-shadow: 
   pointer-events: none;
   animation: impact 0.5s ease-out forwards;
 }
-body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .impact { width: calc(var(--cw) * 2); height: calc(var(--cw) * 2); }
+body:is([data-game='truco'], [data-game='caida'], [data-game='cochina'], [data-game='war']) .impact { width: calc(var(--cw) * 2); height: calc(var(--cw) * 2); }
 @keyframes impact {
   from { scale: 0.2; opacity: 0.9; }
   to { scale: 1; opacity: 0; }
@@ -783,6 +783,7 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .impact
 [data-g='rummy'] { --g: #4f46e5; }
 [data-g='rummikub'] { --g: #0f766e; }
 [data-g='slap'] { --g: #c2410c; }
+[data-g='war'] { --g: #b91c1c; }
 .game-card, .game-opt {
   display: flex;
   align-items: center;
@@ -810,6 +811,7 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .impact
 .game-icon[data-g='rummikub'] { display: flex; align-items: center; justify-content: center; gap: 1px; --rw: 12.5px; }
 .game-icon[data-g='rummikub'] .rk-tile:nth-child(2) { translate: 0 -3px; }
 .game-icon .pig { position: absolute; right: -4px; bottom: -2px; font-size: 18px; line-height: 1; }
+.game-icon .swords { position: absolute; right: -5px; bottom: -3px; font-size: 16px; line-height: 1; }
 .game-list { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; }
 .game-opt { width: 100%; min-height: 60px; padding: 8px 12px 8px 10px; background: transparent; }
 .game-opt .game-text b { font-size: 16px; }
@@ -1344,7 +1346,7 @@ body:is([data-game='truco'], [data-game='caida'], [data-game='cochina']) .hand {
 .hand-card.dragging { opacity: 0.25; transform: none; box-shadow: none; }
 
 /* ---- rummy table -------------------------------------------------------- */
-body[data-game='rummy'] {
+body:is([data-game='rummy'], [data-game='war']) {
   --card-back: repeating-linear-gradient(45deg, #7f1d1d, #7f1d1d 4px, #a32222 4px, #a32222 8px);
 }
 body[data-game='rummy'] .board { --cw: min(13vw, 9dvh, 64px); --mw: min(10vw, 7dvh, 44px); display: flex; flex-direction: column; gap: 8px; }
@@ -1409,6 +1411,35 @@ body[data-game='rummy'] .hand-card.taken::after { background: var(--accent); }
 .call.discard { background: #b91c1c; }
 .call.sort { background: transparent; color: var(--muted); font-size: 13px; }
 body[data-game='rummy'] .rh-cards .card + .card { margin-left: -16px; } /* up to a dozen cards left in a hand */
+
+/* ---- war table ---------------------------------------------------------- */
+body[data-game='war'] { --accent: #b91c1c; --accent-glow: rgba(185, 28, 28, 0.4); }
+body[data-game='war'] .board { --cw: min(14vw, 9dvh, 70px); }
+@media (max-height: 680px) { body[data-game='war'] .board { --cw: min(13vw, 7.5dvh); } }
+.war-field { position: absolute; inset: 0; pointer-events: none; }
+/* Truco's slots, a little higher to leave room for the piles; a war fans each seat's cards out toward it. */
+body[data-game='war'] .slot { top: 44%; }
+.war-tag { color: var(--accent); font-size: 14px; font-weight: 900; letter-spacing: 0.02em; }
+.war-piles { --cw: min(9vw, 6dvh, 44px); pointer-events: none; }
+.war-piles .pile .card { box-shadow: 0 0 0 2px var(--team), 0 2px 6px rgba(0, 0, 0, 0.45); }
+.war-piles .edge { background: var(--card-back); }
+.shout.guerra { background: var(--accent); color: #fff; font-size: 30px; letter-spacing: 0.02em; }
+/* Your deck, face down where a hand would be: tap it, or drag it onto the table, to turn a card. */
+body[data-game='war'] .hand { --cw: min(22vw, 13dvh, 88px); display: flex; justify-content: center; min-height: calc(var(--cw) * 1.5 + 16px); padding-top: 8px; }
+.war-deck { display: flex; align-items: center; gap: 12px; padding: 0 4px 10px; border: 0; background: none; color: var(--ink); font: inherit; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: grab; }
+.war-deck .pile { position: relative; display: block; }
+.war-deck .edge { position: absolute; left: 0; right: 0; height: 100%; border-radius: calc(var(--cw) * 0.09); background: var(--card-back); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+.war-deck .edge:nth-child(1) { top: 3px; }
+.war-deck .edge:nth-child(2) { top: 6px; }
+.war-deck .edge:nth-child(3) { top: 9px; }
+.war-deck .deck-info { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; text-align: left; }
+.war-deck .deck-info b { font-size: 26px; }
+.war-deck .deck-info small { max-width: 9em; font-size: 13px; color: var(--muted); }
+.war-deck.ready .pile > .card { box-shadow: 0 0 0 3px var(--gold), 0 0 16px rgba(252, 211, 77, 0.55); animation: flor-pulse 1.2s ease-in-out infinite; }
+.war-deck.ready .deck-info small { color: var(--gold); font-weight: 800; }
+.war-deck.dragging { opacity: 0.25; }
+.war-deck.drag-ghost .deck-info { display: none; }
+@media (prefers-reduced-motion: reduce) { .war-deck.ready .pile > .card { animation: none; } }
 
 /* ---- rummikub table ----------------------------------------------------- */
 /* A tile: its number in its color over a small ring, as on the real ones. The size comes
