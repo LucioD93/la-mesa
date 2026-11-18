@@ -14,6 +14,7 @@ import * as parchis from '../games/parchis.js';
 import * as cochina from '../games/cochina.js';
 import * as rummy from '../games/rummy.js';
 import * as rummikub from '../games/rummikub.js';
+import * as slap from '../games/slap.js';
 import { baseRng, diceValues, rig, seededRng, unrig } from './config.js';
 
 const ATTEMPTS = 3000; // deals to try before giving up on a moment that comes up by chance
@@ -77,6 +78,12 @@ const STEP = {
   },
   rummikub(r) {
     rummikub.applyMove(r, r.turn, rummikub.botMove(r, r.turn));
+  },
+  slap(r, rng) {
+    // Everyone slaps a match, in a random order; nobody slaps anything else.
+    if (!r.window) return void slap.flip(r, r.turn, { rng });
+    const left = [0, 1, 2, 3].filter((s) => !r.window.slaps.includes(s));
+    slap.slap(r, left[Math.floor(rng() * left.length)], r.flip.n);
   },
 };
 
@@ -185,6 +192,33 @@ function runOnTable(r) {
   return true;
 }
 
+// ---- slap: the next card to flip --------------------------------------------------
+
+/**
+ * Make the card `seat` flips next the number about to be called, by trading places with a
+ * card of that number lower in a pile, its own or another's. False when every one of them
+ * is already face up on the stack.
+ */
+function rigFlip(r, seat) {
+  const called = slap.calledAt(r.count);
+  const pile = r.hands[seat];
+  if (pile.at(-1)?.[0] === called) return true;
+  const list = r.hands.find((h, s) => h.some((c, i) => c[0] === called && !(s === seat && i === h.length - 1)));
+  if (!list) return false;
+  const i = list.findIndex((c) => c[0] === called);
+  [list[i], pile[pile.length - 1]] = [pile[pile.length - 1], list[i]];
+  return true;
+}
+
+/** Bots play until `done`, then the next flip is rigged to match; another deal if it can't be. */
+function slapSearch(match, opts, done, flipper = (r) => r.turn) {
+  const seed = opts.seed ?? Math.random().toString(36).slice(2);
+  for (let i = 0; ; i++) {
+    search(match, 'slap', { ...opts, seed: `${seed}:${i}` }, (r) => !r.window && !r.over && done(r));
+    if (rigFlip(match.round, flipper(match.round))) return;
+  }
+}
+
 const domMoves = (r, seat) => domino.legalMoves(r, seat);
 const cardsOf = (hand, n) => hand.filter((c) => c[0] === n);
 const fitsTable = (r, card) => r.melds.some((m) => rummy.layoffFit(m, card));
@@ -218,10 +252,10 @@ export const SCENARIOS = {
   },
   'match-point': {
     game: null,
-    about: 'A new round where either team wins the match with its next points.',
+    about: 'A new round where either team (or, in a game without teams, anyone) wins the match with its next points.',
     setup(match, opts, game) {
       seatTable(match, game, opts);
-      match.scores = [match.target - 1, match.target - 1];
+      match.scores = match.scores.map(() => match.target - 1);
       match.startRound(rngFor(match, opts));
     },
   },
@@ -240,7 +274,7 @@ export const SCENARIOS = {
     about: 'A match the bots just finished from match point, showing the final result.',
     setup(match, opts, game) {
       seatTable(match, game, opts);
-      match.scores = [match.target - 1, match.target - 1];
+      match.scores = match.scores.map(() => match.target - 1);
       const rng = rngFor(match, opts);
       for (let i = 0; i < 200 && match.phase !== 'matchEnd'; i++) {
         match.startRound(rng);
@@ -452,6 +486,27 @@ export const SCENARIOS = {
     game: 'rummikub',
     about: "The pool is empty and it's seat 0's turn: it plays or passes.",
     setup: (match, opts) => search(match, 'rummikub', opts, (r) => r.turn === 0 && !r.pool.length),
+  },
+
+  'slap-match': {
+    game: 'slap',
+    about: "Seat 0's turn, and its top card is the number about to be called: flip it, then slap.",
+    setup: (match, opts) => slapSearch(match, opts, (r) => r.turn === 0 && r.flips > 0 && r.hands[0].length > 1),
+  },
+  'slap-last-card': {
+    game: 'slap',
+    about: "Seat 0's last card, and it matches the count: flip it, slap in time and win the round.",
+    setup: (match, opts) => slapSearch(match, opts, (r) => r.turn === 0 && r.hands[0].length === 1),
+  },
+  'slap-out': {
+    game: 'slap',
+    about: "Seat 0 is out of cards, and the bot to flip next turns up a match: slap in time to win, or be last and pick the stack up.",
+    setup: (match, opts) => slapSearch(match, opts, (r) => r.out.includes(0) && r.turn !== 0),
+  },
+  'slap-big-stack': {
+    game: 'slap',
+    about: "Seat 0's turn with 12 or more cards on the stack and none of them a match: slap now to see a false slap take it all.",
+    setup: (match, opts) => search(match, 'slap', opts, (r) => r.turn === 0 && !r.window && r.stack.length >= 12 && r.hands[0].length > 1),
   },
 };
 

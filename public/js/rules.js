@@ -426,6 +426,67 @@ export const RULES = {
     ],
   },
 
+  slap: {
+    en: [
+      { h: 'The game', items: [
+        'Irish Snap, or manotazo. 40-card Spanish deck, every player for themselves: no teams.',
+        'The whole deck is dealt face down, 10 each. Nobody ever sees their own cards.',
+        'The round winner scores 1. You pick how many rounds to win (1, 3 or 5) in the lobby.',
+      ] },
+      { h: 'The count', items: [
+        'Turns go round the table. On your turn, tap your pile to flip its top card onto the stack in the middle, blind.',
+        'Each card calls the next number of the count: 1, 2, 3, 4, 5, 6, 7, then sota (10), caballo (11), rey (12), and back to 1.',
+        'The table shows the number called for the top card, and the next one once the stack has been taken.',
+      ] },
+      { h: 'Slap!', items: [
+        'When the card flipped is the number just called, everyone slaps the stack: tap it, or the Slap button, or press space.',
+        'The last hand down takes the whole stack, turns it over and puts it under their pile. The server decides the order the slaps arrive in.',
+        'You have 3 seconds. Once three hands are down the fourth is last anyway. If two or more never slap, the stack goes to the first of them in turn from whoever flipped.',
+        'Then the player after whoever took the stack starts the count again from 1.',
+        'Slapping a card that is not the number called is a false slap: you take the stack, the table laughs at you, and the count starts again after you.',
+        'Bots slap too. They wait for the card to show on everyone\'s screen, react in about half a second to a second, and now and then they look away, or get fooled.',
+      ] },
+      { h: 'Running out', items: [
+        'With no cards left you are out, and your turns are skipped.',
+        'You still have to slap the next match. Get there in time and you win the round. Be last (or slap wrongly) and you pick up the stack and you are back in.',
+        'If two players are out at the same slap, the one who ran out first wins.',
+        'If every card goes down without a match, whoever ran out first wins the round.',
+      ] },
+      { h: 'House rules', items: [
+        'Only the count calls for a slap. Snap, where a card matching the one under it also calls for one, is off.',
+      ] },
+    ],
+    es: [
+      { h: 'El juego', items: [
+        'Manotazo (Irish Snap en inglés). Baraja española de 40 cartas, cada quien por su cuenta: no hay equipos.',
+        'Se reparte toda la baraja boca abajo, 10 cartas a cada uno. Nadie ve nunca sus propias cartas.',
+        'Quien gana la mano suma 1. Se elige en la sala a cuántas manos se juega (1, 3 o 5).',
+      ] },
+      { h: 'La cuenta', items: [
+        'Se juega por turnos alrededor de la mesa. En tu turno, toca tu pila para voltear la carta de arriba sobre la pila del medio, sin verla.',
+        'Cada carta canta el siguiente número de la cuenta: 1, 2, 3, 4, 5, 6, 7, luego sota (10), caballo (11), rey (12), y otra vez 1.',
+        'La mesa muestra el número cantado para la carta de arriba, y el siguiente cuando alguien se llevó la pila.',
+      ] },
+      { h: '¡Manotazo!', items: [
+        'Cuando la carta volteada es el número que se acaba de cantar, todos le dan el manotazo a la pila: tócala, o el botón de manotazo, o la barra espaciadora.',
+        'La última mano que llega se lleva toda la pila, la voltea y la pone debajo de la suya. El servidor decide en qué orden llegan los manotazos.',
+        'Tienes 3 segundos. Con tres manos encima, la cuarta es la última de todas formas. Si dos o más no manotean, la pila es para el primero de ellos contando desde quien volteó.',
+        'Después, el jugador que sigue a quien se llevó la pila empieza la cuenta otra vez desde 1.',
+        'Manotear una carta que no es el número cantado es un manotazo en falso: te llevas la pila, la mesa se ríe de ti, y la cuenta empieza otra vez después de ti.',
+        'Los bots también manotean. Esperan a que la carta se vea en todas las pantallas, reaccionan en medio segundo a un segundo, y de vez en cuando se distraen o se dejan engañar.',
+      ] },
+      { h: 'Quedarse sin cartas', items: [
+        'Sin cartas quedas fuera, y se salta tu turno.',
+        'Igual tienes que darle al próximo manotazo. Si llegas a tiempo, ganas la mano. Si llegas de último (o manoteas en falso), te llevas la pila y vuelves a jugar.',
+        'Si dos jugadores están fuera en el mismo manotazo, gana el que se quedó sin cartas primero.',
+        'Si todas las cartas salen sin que ninguna pegue, gana quien se quedó sin cartas primero.',
+      ] },
+      { h: 'Reglas de la casa', items: [
+        'Solo la cuenta pide manotazo. La variante en que también se manotea cuando una carta es igual a la de abajo está apagada.',
+      ] },
+    ],
+  },
+
   rummikub: {
     en: [
       { h: 'The game', items: [

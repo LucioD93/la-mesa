@@ -80,6 +80,11 @@ const sounds = {
     clack(0.22);
     note(520, { dur: 0.08, type: 'triangle', gain: 0.12, slide: 900 });
   },
+  // A hand slapped down on the stack: a sharp crack over a thump.
+  slap: () => {
+    clack(0.45);
+    note(120, { dur: 0.12, type: 'triangle', gain: 0.3, slide: 60 });
+  },
   // A pig's grunt, for a stolen cochina: oink oink.
   oink: () => [0, 0.2].forEach((at) => note(300, { at, dur: 0.14, type: 'sawtooth', gain: 0.1, slide: 170 })),
   flor: () => [784, 988, 1175, 1568].forEach((f, i) => note(f, { at: i * 0.08, dur: 0.22, gain: 0.12 })),

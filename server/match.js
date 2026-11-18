@@ -64,7 +64,7 @@ export class Match {
     this.variant = this.rules.defaultVariant ?? null; // a choice the game offers: parchís's dice
     this.theme = DEFAULT_THEME;
     this.teamNames = [null, null]; // what each team chose to be called; null shows Us / Them
-    this.scores = [0, 0];
+    this.scores = this.emptyScores();
     this.history = [];
     this.round = null;
     this.roundNo = 0;
@@ -89,12 +89,18 @@ export class Match {
     return gameRules(this.game);
   }
 
+  /** A score per team, or per player in a game where it's every player for themselves. */
+  emptyScores() {
+    return this.rules.solo ? [0, 0, 0, 0] : [0, 0];
+  }
+
   /** Switch game (lobby only). Each game has its own targets and variants, so they reset. */
   setGame(id) {
     if (this.phase !== 'lobby' || !isGame(id) || id === this.game || this.hiddenGames.includes(id)) return false;
     this.game = id;
     this.target = this.rules.defaultTarget;
     this.variant = this.rules.defaultVariant ?? null;
+    this.scores = this.emptyScores();
     return true;
   }
 
@@ -167,7 +173,7 @@ export class Match {
       }
       case 'teamName': {
         // Either partner names their own team, any time. It stays with the team through seat changes.
-        if (seat === -1) return false;
+        if (seat === -1 || this.rules.solo) return false;
         const team = teamOf(seat);
         const name = cleanName(msg.name, MAX_TEAM_NAME) || null;
         if (name === this.teamNames[team]) return false;
@@ -282,7 +288,7 @@ export class Match {
   }
 
   resetScores() {
-    this.scores = [0, 0];
+    this.scores = this.emptyScores();
     this.history = [];
     this.roundNo = 0;
     this.nextStarter = null;
@@ -356,6 +362,7 @@ export class Match {
       game: this.game,
       theme: this.theme,
       teamNames: this.teamNames,
+      solo: !!this.rules.solo, // no teams: a score per seat
       offered: GAME_IDS.filter((id) => !this.hiddenGames.includes(id)), // what the lobby's menu lists
       targets: this.rules.targets,
       variants: this.rules.variants ?? null,

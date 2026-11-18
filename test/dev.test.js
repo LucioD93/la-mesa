@@ -16,6 +16,7 @@ import { cantoOf } from '../server/games/caida.js';
 import { bestMelds } from '../server/games/rummy.js';
 import * as rummikub from '../server/games/rummikub.js';
 import * as fives from '../server/games/fives.js';
+import { calledAt } from '../server/games/slap.js';
 
 /** Set env vars for one test. */
 function withEnv(t, vars) {
@@ -93,6 +94,9 @@ test('a patch merges objects, replaces arrays, and patches an array by index', (
 
 // ---- scenarios ------------------------------------------------------------------------
 
+/** The next card flipped is the number it calls. */
+const slapsNext = (r) => r.hands[r.turn].at(-1)[0] === calledAt(r.count);
+
 /** What each scenario promises about seat 0, checked on the match it builds. */
 const PROMISES = {
   lobby: (m) => m.phase === 'lobby' && m.seats.every(Boolean),
@@ -141,6 +145,10 @@ const PROMISES = {
   'rummikub-joker': (m) => m.round.turn === 0 && m.round.melded[0] && m.round.table.flat().some(rummikub.isJoker),
   'rummikub-out': (m) => m.round.turn === 0 && rummikub.botMove(m.round, 0).table.flat().length === m.round.table.flat().length + m.round.hands[0].length,
   'rummikub-empty-pool': (m) => m.round.turn === 0 && m.round.pool.length === 0,
+  'slap-match': (m) => m.round.turn === 0 && !m.round.window && slapsNext(m.round),
+  'slap-last-card': (m) => m.round.turn === 0 && m.round.hands[0].length === 1 && slapsNext(m.round),
+  'slap-out': (m) => m.round.out.includes(0) && m.seats[m.round.turn].bot && slapsNext(m.round),
+  'slap-big-stack': (m) => m.round.turn === 0 && !m.round.window && m.round.stack.length >= 12,
 };
 
 test('every scenario has a check here', () => {

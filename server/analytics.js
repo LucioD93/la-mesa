@@ -51,7 +51,8 @@ export function transitions(before, after) {
         ...base,
         rounds: after.roundNo,
         scores: after.scores,
-        winner_team: after.scores.filter((s) => s === top).length === 1 ? after.scores.indexOf(top) : null,
+        // A score per seat means every player for themselves: the winner is a seat, not a team.
+        [after.scores.length > 2 ? 'winner_seat' : 'winner_team']: after.scores.filter((s) => s === top).length === 1 ? after.scores.indexOf(top) : null,
         duration_s: after.startedAt ? Math.round((Date.now() - after.startedAt) / 1000) : null,
       },
     ]);
