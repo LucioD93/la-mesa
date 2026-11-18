@@ -271,6 +271,22 @@ test('a game behind a flag is not offered until PostHog says the flag is on for 
   assert.equal(on.state().game, 'rummikub');
 });
 
+test('each flag unlocks its own game: Kemps waits behind `kemps`', async () => {
+  const off = flaggedRoom({ rummikub: true });
+  await settle();
+  assert.ok(off.state().offered.includes('rummikub'));
+  assert.ok(!off.state().offered.includes('kemps'));
+  off.say({ t: 'game', game: 'kemps' });
+  assert.equal(off.state().game, 'domino');
+
+  const on = flaggedRoom({ kemps: true });
+  await settle();
+  assert.ok(on.state().offered.includes('kemps'));
+  assert.ok(!on.state().offered.includes('rummikub'));
+  on.say({ t: 'game', game: 'kemps' });
+  assert.equal(on.state().game, 'kemps');
+});
+
 test('no answer from PostHog keeps the flagged games back', async () => {
   const errors = [];
   const original = console.error;

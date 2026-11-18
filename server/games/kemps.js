@@ -343,6 +343,7 @@ const botsOf = (match) => (s) => !!match.seats[s]?.bot;
 
 export const game = {
   id: 'kemps',
+  flag: 'kemps', // not offered until it's on in PostHog
   targets: [3, 5, 7],
   defaultTarget: 5,
 
