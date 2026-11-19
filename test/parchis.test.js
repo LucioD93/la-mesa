@@ -185,6 +185,18 @@ test('the goal needs the exact count and pays 10, and an unusable bonus is lost'
   assert.equal(lost.turn, 1);
 });
 
+test('the roll shown stays the dice rolled while its steps are spent and bonuses paid', () => {
+  const p = sameSquare(0, 20, 1);
+  const r = board({ 0: [17, GOAL - 4, GOAL, GOAL], 1: [p] }, { dice: 2 });
+  G.roll(r, 0, dice(4, 3));
+  G.move(r, 0, 0, 1, 4);
+  assert.deepEqual(r.pending, [3, 10]);
+  assert.deepEqual(r.lastRoll.values, [4, 3]);
+  G.move(r, 0, 0, 0, 3);
+  assert.deepEqual(r.pending, [10, 20]);
+  assert.deepEqual(r.lastRoll.values, [4, 3]);
+});
+
 // ---- pairs ---------------------------------------------------------------------
 
 test('with all yours home you move your partner, and the pair wins together', () => {
