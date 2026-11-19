@@ -21,8 +21,9 @@ import { game as rummy } from './rummy.js';
 import { game as rummikub } from './rummikub.js';
 import { game as war } from './war.js';
 import { game as slap } from './slap.js';
+import { game as kemps } from './kemps.js';
 
-const GAMES = { domino, fives, truco, caida, parchis, cochina, rummy, rummikub, war, slap };
+const GAMES = { domino, fives, truco, caida, parchis, cochina, rummy, rummikub, war, slap, kemps };
 
 // Matches saved before there was a choice have no `game` field: those are dominoes.
 export const DEFAULT_GAME = 'domino';

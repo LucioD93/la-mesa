@@ -18,6 +18,7 @@ import * as rummikub from '../server/games/rummikub.js';
 import * as fives from '../server/games/fives.js';
 import { calledAt } from '../server/games/slap.js';
 import * as war from '../server/games/war.js';
+import * as kemps from '../server/games/kemps.js';
 
 /** Set env vars for one test. */
 function withEnv(t, vars) {
@@ -157,6 +158,11 @@ const PROMISES = {
     return r.toFlip.includes(0) && top(0) === best && [1, 3].some((s) => r.fighting.includes(s) && top(s) === best);
   },
   'war-last': (m) => m.round.toFlip.includes(0) && m.round.hands[0].length === 1,
+  'kemps-three': (m) => m.round.hands[0].some(([n]) => m.round.hands[0].filter((c) => c[0] === n).length === 3 && m.round.middle.some((c) => c[0] === n)),
+  'kemps-four': (m) => kemps.isFour(m.round.hands[0]),
+  'kemps-signal': (m) => m.round.gesture.seat === 2 && m.round.gesture.sign === m.round.signals[0] && kemps.isFour(m.round.hands[2]),
+  'kemps-corta': (m) => m.round.gesture.seat === 1 && m.round.gesture.sign === m.round.signals[1] && kemps.isFour(m.round.hands[1]),
+  'kemps-exposed': (m) => m.round.learned[0] === m.round.signals[0],
 };
 
 test('every scenario has a check here', () => {

@@ -18,8 +18,9 @@ function savedDominoMatch() {
   return json;
 }
 
-test('a slow human gets mocked by everyone else, once per moment, in every game', () => {
-  for (const game of GAME_IDS) {
+test('a slow human gets mocked by everyone else, once per moment, in every game with turns', () => {
+  // Kemps has no turns: the middle moves on by itself, so nobody is ever waited on.
+  for (const game of GAME_IDS.filter((id) => id !== 'kemps')) {
     const m = new Match('slow', { game });
     for (const t of ['a', 'b', 'c', 'd']) m.join(t, t);
     assert.equal(m.waitingOn(), null, `${game}: nobody is waited on in the lobby`);
@@ -315,6 +316,28 @@ test('a rummy game runs through the hub, and a tab from before rummy is told to 
   assert.equal(started.round.hand.length, 7);
   assert.equal(started.round.discard.length, 1);
   assert.deepEqual(started.targets, [150, 300]);
+});
+
+test('a kemps game runs through the hub: 4 cards each, 4 in the middle, and our signal', async (t) => {
+  const { url } = await listen(t);
+  const p = await client(t, url, { token: 'p', name: 'P', games: GAME_IDS, game: 'kemps' });
+  await p.next((m) => m.t === 'state' && m.game === 'kemps');
+  p.say({ t: 'addBots' });
+  await p.next((m) => m.t === 'state' && m.seats.every(Boolean));
+  p.say({ t: 'start' });
+  const started = await p.next((m) => m.t === 'state' && m.phase === 'playing');
+  assert.deepEqual(started.targets, [3, 5, 7]);
+  assert.equal(started.round.hand.length, 4);
+  assert.equal(started.round.middle.length, 4);
+  assert.equal(started.round.deck, 32);
+  assert.ok(typeof started.round.signal === 'string');
+  assert.equal(started.round.signals, undefined, "the other team's signal stays secret");
+  const [take] = started.round.middle;
+  const [give] = started.round.hand;
+  p.say({ t: 'swap', take, give });
+  const swapped = await p.next((m) => m.t === 'state' && m.round?.lastAction?.type === 'swap' && m.round.lastAction.seat === 0);
+  assert.deepEqual(swapped.round.hand[0], take);
+  assert.deepEqual(swapped.round.known[0], [take]);
 });
 
 test('a rummikub game runs through the hub: 14 tiles each and 50 in the pool', async (t) => {
