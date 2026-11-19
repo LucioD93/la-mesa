@@ -3,8 +3,8 @@
 // cards. In turn, each player flips their top card onto the middle stack while the count
 // goes 1, 2, 3 … 7, sota, caballo, rey and round again. When the card is the number just
 // called, everyone slaps the stack, and the last hand down takes it under their pile. A
-// slap on any other card takes it too. Run out of cards, then live through the next slap,
-// and you win the round.
+// slap on any other card takes it too. Either way the turn goes on from whoever flipped.
+// Run out of cards, then live through the next slap, and you win the round.
 
 import { DEAL_MS, MoveError, PLAY_PHRASE_CHANCE, SEATS, isManguangua, shuffle } from './common.js';
 import { NUMBERS, fullDeck } from './truco.js';
@@ -160,21 +160,24 @@ export function slap(round, seat, n, now = Date.now()) {
 
 /**
  * The window is over: the last hand down takes the stack. Whoever never slapped is last;
- * with two or more of them, the first in turn from the player who flipped.
+ * with two or more of them, the first in turn from the player who flipped. A player who
+ * was out and got a hand down wins the round; with two of them, the first hand down.
  */
 export function closeWindow(round, now = Date.now()) {
   const w = round.window;
   const flipper = round.flip.seat;
   const missing = Array.from({ length: SEATS }, (_, k) => (flipper + k) % SEATS).filter((s) => !w.slaps.includes(s));
   const taker = missing[0];
-  // A player who was out, slapped in time and isn't taking the stack has won.
-  const winner = SLAP_TO_WIN ? round.out.find((s) => s !== taker && w.slaps.includes(s)) : undefined;
+  const winner = SLAP_TO_WIN ? w.slaps.find((s) => round.out.includes(s)) : undefined;
   take(round, taker, 'last', now);
   if (winner !== undefined) finish(round, winner, 'out');
   return round;
 }
 
-/** `seat` picks up the stack, turns it over and puts it under its pile; the count starts again after it. */
+/**
+ * `seat` picks up the stack, turns it over and puts it under its pile. The count starts
+ * again from 1 with whoever was next after the player who flipped.
+ */
 function take(round, seat, why, now) {
   const w = round.window;
   const cards = round.stack.length;
@@ -187,7 +190,7 @@ function take(round, seat, why, now) {
   round.count = 0;
   round.window = null;
   round.react = null;
-  round.turn = nextWithCards(round, seat);
+  round.turn = nextWithCards(round, round.flip.seat);
   round.seq += 1;
   round.at = now;
   round.lastAction = { n: round.seq, type: 'take', seat, why, cards, slaps: w?.slaps ?? [], back: wasOut };

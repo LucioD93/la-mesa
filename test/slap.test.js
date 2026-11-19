@@ -105,10 +105,10 @@ test('the slaps count in the order they arrive, and the last hand down takes the
   assert.equal(r.hands[1].length, 7);
   assert.deepEqual(r.stack, []);
   assert.equal(r.taken[1], 1);
-  // The player after them starts the count again.
-  assert.equal(r.turn, 2);
+  // The count starts again with whoever was next after the player who flipped.
+  assert.equal(r.turn, 1);
   assert.equal(r.count, 0);
-  flip(r, 2);
+  flip(r, 1);
   assert.equal(r.flip.called, 1);
 });
 
@@ -133,7 +133,7 @@ test('a slap meant for a card that is gone is ignored, never taken for a wrong o
 
 // ---- false slaps --------------------------------------------------------------------
 
-test('slapping a card that does not match takes the stack, and the count starts after you', () => {
+test('slapping a card that does not match takes the stack, and the count goes on from whoever flipped', () => {
   const r = dealt([[...filler(3), card(5)], [...filler(3), card(7)], filler(4), filler(4)]);
   flip(r, 0);
   flip(r, 1);
@@ -141,7 +141,7 @@ test('slapping a card that does not match takes the stack, and the count starts 
   assert.deepEqual(r.lastAction, { n: r.seq, type: 'take', seat: 3, why: 'false', cards: 2, slaps: [], back: false });
   assert.deepEqual(r.hands[3].slice(0, 2), [card(7), card(5)]);
   assert.equal(r.falseSlaps[3], 1);
-  assert.equal(r.turn, 0);
+  assert.equal(r.turn, 2, 'seat 1 flipped, so seat 2 is next');
   assert.equal(r.count, 0);
 });
 
@@ -172,7 +172,7 @@ test('out of cards and last to slap, you pick up the stack and you are back in',
   assert.deepEqual(r.out, []);
   assert.equal(r.lastAction.back, true);
   assert.deepEqual(r.hands[0], [card(2), card(6)]);
-  assert.equal(r.turn, 1, 'the count starts again after them');
+  assert.equal(r.turn, 2, 'seat 1 flipped, so seat 2 is next');
 });
 
 test('out of cards, a false slap brings you back in too', () => {
@@ -182,10 +182,10 @@ test('out of cards, a false slap brings you back in too', () => {
   G.slap(r, 0, r.flip.n, NOW);
   assert.deepEqual(r.out, []);
   assert.equal(r.hands[0].length, 2);
-  assert.equal(r.turn, 1);
+  assert.equal(r.turn, 2);
 });
 
-test('a player out who does not slap stays out, and two out at once go in the order they ran out', () => {
+test('a player out who does not slap stays out, and of two out at once the first hand down wins', () => {
   const r = dealt([[card(6)], [card(6, 'c')], [...filler(1), card(3)], filler(3)]);
   flip(r, 0);
   flip(r, 1);
@@ -194,7 +194,7 @@ test('a player out who does not slap stays out, and two out at once go in the or
   G.slap(r, 1, 3, NOW);
   G.slap(r, 0, 3, NOW + 10);
   G.slap(r, 2, 3, NOW + 20);
-  assert.deepEqual(r.over, { reason: 'out', seat: 0 }, 'seat 0 ran out first');
+  assert.deepEqual(r.over, { reason: 'out', seat: 1 }, 'seat 1 ran out second but slapped first');
 });
 
 test('every card on the stack and none of them a match: whoever ran out first wins', () => {
