@@ -2,13 +2,13 @@
 
 # La Mesa
 
-Mobile-first, four-player games you play in the browser: partner dominoes, All Fives dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, parchís in pairs, roba la cochina, partnership rummy and Rummikub in pairs, War and Kemps (kimi), where partners pass a secret signal, all 2 vs 2, and Irish Snap (manotazo), every player for themselves. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
+Mobile-first, four-player table games you play in the browser: dominoes, Venezuelan truco and caída, parchís, rummy and more, most of them 2 vs 2. Each game's rules are in [docs/games/](docs/games/). There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
 
 Created in [T3 Code](https://t3.codes).
 
 ## Features
 
-- **Eleven games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, All Fives, truco, caída, parchís, roba la cochina, rummy, Rummikub, War, Irish Snap and Kemps, and everyone there sees the change. Rummikub and Kemps are behind [feature flags](#feature-flags) for now. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again. A player can also go back to the lobby mid-game, from the ⋯ menu or a round's result, after confirming: it ends the game for all four and resets the score.
+- **Many games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch games, and everyone there sees the change. A new game can wait behind a [feature flag](#feature-flags). The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again. A player can also go back to the lobby mid-game, from the ⋯ menu or a round's result, after confirming: it ends the game for all four and resets the score.
 - **Table styles.** Anyone can pick how the table looks for everyone in the match, from *Table style* in the ⋯ menu, in the lobby or at the table: Felt (the green table), Pencil (graphite on graph paper, with hatched card backs and colored-pencil teams) Neon (dark glass tiles with lit pips and a glowing grid) Minimal (flat white, hairlines, no shadows) Dark (graphite, charcoal tiles with white pips, amber highlights), Halloween (a moonlit purple night with bats and pumpkin tiles) or Christmas (a red table under falling snow, snow-white tiles with red pips and candy-cane card backs). A new match starts in the style its first player saw last. The fonts are served from `public/fonts/` (all SIL Open Font License).
 - **Team names.** In the lobby, either partner taps *Your team*, above the game, to name the team (up to 16 characters, or one of a few Venezuelan quick picks). Everyone sees it in the lobby, the score and the round results, and gets a toast when it changes. The name stays with the team when players change seats. Without one, the score says Us / Them. A game without teams (Irish Snap) hides all of this: the scoreboard shows you against the best of the others, and the result and score sheet list all four players.
 - **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches. The server keeps the token in a cookie as well (`server/identity.js`), so a browser that clears its storage, as Safari does after a week away, comes back as the same player. *Play on another device*, in the ⋯ menu, shows a QR code and a link that open the match on your other phone or computer as you, in your seat: that device takes your token and name (your photo stays where it was). Anyone with that link plays as you, and the sheet says so.
@@ -28,189 +28,9 @@ Created in [T3 Code](https://t3.codes).
 - **Installable.** Ships a web app manifest, so it can be added to the home screen.
 - **Admin page.** `/admin`, behind one shared password, shows who is online and in voice, Cloudflare's numbers (today against the free plan's limits with warnings near them, or this month against Workers Paid's allowances; what the month would cost; requests, sockets, rows, storage, speed, memory and failures by day and by hour; the busiest objects; data centers; outgoing calls; static files; and, if the token allows, deployments), TURN usage as reported by Metered, every usage counter the matches keep (sockets, messages, data in and out, saves, timer wake-ups, voice joins) for today, 7 days, 30 days and all time and by day, and which services are set up.
 
-### Domino rules
+## The games
 
-- Double-six set with 7 tiles per player and no boneyard. Seats 0 and 2 play against seats 1 and 3, and turns go 0 → 1 → 2 → 3.
-- In the first round, whoever holds the double six must open with it. After that, the opener rotates: the player to the right of the last round's opener opens with any tile, whoever won.
-- If you have no legal move, the game passes for you automatically after 3 seconds.
-- On your turn you can try any tile, even when none of them fit. Dropping one anywhere on the table where it can't go is not played, and the table mocks you for it: everyone else hears a laugh and sees a 🤡 over your seat.
-- **Domino:** the player who empties their hand wins for their team. The team scores the pips left in the losing team's hands.
-- **Blocked game:** the team with fewer pips wins and scores the losing team's pips. A tie scores nothing.
-- The match ends when a team reaches the target score, which you set in the lobby to 50, 75 or 100.
-
-### All Fives rules
-
-All Fives (also *Muggins*) is the domino game above, scored as you play. The deal, the opener, the forced pass and the laughing are the same.
-
-- **Points on the ends.** After each tile, add up the open ends. If the sum is a multiple of 5, the player's team scores it. A double on an end counts both halves, and the opening tile counts its pips: the 5-5 or the 6-4 opens for 10.
-- **The spinner.** The first double played, whether it opens or comes later, is the spinner. Once tiles are on both of its long sides, tiles can go on its other two sides as well, so the table can have four ends. While one of those sides is empty it doesn't count, and once both long sides are taken the spinner itself no longer counts.
-- **Going out** scores the pips left in the other team's hands, rounded to the nearest 5 (7 is 5, 8 is 10), on top of what the ends scored.
-- **Blocked game:** the team with fewer pips scores the other team's pips, rounded the same way. A tie adds nothing.
-- **Winning.** Points land as they happen, and the first team to the target (100, 150 or 250) wins on the spot, even mid-round.
-
-### Truco rules
-
-Truco has many house rules, and written sources disagree on some details. This is what the game implements.
-
-**Deal.** A 40-card Spanish deck (no 8s or 9s). Everyone gets 3 cards and one more is turned up as the **vira**. Seats 0 and 2 play against seats 1 and 3, and turns go 0 → 1 → 2 → 3 (counter-clockwise). The **mano** leads the first trick, wins ties, and moves one seat each hand.
-
-**Cards, best to worst:**
-
-1. **Perico:** the 11 of the vira's suit
-2. **Perica:** the 10 of the vira's suit
-3. 1 of espadas, 1 of bastos, 7 of espadas, 7 of oros
-4. The 3s, the 2s, then the 1s of copas and oros
-5. The 12s, 11s and 10s, then the 7s of copas and bastos
-6. The 6s, 5s and 4s
-
-If the vira is itself the 11 or the 10, the **12 of that suit** takes its place as perico or perica.
-
-**Tricks.** The team that takes two of three tricks wins the hand. A tied trick (*parda*) is led again by whoever led it:
-
-- First trick tied: the second trick decides.
-- One team won the first trick and a later trick ties: that team wins.
-- All three tied: the mano's team wins.
-
-**Truco.** A hand is worth 1. On your turn you can raise it, and the other team answers *quiero*, *no quiero*, or raises straight back. After a raise is accepted, only the team that accepted it can raise next.
-
-| Call | If accepted | If refused |
-| --- | --- | --- |
-| Truco | 3 | 1 |
-| Retruco | 6 | 3 |
-| Vale nueve | 9 | 6 |
-| Vale juego | the match | 9 |
-
-On your turn you can also go **al mazo**: your team folds and the other team scores the hand's current value.
-
-**Envido.** Called before your first card, on your turn or in reply to a truco (the truco then waits for the envido to be settled). It's worth 2. The other team can accept, refuse, or raise with *y envido* (+2), *cinco más* (+5) or *falta envido* (what the leading team needs to reach the target). A first envido refused pays 1, and a refused raise pays what had been bet before it.
-
-Hand values: perico 30 and perica 29, plus the best other card. Otherwise, two cards of a suit are 20 plus their numbers (10, 11 and 12 count 0), or the highest single card if no suit repeats. The highest value on either team wins, and ties go to the seat closest to the mano.
-
-**Flor.** Three cards of a suit, or the perico or perica with two cards of a suit. You sing it before your first card, on your turn or when answering a bet, and it's worth 3. Singing a flor cancels the envido. If you play your first card without singing it, the flor is lost and the table laughs at you. If both teams sing, the higher flor scores (20 plus the numbers, or the piece plus the numbers).
-
-**Flor reservada.** Perico and perica in the same hand is worth 5 and doesn't need to be sung.
-
-**Scoring.** Points are added when the hand ends: flor, then envido, then truco. Nothing more is added once a team reaches the target, which you set in the lobby to 12, 24 or 32.
-
-**Not implemented:** *con flor envido* and *contraflor* (the bets between two flores), *a ley*, *privar*, burning a card face-down, and partner signals (*señas*). A team scores one flor per hand even if both partners hold one.
-
-Rules are based on [Wikipedia ES](https://es.wikipedia.org/wiki/Truco_venezolano), [Ludoteka](https://www.ludoteka.com/games/truco-venezolano/rules) and [Conecta Games](https://conectagamesblog.wordpress.com/2015/12/18/reglas-del-truco-venezolano/).
-
-### Caída rules
-
-Caída changes from table to table, and we found no authoritative rulebook. This follows what most Venezuelan write-ups agree on: [Aprende a jugar Caída](http://aprendeajugarcaida.blogspot.com/2015/03/caida-un-juego-de-azar-y-habilidad.html), [Play Caída](https://playcaida.com/), [O Candil Sen Luz](https://ocandilsenluz.blogspot.com/2020/07/caida-juego-de-cartas-de-venezuela.html) and two guides on Steemit ([joriangel](https://steemit.com/spanish/@joriangel/juego-de-cartas-caida-explicado-venezuela), [ezefitmusic](https://steemit.com/cervantes/@ezefitmusic/caidas-el-juego-preferido-de-ingenieria-guia-para-aprender-a-jugar)). The values that vary most are constants at the top of `server/games/caida.js`.
-
-- 40-card Spanish deck, 2 vs 2. A round is the table, then three deals of 3 cards each, which uses the whole deck.
-- **The table.** The dealer calls the count, 1 → 4 or 4 → 1, and lays 4 cards. A card on its own number scores that number. With none, it's a *mala echada* and the other team gets +1. A repeated number goes back in the deck and another card is laid.
-- **Cantos.** Sung on your turn, before your first card of each deal. Ronda (a pair and a card not next to it) pays 1 for 1 to 7, 2 for 10s, 3 for 11s, 4 for 12s. Trivilín (three of a kind) pays 5, patrulla (three in a row) 6, vigía (a pair and the number next to it) 7, and registro (1, 11, 12) 8. As in captures, the 7 is next to the 10, and the 12 isn't next to the 1. Once everyone has played from the deal, only the best canto at the table pays: more points, then higher cards (a ronda's pair, then its third card), then whoever sits closer to the dealer's right.
-- **Captures.** A card takes the same number from the table and any cards that follow it in sequence, automatically. With no match it stays on the table.
-- **Caída.** Taking the card the player before you just played pays 1 for 1 to 7, 2 for a 10, 3 for an 11, 4 for a 12.
-- **Mesa limpia.** Taking every card on the table pays 4, on top of any caída, except in the last deal.
-- **End of the round.** The last team to capture takes what's left, and the team with more cards scores 1 for each card above 20.
-- **Winning.** Points land as they happen, and the first team to the target (12 or 24) wins on the spot.
-
-**Not implemented:** the rarer cantos (registrico, casa chica, casa grande), a trivilín that wins the game, a caída that kills the rival's canto, bluffing a canto, and *soplo* (there is nothing to claim, because captures are automatic). It's 4 players in teams only.
-
-### Parchís rules
-
-Parchís in pairs on 68 squares, with one die or two, picked in the lobby. One die follows the classic Spanish rules in [Wikipedia ES](https://es.wikipedia.org/wiki/Parch%C3%ADs). Two dice follows the Superparchís rules at [Mundijuegos Venezuela](https://www.mundijuegos.com.ve/multijugador/parchis/reglas/) and is the default. We found no rulebook specific to Venezuela. Tables differ on several details, and the values that vary most are constants at the top of `server/games/parchis.js`.
-
-- 2 vs 2, partners across: yellow with red, blue with green. Your nest is always drawn at the bottom left.
-- **The route.** 63 squares from your start to your entry, then 7 of your own corridor, then the goal, which needs the exact count.
-- **The die.** A 5 has to bring a piece out if one can come out. A 6 rolls again, and moves 7 with nothing in your nest. A third 6 in a row ends the turn and sends the last piece moved to its nest, unless it's in its corridor.
-- **Two dice.** Each die is used separately, on one piece or two, in the order you pick. Dice adding up to 5 bring a piece out between them, and a double 5 brings out two. A double rolls again, a third double in a row is punished like a third 6, and a 6 is just a 6. A double has to open your barrier if it can, which we carried over from the 6.
-- **Captures.** Landing on a lone rival sends it home and pays 20, counted with one piece. Safe squares and start squares protect, and partners never take each other. Coming out onto a full start square takes the rival that got there last.
-- **Barriers.** Two pieces of one color stop everyone, their owner included, and a 6 has to open yours if it can. A square holds two pieces at most.
-- **The goal.** Reaching it pays 10. A bonus no piece can use is lost. With your four pieces home, your rolls move your partner's.
-- **Winning.** The first pair with all eight pieces home wins the game, and you pick 1, 2 or 3 games in the lobby.
-
-**House rules that differ from that article:** barriers stop everyone on any square (it only applies that to start squares), a 5 always has to come out, and taking a piece as you come out also pays 20. It's 4 players in teams only.
-
-### Roba la cochina rules
-
-Roba la cochina (also *roba montón*, *steal the pile*) is a children's capture game played all over Latin America, with a different rule at every table. This is a common version adapted to teams. The grab window, the bots' pace and the targets are at the top of `server/games/cochina.js`.
-
-- 40-card Spanish deck, 2 vs 2. Partners share one pile, the **cochina**, kept face up so its top card shows.
-- **The deal.** 4 cards face up on the table, then three deals of 3 cards each, which uses the whole deck. The player after the dealer starts, and the dealer rotates each round.
-- **Playing.** Play one card; only its number counts. With no match it stays on the table and the turn moves on.
-- **Grabbing.** A card that matches something opens a 3-second window, shown as a bar, and what you can grab glows. Tap each card of that number on the table to take it onto your cochina; your card goes on top with the first one. Nothing is taken for you: what you don't grab in time stays, and if you grabbed nothing your card stays on the table too. Tapping the wrong thing gets you laughed at.
-- **Stealing.** If your card matches the top card of the other team's cochina, tap to steal that card. The next card is exposed; keep tapping while its number matches to steal more. The same card can take from the table too.
-- **Runs (escalera).** Once every card of your number is taken, from the table and their cochina, the window moves on to the next number: play a 4, grab the 4s, then the 5s, then the 6s, until a number is missing. As in caída, the 7 is followed by the 10, and the 12 ends it. The window stays 3 seconds for the whole run.
-- **Bots** grab one thing at a time, the cochina first, and fit four grabs in the window. One time in ten they look away and miss the rest.
-- **End of the round.** The last capture takes what's left on the table, slipped under the cochina. The team with more cards wins the round and scores 1, and equal cochinas score nothing.
-- **Winning.** First team to win 1, 3 or 5 rounds, picked in the lobby.
-
-**Not implemented:** stacking a card onto your own cochina when it matches your top card, and individual piles for 2 or 3 players.
-
-### Rummy rules
-
-Rummy has many versions. This is a partnership game scored like Rummy 500, kept simple: no jokers, and you only ever take the top discard.
-
-- One 52-card French deck, 7 cards each, 2 vs 2. One card starts the discard pile. The player after the dealer goes first, and the deal rotates each round.
-- **A turn.** Draw the top card of the deck or of the discard pile. Then meld, lay off, both, or neither, and discard one card. A card just taken from the discard pile can't go straight back.
-- **Melds.** A set is 3 or 4 of a rank. A run is 3 or more in a row of one suit. The ace goes low (A-2-3) or high (Q-K-A), but a run doesn't wrap (K-A-2). Melds belong to nobody: anyone can lay off on any of them.
-- **End of the round.** Someone runs out of cards (melding, laying off or discarding the last one), or the deck is empty after a discard.
-- **Scoring.** 2 to 9 are worth 5, tens and faces 10, aces 15 (1 at the bottom of A-2-3). Each team scores what it melded and laid off, less what is still in both partners' hands, so a round can cost points. First to the target (150 or 300) wins.
-- **At the table.** Tap cards to pick them, then Meld, Discard, or tap a meld to lay off on it. Or drag one card onto the discard pile or a meld. Trying a meld or lay-off that isn't legal plays nothing, and the table laughs at you.
-
-**Not implemented:** jokers and wild cards, picking up deeper into the discard pile, and a bonus for going out.
-
-### Rummikub rules
-
-Rummikub is behind the PostHog feature flag `rummikub`: a lobby only offers it where the flag is on (see [Feature flags](#feature-flags)). Rummikub is played one against one or every player for themselves. This is a version for two teams, scored like the dominoes.
-
-- 106 tiles: 1 to 13 in black, blue, orange and red, twice over, and two jokers. 14 each, 2 vs 2; the other 50 stay face down in the pool. The first player rotates every round.
-- **Sets.** A group is 3 or 4 of a number, every one a different color. A run is 3 or more in a row of one color, from 1 up to 13 (no 13-1). A joker takes the place of any tile: in a run it fills a gap first, then goes on the high end, then the low end once the run reaches 13.
-- **A turn.** Play tiles from your rack, or draw one from the pool; either ends your turn, and with the pool empty you pass. While you play you can rearrange the whole table: split runs, move tiles between sets, swap a joker out and use it elsewhere. When you're done every tile that was on the table must still be on it, at least one must come from your rack, and every set must be a group or a run.
-- **The first play** is new sets of your own tiles adding up to 30 or more (a joker counts as the tile it stands for), without touching the table. A ✓ by a player's avatar means they've made it.
-- **End of the round.** Emptying your rack goes out, and your team scores what's left on the other team's two racks: each tile its number, a joker 30. If the pool is empty and all four pass in a row, the team with less left scores what the other team has left, and a tie scores nothing.
-- **Winning.** First team to the target (50, 100 or 200).
-- **At the table.** Tap tiles, on your rack or the table, to pick them, then tap a set's + or *New set* to move them there, or drag a tile from your rack onto a set. A set that isn't good yet is outlined in red. *Back to rack* takes back tiles you put out this turn, *Undo* puts the table back, and *Done* sends it. Pressing *Done* with a red set or a first play under 30 plays nothing, and the table laughs at you. The others only see your table when you press *Done*.
-- **Bots** make their first play as soon as they have 30, then put down every set they can, add tiles to the ends of sets, split runs, and borrow a spare tile from a run of four or more, or a group of four, to make a new set. They hold a joker back for a set of their own unless it's their last tile.
-
-**Not implemented:** a turn timer (the table mocks a player after two minutes instead of one), seeing another player's moves before they press *Done*, and dragging tiles that are already on the table.
-
-### Irish Snap (manotazo) rules
-
-The slap game: Irish Snap in English, manotazo in Spanish. Every table plays it a little differently, so this is how it's played here. The choices are constants at the top of `server/games/slap.js`.
-
-- **Every player for themselves.** The four seats play alone, with no teams, so a match keeps a score per seat (the game sets `solo`). The round winner scores 1, and the first to win 1, 3 or 5 rounds, picked in the lobby, wins the match. The lobby hides team names and the seats' team tags, and the result and score sheet list all four players.
-- **The deal.** The 40-card Spanish deck, dealt face down one at a time from the starter, 10 each. Nobody ever sees a face-down card, their own included. The starter rotates every round.
-- **The count.** Turns go round the table. On your turn you tap your pile and its top card goes face up onto the stack in the middle, blind, as the next number is called: 1 to 7, then sota (10), caballo (11) and rey (12), then 1 again (`COUNT`). The table shows the number called for the top card.
-- **Slap.** When the card is the number just called, everyone slaps the stack: tap it, tap the Slap button, or press space. The last hand down takes the whole stack, turns it over and puts it under their pile, and the count starts again from 1 with whoever was next after the player who flipped, as if nobody had slapped. Snap's rule, where a card matching the one under it also calls for a slap, is off (`SNAP`).
-- **False slaps.** Slapping a card that isn't the number called takes the stack the same way, the table laughs at you, and the count starts again from the player after whoever flipped. A slap names the card it was meant for, so one that reaches the server after the next card was flipped, or after the stack was taken, is dropped ("too late") and never counts as a false slap.
-- **Who's last.** The server keeps the slaps in the order they reach it. The window is 3 seconds (`SLAP_MS`), shown as a bar. Once three hands are down the fourth is last whatever it does, so the stack goes to it at once. When time runs out, whoever never slapped is last. If two or three never slapped, it goes to the first of them in turn order, starting from whoever flipped.
-- **Fair to bots and phones.** A bot slaps on its own clock: after the card has shown on everyone's screen (`FLIP_MS`, the client's 380 ms flip plus the state's trip to the phone), plus a round trip on an ordinary connection (`NET_MS`, 250 ms), plus a reaction drawn between 350 and 1,100 ms (`BOT_REACT_MS`). One time in ten it looks away for 1.2 s more. So a player on a normal connection races the bots on reflexes, not on distance to the server. Between phones it's arrival order: a slower connection is a slower hand. The client sends the slap as the finger touches down, not on release. A bot slaps a card that doesn't match one time in a hundred (`BOT_FOOLED_CHANCE`). A bot flips 1.1 s after the previous card, and waits for the deal, or for a taken stack to slide away, first.
-- **Running out.** With no cards left you're out and your turns are skipped, but you still have to slap the next match (`SLAP_TO_WIN`). Get a hand on it, without being last, and you win the round. Be last, or slap a wrong card, and you pick up the stack and you're back in. If two players are out at that slap and both get a hand down, the first hand down wins. Turning `SLAP_TO_WIN` off makes running out win on the spot.
-- **No match left.** If every card goes onto the stack without a match since it was last taken, nobody can flip, and whoever ran out first wins the round. That ends about 7% of rounds when bots play every seat.
-- **Pace.** A round is about 45 flips, which is under a minute with bots in every seat. A player who takes 20 seconds to flip gets mocked.
-
-**Not implemented:** burning a card as the penalty for a false slap instead of taking the stack, a voice calling the count aloud, and a team version.
-### War rules
-
-War (*guerra*) is usually two players taking the cards they win back into their decks until one holds them all, which can go on for hours. This is a version for two teams that plays through the deck once. The pacing is at the top of `server/games/war.js`.
-
-- One 52-card French deck, 13 cards each, face down, 2 vs 2. Nobody sees their own cards. Aces are high, and suits don't count.
-- **A battle.** All four turn up their top card at once: tap your deck, or drag it onto the table. There are no turns. The highest card takes all four for its team, and partners tied on top take it just the same. The cards stay up for a moment, then slide onto that team's pile.
-- **¡Guerra!** If the highest card is tied between the teams, the tied players (only them) each lay one card face down and turn up the next, with one tap. The highest new card takes everything on the table; tied again, it's war again. With one card left it goes up without one face down. A player out of cards drops out of the war; if a whole side runs out the other takes it, and if nobody can go on, nobody gets those cards.
-- **End of the round.** A player out of cards sits out the battles that are left, and the round ends when every card has been played. The team that took more cards wins the round and scores 1; equal piles score nothing.
-- **Winning.** First team to win 1, 3 or 5 rounds, picked in the lobby.
-- **At the table.** A battle waits on everyone, so the table mocks a slow player after 15 seconds instead of a minute. Your deck only beeps for a war, where the others wait on you.
-
-### Kemps rules
-
-Kemps is behind the PostHog feature flag `kemps`: a lobby only offers it where the flag is on (see [Feature flags](#feature-flags)). Kemps (*kimi* in Spanish) is a party game for partners with secret signals. Rules vary from table to table; this follows [Pagat](https://www.pagat.com/commerce/kemps.html) and [Wikipedia](https://en.wikipedia.org/wiki/Kemps_(card_game)), adapted to a screen. The timings and the bots' habits are constants at the top of `server/games/kemps.js`.
-
-- One 52-card French deck, 4 cards each, 4 face up in the middle, 2 vs 2. The aim is four of a kind.
-- **No turns.** Anyone, at any moment, swaps one card from their hand for one in the middle, by dragging it there or tapping one of each. Whoever gets there first takes the card. The cards each player took and still holds show by their seat.
-- **A new middle.** *Nothing for me* says you're done with it. Once all four are (bots count as done when no swap helps them), or nobody has swapped for 12 seconds, the middle is discarded and four new cards are laid. An empty deck takes the discards back, twice; after that the hand is dead and nobody scores.
-- **Signals.** Each team has a secret signal, one of six gestures (wink, nose, ear, tongue, eyebrow, shrug), shown only to its two players with a ★. Any gesture a player taps shows over their seat for everyone, so the others are for bluffing. Either partner can change the team's signal mid-hand. It carries over to the next hand, starting at random.
-- **Kemps!** (*¡Kimi!*): your partner holds four of a kind. Right, your team wins the hand; wrong, the other team does.
-- **Stop Kemps!** (*¡Corta!*): name a rival who holds four of a kind. Right, your team wins the hand; wrong, theirs does.
-- **Winning.** A hand is worth 1, and the first team to the target (3, 5 or 7) wins.
-- **Bots** go for the number they hold most of, make their signal once they have four (and again every few seconds while a human partner misses it), throw in a meaningless gesture now and then, and call Kemps on their partner's signal. They remember the gesture a team gave itself away with (the result shows it to everyone) and cut a rival who makes it again, most of the time. A team of two bots changes a caught signal; a person sees a warning instead.
-
-**Not implemented:** scoring by letters (K-E-M-P-S), real winks, and a dealer deciding when the middle is replaced. The table doesn't mock a slow player, since the middle moves on by itself.
+Each game has a page in [docs/games/](docs/games/): its rules as this app plays them (house rules vary, so each says which it follows), the messages it adds to the [protocol](#websocket-protocol), its [scenarios](#testing-tools), and its files.
 
 ## Stack
 
@@ -247,40 +67,22 @@ server/
   dev/
     config.js      Testing knobs (DEV_TOOLS, TIME_SCALE, SEED), seeded and rigged random numbers
     tools.js       /api/dev: read, rewrite and drive any match
-    scenarios.js   Ready-made moments to test in each game
+    scenarios.js   Ready-made moments to test: the ones for any game, and each game's from its <id>.dev.js
+    search.js      What the scenarios share: seating a table, bots playing every seat, dealing until a moment comes
   games/
     index.js       The list of games, and what a game has to provide
     common.js      Seats and teams, shuffling, MoveError, bot pacing, the catchphrase odds
-    domino.js      Pure domino rules and bot AI, plus the `game` object
-    fives.js       All Fives: the domino rules with a spinner and points on the ends, and a bot that goes for them
-    truco.js       Pure truco rules and bot AI, plus the `game` object
-    caida.js       Pure caída rules and bot AI, plus the `game` object
-    parchis.js     Pure parchís rules and bot AI, plus the `game` object
-    cochina.js     Pure roba la cochina rules and bot AI, plus the `game` object
-    rummy.js       Pure rummy rules and bot AI, plus the `game` object
-    rummikub.js    Pure Rummikub rules and bot AI, plus the `game` object
-    slap.js        Pure Irish Snap (manotazo) rules and the bots' timing, plus the `game` object
-    war.js         Pure War rules and the bots' pace, plus the `game` object
-    kemps.js       Pure Kemps rules, and the bots' and the middle's clock planned from the round, plus the `game` object
+    <id>.js        A game's pure rules and bot AI, plus its `game` object
+    <id>.dev.js    A game for the testing tools: how a bot plays any seat, its scenarios and what each promises
 public/
   index.html       Landing page (new match / join by code)
   play.html        Game table
   admin.html       Admin page
   js/play.js       Client shell: connection, lobby, seats, voice, photos, reactions, drag, result frame
-  js/domino.js     Domino table: board, hand, drop targets, how a round reads
-  js/fives.js      All Fives table: the domino table, plus what the ends add up to and the points as they land
-  js/truco.js      Truco table: vira, trick, call buttons, how a hand reads
-  js/caida.js      Caída table: loose cards, the dealer's count, captures, how a round reads
-  js/parchis.js    Parchís table: the board, hopping pieces, the die, how a game reads
-  js/cochina.js    Roba la cochina table: loose cards, both cochinas, steals, how a round reads
-  js/rummy.js      Rummy table: deck, discard pile, melds, picking cards, how a round reads
-  js/rummikub.js   Rummikub table: the pool, the sets, building the next table on your turn, how a round reads
-  js/kemps.js      Kemps table: the middle, swapping into it, gestures and your signal, the calls, how a hand reads
+  js/<id>.js       A game's table: what's on it, the hand, the moves, how a round reads
+  js/games/<id>.js A game's name, its icon in the menu, its strings and its rules sheet
+  js/games.js      The lobby's list of games, in menu order; loads each one's games/<id>.js and CSS
   js/rummikub-tiles.js  Rummikub tile markup, and the set check the server makes
-  js/war.js        War table: each seat's cards, the piles taken, your deck to tap, how a round reads
-  js/slap.js       Irish Snap table: the stack, the number called, your face-down pile, the hands landing on a match
-  js/rules.js      The full rules of each game, for the rules sheet
-  js/games.js      The lobby's menu of games and their icons (a new game goes here too)
   js/flight.js     Throwing a tile or card from a seat to the table
   js/deal.js       The deal: mixing the tiles or shuffling the deck, then handing everything out
   js/board.js      Lays out the line of tiles on the table, and the cross around an All Fives spinner
@@ -297,11 +99,14 @@ public/
   js/avatar.js     Player photos: camera, file picker, local storage
   js/qrcode.js     QR codes for *Play on another device* (qrcode-generator 2.0.4 by Kazuhiko Arase, MIT, unchanged)
   js/theme.js      Table styles: paints the page in the match's style and remembers the last one
-  js/i18n.js       UI strings (English, Spanish), shared and per game, and language switching
+  js/i18n.js       Shared UI strings (English, Spanish), each game's from its games/<id>.js, and language switching
   js/admin.js      Admin page: sign-in and usage
-  css/style.css    Styles, then each table style's overrides at the end
+  css/style.css    Shared styles, then each table style's overrides at the end
+  css/games/<id>.css  A game's colors and table, loaded after style.css
   fonts/           Patrick Hand (pencil), Orbitron and Chakra Petch (neon), Creepster (halloween), Mountains of Christmas (christmas)
 scripts/sim.js     Plays whole matches over WebSockets with headless players
+scripts/sim/<id>.js  A game's headless player, and how its moves read in the log
+docs/games/<id>.md   A game's rules, messages, scenarios and files
 test/              Rules of every game, match, rooms, board layout, game and style choice, voice relay, admin and dev tools tests
 ```
 
@@ -309,9 +114,22 @@ test/              Rules of every game, match, rooms, board layout, game and sty
 
 ### How a game plugs in
 
-A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto`, `waitingOn` and `roundView`, plus `variants`, `slowTurnMs` and `solo` (every player for themselves: a score per seat instead of per team) where a game needs them. The testing tools need two lines per game too: how a bot plays any seat (`STEP` in `server/dev/scenarios.js`) and how a headless player chooses (`STRATEGY` in `scripts/sim.js`).
+A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto`, `waitingOn` and `roundView`, plus `variants`, `slowTurnMs`, `solo` (every player for themselves: a score per seat instead of per team) and `flag` where a game needs them.
 
-On the client, `play.js` keeps one view per game (`domino.js`, `fives.js`, `truco.js`, `caida.js`, `parchis.js`, `cochina.js`, `rummy.js`, `rummikub.js`, `war.js`, `slap.js`, `kemps.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
+A game is its own files, named by its id, and two lines in shared ones: its import and its place in `GAMES` in `server/games/index.js`, and its id in `GAMES` in `public/js/games.js`, the menu's order. Everything else is found by id:
+
+| File | What it has | Who loads it |
+| --- | --- | --- |
+| `server/games/<id>.js` | The rules, bot AI and `game` object | `server/games/index.js` |
+| `server/games/<id>.dev.js` | `step` (one bot move for whoever is to act, even a human seat) and `scenarios`, each with `about`, `setup` and `check` (what it promises, which the tests check) | `server/dev/scenarios.js` |
+| `scripts/sim/<id>.js` | `play` (a headless player's next message), `describe` (a move in the log), and `actors`, `moment` or `races` where it needs them | `scripts/sim.js` |
+| `public/js/<id>.js` | `createView(ctx)`: the table, the hand, the status line and the details of the result | `public/js/play.js` |
+| `public/js/games/<id>.js` | `name`, `desc`, `icon`, `strings`, `errors` (the server's errors only it sends, in Spanish), `rules`, and `flagged` | `public/js/games.js` |
+| `public/css/games/<id>.css` | Its colors and table, after `style.css` | `public/js/games.js` |
+| `docs/games/<id>.md` | Its rules, messages, scenarios and files | |
+| `test/<id>.test.js` | Its rules and bots | `npm test` |
+
+`test/games.test.js` checks that every game has all of them. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`. A game's CSS loads after all of `style.css`, table styles included, so a rule there that ties with a shared one on specificity wins: scope it with `body[data-game='<id>']`, or leave a rule other games use in `style.css`.
 
 The `domino.*` browser storage keys predate truco and cover every game. Renaming them would lose players' names, seats and photos. Matches saved without a `game` load as dominoes.
 
@@ -400,34 +218,11 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `teamName` | `name` (up to 16 characters; empty clears it) | Seated players, for their own team, any time. The name stays with the team when players change seats. |
 | `sit` / `stand` | `seat` | Lobby. `sit` also lets a spectator take over a bot mid-game. |
 | `addBots` / `removeBot` | `seat` | Lobby |
-| `game` | `game: "domino" \| "fives" \| "truco" \| "caida" \| "parchis" \| "cochina" \| "rummy" \| "rummikub" \| "war" \| "slap" \| "kemps"` | Lobby. Resets the target to the game's default. |
-| `target` | `50 \| 75 \| 100`, `100 \| 150 \| 250`, `12 \| 24 \| 32`, `12 \| 24`, `1 \| 2 \| 3`, `1 \| 3 \| 5` (roba la cochina, War and Irish Snap), `150 \| 300`, `50 \| 100 \| 200` or `3 \| 5 \| 7` | Lobby, from the current game's list |
+| `game` | `game`: an id from `server/games/index.js` | Lobby, one of the games it offers. Resets the target to the game's default. |
+| `target` | one of the current game's `targets` | Lobby |
 | `variant` | `1 \| 2` | Lobby, a game that offers a choice: parchís's dice |
 | `theme` | `theme: "felt" \| "pencil" \| "neon" \| "minimal" \| "dark" \| "halloween" \| "christmas"` | Lobby. Everyone in the match sees it. |
 | `start` | | Lobby, once all 4 seats are filled |
-| `play` | Domino and All Fives: `tile: [a, b]`, `end: "L" \| "R"` (All Fives also `"U" \| "D"`, the spinner's other sides). Truco, caída and roba la cochina: `card: [number, suit]` | On your turn |
-| `call` | `what: "flor" \| "envido" \| "cinco" \| "falta" \| "truco" \| "mazo"` | Truco, when the `options` in your state allow it |
-| `answer` | `yes: boolean` | Truco, a bet is open against your team |
-| `call` | `what: "canto"` | Caída, when `options.canto` is set |
-| `order` | `dir: 1 \| -1` | Caída, you are dealing and the table is not laid yet |
-| `roll` | | Parchís, when `options.roll` is set |
-| `grab` | `card: [number, suit]` or `pile: true` | Roba la cochina, while `options.grab` is set: a table card of the number the window is on (`round.grab.num`: the one you played, then the next ones of a run), or the rivals' cochina |
-| `move` | `color`, `piece`, `steps?` | Parchís, one of `options.moves`. `steps` picks which die or bonus to use. |
-| `draw` | `from: "stock" \| "discard"` | Rummy, your turn, before you have drawn |
-| `meld` | `cards: [[rank, suit], …]` | Rummy, after drawing. Rank 1 to 13, suit `S`, `H`, `D` or `C`. |
-| `layoff` | `card: [rank, suit]`, `meld` (index on the table) | Rummy, after drawing |
-| `discard` | `card: [rank, suit]` | Rummy, after drawing. Ends your turn. |
-| `play` | `table: [[tile, …], …]` | Rummikub, your turn: the whole table as it should be after it, every set a list of tile ids (0-103 numbered, color by color, twice over; 104 and 105 the jokers) in any order. The server lays each set out. |
-| `draw` | | Rummikub, your turn: take a tile from the pool, or pass when it's empty |
-| `flip` | `n` (the round's `seq` you saw) | Irish Snap, while `options.flip` is set: your top card onto the stack. A flip sent from an older moment is refused as too late, so a double tap flips one card. |
-| `slap` | `n` (the `flip.n` of the card on top) | Irish Snap, any time there's a card on the stack: a hand on a match joins `window.slaps` in arrival order; on any other card it's a false slap and takes the stack. A slap for a card that's gone is refused as too late. |
-| `flip` | | War, while `options.flip` is set: turn your top card up (in a war, one face down first) |
-| `swap` | `take: [rank, suit]`, `give: [rank, suit]` | Kemps, any time: a card from the middle for one from your hand. Someone else may have taken it first (`That card is gone`). |
-| `pass` | | Kemps: nothing in the middle for you. A second one changes nothing. |
-| `gesture` | `sign: "wink" \| "nose" \| "ear" \| "tongue" \| "brow" \| "shrug"` | Kemps: shows over your seat for everyone (700 ms apart) |
-| `signal` | `sign` | Kemps: your team's new secret signal. Only your partner sees it. |
-| `kemps` | | Kemps: your partner holds four of a kind |
-| `corta` | `seat` | Kemps: that rival holds four of a kind (Stop Kemps) |
 | `next` / `rematch` / `lobby` | | After a round or match ends |
 | `botify` | `seat` | Replace a disconnected player with a bot |
 | `react` | `emoji` | Seated players (600 ms cooldown) |
@@ -435,6 +230,8 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `voice` | `to?` (peer id), `data` | Voice chat signaling, relayed to one peer or everyone else in the match (rate limited) |
 | `avatar` | `image` (JPEG data URL or `null`), `to?` (peer id), `ask?` | Your photo, relayed to one peer or everyone else in the match and never stored (rate limited). `ask` means "send me yours". |
 | `ping` | | Keep-alive. The server replies `pong`. |
+
+Each game's moves (`play`, `roll`, `flip`…) are in its page in [docs/games/](docs/games/).
 
 | Server → client | Payload |
 | --- | --- |
@@ -498,10 +295,10 @@ A game can wait behind a PostHog feature flag (its `flag` in `server/games/`). R
 
 - Until PostHog answers, and when it doesn't, the game isn't offered. A flag that doesn't exist in PostHog is off.
 - The match's `offered` list, in its state, is what the lobby's menu shows, and picking a game outside it does nothing. A match already playing the game carries on if the flag goes off.
-- The home page's list of games leaves flagged games out (`FLAGGED` in `public/js/games.js`).
+- The home page's list of games leaves flagged games out (`flagged` in the game's `public/js/games/<id>.js`).
 - Without `POSTHOG_KEY` (local dev, `wrangler dev`, tests, sims) every game is offered.
 
-To release a game, remove its `flag` and its entry in `FLAGGED`.
+To release a game, remove its `flag` and its `flagged`.
 
 ### Tests
 
@@ -532,19 +329,7 @@ curl -X POST localhost:3000/api/dev/match/demo/scenario/truco-flor
 curl -X PATCH localhost:3000/api/dev/match/demo -d '{"scores": [23, 23]}'
 ```
 
-**Scenarios** seat players `p0`, `p1`… from seat 0 and bots in the rest. Seat 0 is the one the moment is about. Most of them deal real rounds and let bots play every seat until the moment comes, so the hands and the deck stay consistent. `seed` repeats the same one. These work for any game (`game` in the body, or the match's current one): `lobby`, `deal`, `match-point`, `round-end`, `match-end`. Then there's one per moment worth testing in each game:
-
-- Dominoes: `domino-opening`, `domino-last-tile`, `domino-stuck`, `domino-block`
-- All Fives: `fives-score` (a tile that makes the ends 15 or more), `fives-spinner` (a tile for the spinner's other sides), `fives-out`
-- Truco: `truco-flor`, `truco-reservada`, `truco-envido`, `truco-answer`
-- Caída: `caida-ronda` (`kind`: `ronda`, `trivilin`, `patrulla`, `vigia` or `registro`), `caida-caida`, `caida-mesa-limpia`
-- Parchís: `parchis-home`, `parchis-capture`, `parchis-leave`. Each rigs seat 0's next roll.
-- Cochina: `cochina-steal`, `cochina-steal-run` (three of a number on the rivals' cochina), `cochina-run` (the same, then the next two numbers on the table), `cochina-grab`
-- Rummy: `rummy-take`, `rummy-meld`, `rummy-layoff`, `rummy-out`, `rummy-last-card`
-- Rummikub: `rummikub-first` (a first play worth 30 on the rack), `rummikub-layoff`, `rummikub-split` (a tile that splits a run), `rummikub-joker`, `rummikub-out`, `rummikub-empty-pool`
-- Irish Snap: `slap-match` (seat 0's next card is the number about to be called), `slap-last-card` (the same, with its last card), `slap-out` (seat 0 is out and a bot is about to flip a match), `slap-big-stack` (12 or more on the stack, to try a false slap). A slap window only lasts 3 seconds, so slap from the page, or with `send`, right after the flip.
-- War: `war-war` (seat 0's next card ties a rival's on top), `war-last` (seat 0's last card)
-- Kemps: `kemps-three` (the fourth is in the middle), `kemps-four`, `kemps-signal` (the partner just made the signal: call it), `kemps-corta` (a rival just made its signal: cut it before its partner calls, which takes a bot about a second), `kemps-exposed` (the bots know seat 0's signal)
+**Scenarios** seat players `p0`, `p1`… from seat 0 and bots in the rest. Seat 0 is the one the moment is about. Most of them deal real rounds and let bots play every seat until the moment comes, so the hands and the deck stay consistent. `seed` repeats the same one. These work for any game (`game` in the body, or the match's current one): `lobby`, `deal`, `match-point`, `round-end`, `match-end`. Then there's one per moment worth testing in each game, listed in its page in [docs/games/](docs/games/).
 
 `GET /api/dev` describes each one.
 

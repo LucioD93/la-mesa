@@ -1,11 +1,12 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
+import { existsSync, readFileSync } from 'node:fs';
 import { WebSocket } from 'ws';
 import { createApp } from '../server/app.js';
 import { Match, REACTIONS } from '../server/match.js';
-import { GAME_IDS } from '../server/games/index.js';
-import { GAMES } from '../public/js/games.js';
+import { FLAGGED, GAME_IDS } from '../server/games/index.js';
+import { GAME_DATA, GAMES } from '../public/js/games.js';
 import { REACTIONS as PICKER_REACTIONS, IMAGES } from '../public/js/reactions.js';
 
 // A match as saved before matches had a `game`.
@@ -158,6 +159,36 @@ test('the game survives a save, and a rematch and the lobby keep it', () => {
 
 test("the lobby's menu offers every game the server plays, and only those", () => {
   assert.deepEqual([...GAMES].sort(), [...GAME_IDS].sort());
+});
+
+// A game is its own files (README.md, "How a game plugs in"); this says which one is missing.
+test('every game has each of its files, with what the rest of the app looks for in it', async () => {
+  const file = (path) => new URL(`../${path}`, import.meta.url);
+  const text = (en, es) => typeof en === 'string' && typeof es === 'string' && en && es;
+  for (const id of GAME_IDS) {
+    for (const path of [`public/js/${id}.js`, `public/css/games/${id}.css`, `docs/games/${id}.md`, `test/${id}.test.js`]) {
+      assert.ok(existsSync(file(path)), `${id}: ${path} is missing`);
+    }
+    assert.match(readFileSync(file(`public/js/${id}.js`), 'utf8'), /export function createView\(/, `${id}: public/js/${id}.js has no createView`);
+
+    const dev = await import(`../server/games/${id}.dev.js`);
+    assert.equal(typeof dev.step, 'function', `${id}: server/games/${id}.dev.js has no step`);
+    assert.ok(Object.keys(dev.scenarios ?? {}).length, `${id}: server/games/${id}.dev.js has no scenarios`);
+    for (const [name, sc] of Object.entries(dev.scenarios)) {
+      assert.ok(name.startsWith(`${id}-`), `${id}: scenario ${name} should start with ${id}-`);
+      assert.ok(sc.about && typeof sc.setup === 'function' && typeof sc.check === 'function', `${id}: scenario ${name} needs about, setup and check`);
+    }
+
+    const sim = await import(`../scripts/sim/${id}.js`);
+    assert.ok(typeof sim.play === 'function' && typeof sim.describe === 'function', `${id}: scripts/sim/${id}.js needs play and describe`);
+
+    const data = GAME_DATA[id];
+    assert.ok(text(data.name?.en, data.name?.es) && text(data.desc?.en, data.desc?.es), `${id}: public/js/games/${id}.js needs a name and desc in en and es`);
+    assert.match(data.icon(), /</, `${id}: public/js/games/${id}.js needs an icon`);
+    assert.ok(data.strings?.en && data.strings?.es, `${id}: public/js/games/${id}.js needs strings in en and es`);
+    assert.ok(data.rules?.en?.length && data.rules?.es?.length, `${id}: public/js/games/${id}.js needs rules in en and es`);
+    assert.equal(!!data.flagged, FLAGGED.includes(id), `${id}: \`flagged\` in public/js/games/${id}.js and \`flag\` in server/games/${id}.js disagree`);
+  }
 });
 
 test('a game message from the other game is ignored', () => {

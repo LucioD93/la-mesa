@@ -1,0 +1,77 @@
+/* Irish Snap (manotazo): its own colors and table, after style.css (public/js/games.js loads it). */
+
+body[data-game='slap'] { --accent: #c2410c; --accent-glow: rgba(194, 65, 12, 0.4); }
+
+[data-g='slap'] { --g: #c2410c; }
+
+/* ---- slap table (Irish Snap, manotazo) -------------------------------------- */
+body[data-game='slap'] .board { --cw: min(24vw, 17dvh, 120px); }
+.sl-bar { top: 6px; }
+.sl-bar i { background: var(--accent); }
+.sl-table { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 18px; padding-right: calc(var(--cw) * 0.4); }
+/* The number called: what the top card was up against, or the next one on an empty stack. */
+.sl-call { display: flex; flex-direction: column; align-items: center; min-width: 64px; line-height: 1; }
+.sl-call small { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.sl-call b { font-size: 54px; font-weight: 900; font-variant-numeric: tabular-nums; margin: 4px 0 2px; }
+.sl-call span { min-height: 15px; font-size: 13px; font-weight: 800; color: var(--muted); }
+.sl-call.next b { color: var(--muted); font-size: 40px; }
+.sl-call.pop b { animation: call-pop 0.35s cubic-bezier(0.2, 1.6, 0.4, 1); }
+@keyframes call-pop { from { scale: 1.6; } }
+/* The stack, and the hands that land on it. The whole stack is a button to slap. */
+.sl-stack { position: relative; display: grid; place-items: center; width: calc(var(--cw) * 1.35); height: calc(var(--cw) * 1.9); padding: 0; border: 0; border-radius: 16px; background: none; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+.sl-cards { position: relative; width: var(--cw); height: calc(var(--cw) * 1.5); }
+.sl-card { position: absolute; inset: 0; rotate: var(--tilt, 0deg); }
+.sl-card:not(.top) .card { filter: brightness(0.85); }
+.sl-card.incoming { visibility: hidden; }
+.sl-card .card, .sl-cards > .card { width: 100%; }
+.sl-size { position: absolute; right: -4px; bottom: 2px; min-width: 26px; padding: 1px 7px; border-radius: 999px; background: rgba(0, 0, 0, 0.65); color: #fff; font-size: 13px; font-weight: 800; }
+.sl-size:empty { display: none; }
+.board.slap-now .sl-stack { animation: slap-glow 0.45s ease-in-out infinite alternate; }
+@keyframes slap-glow {
+  from { box-shadow: 0 0 0 2px var(--gold), 0 0 8px var(--gold); }
+  to { box-shadow: 0 0 0 5px var(--gold), 0 0 26px var(--gold); }
+}
+.sl-hands { position: absolute; inset: 0; pointer-events: none; }
+.sl-hands.fade { animation: hands-off 0.4s 0.7s ease-in forwards; }
+@keyframes hands-off { to { opacity: 0; } }
+/* Each hand comes from its player's side of the table, the later ones on top. */
+.sl-hand { position: absolute; left: 50%; top: 50%; z-index: calc(1 + var(--i)); display: grid; place-items: center; translate: -50% -50%; font-size: calc(var(--cw) * 0.62); line-height: 1; animation: hand-down 0.18s ease-out; }
+.sl-hand > span { filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.5)); }
+.sl-hand b { position: absolute; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--team); color: #fff; font-size: 13px; font-weight: 900; box-shadow: 0 0 0 2px var(--card); }
+.sl-hand.pending { opacity: 0.75; }
+.sl-hand[data-pos='0'] { margin-top: calc(var(--cw) * (0.32 - var(--i) * 0.12)); }
+.sl-hand[data-pos='2'] { margin-top: calc(var(--cw) * (-0.32 + var(--i) * 0.12)); }
+.sl-hand[data-pos='2'] > span { rotate: 180deg; }
+.sl-hand[data-pos='1'] { margin-left: calc(var(--cw) * (0.3 - var(--i) * 0.1)); }
+.sl-hand[data-pos='1'] > span { rotate: -90deg; }
+.sl-hand[data-pos='3'] { margin-left: calc(var(--cw) * (-0.3 + var(--i) * 0.1)); }
+.sl-hand[data-pos='3'] > span { rotate: 90deg; }
+@keyframes hand-down { from { scale: 1.6; opacity: 0; } }
+.sl-flier { position: fixed; z-index: 45; margin: 0; pointer-events: none; rotate: none; }
+.sl-flier .card { width: 100%; box-shadow: 0 0 0 2px var(--team), 0 12px 24px rgba(0, 0, 0, 0.55); }
+/* Under the table: your face-down pile, and the slap button. */
+body[data-game='slap'] .actions { align-items: stretch; gap: 10px; min-height: 64px; }
+.sl-pile { display: flex; align-items: center; gap: 8px; padding: 4px 14px 4px 6px; border: 0; border-radius: 14px; background: var(--well); color: inherit; box-shadow: inset 0 0 0 1px var(--edge); touch-action: none; user-select: none; -webkit-user-select: none; }
+.sl-pile .card { --cw: 36px; }
+.sl-pile .card.back, body[data-game='slap'] .card.back { background: repeating-linear-gradient(45deg, var(--back-a), var(--back-a) 4px, var(--back-b) 4px, var(--back-b) 8px); box-shadow: inset 0 0 0 3px var(--card), 0 2px 6px rgba(0, 0, 0, 0.45); }
+.sl-pile-text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1; }
+.sl-pile-text b { font-size: 20px; font-variant-numeric: tabular-nums; }
+.sl-pile-text small { font-size: 12px; font-weight: 700; color: var(--muted); }
+.sl-pile.ready { background: var(--accent); color: var(--on-color); box-shadow: 0 0 0 2px var(--gold); }
+.sl-pile.ready small { color: inherit; }
+.sl-pile.out small { color: var(--gold); }
+.call.sl-slap { flex: 1; max-width: 220px; min-height: 56px; font-size: 18px; background: color-mix(in srgb, var(--accent) 30%, var(--panel-2)); touch-action: none; user-select: none; -webkit-user-select: none; }
+.call.sl-slap span { margin-right: 6px; font-size: 22px; }
+.call.sl-slap.hot { background: var(--gold-fill); color: #2a2000; }
+.call.sl-slap:disabled { opacity: 0.45; }
+/* The others' piles by their seats. */
+.sl-count { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.sl-count i { display: block; width: 10px; height: 15px; border-radius: 2px; background: repeating-linear-gradient(45deg, var(--back-a), var(--back-a) 2px, var(--back-b) 2px, var(--back-b) 4px); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5); }
+.sl-count.out { color: var(--gold); }
+.sl-count.out i { opacity: 0.3; }
+.sl-out-tag { position: absolute; left: -3px; top: -3px; display: grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--gold-fill); color: #2a2000; font-size: 10px; font-weight: 800; }
+.shout.last { background: var(--accent); color: #fff; font-size: 24px; }
+.shout.false { background: #b91c1c; color: #fff; font-size: 24px; }
+@media (prefers-reduced-motion: reduce) {
+  .board.slap-now .sl-stack { animation: none; box-shadow: 0 0 0 4px var(--gold), 0 0 18px var(--gold); }
+}

@@ -1,20 +1,7 @@
 // The game page: connection, lobby, seats, voice, photos, reactions and the frame of
-// the result. What's on the table belongs to the game's view (domino.js, fives.js, truco.js,
-// caida.js, parchis.js, cochina.js, rummy.js, rummikub.js, war.js, slap.js, kemps.js). A game without teams
-// (`state.solo`) has a score per seat, and no team names.
-import { createView as createDominoView } from './domino.js';
-import { createView as createFivesView } from './fives.js';
-import { createView as createTrucoView } from './truco.js';
-import { createView as createCaidaView } from './caida.js';
-import { createView as createParchisView } from './parchis.js';
-import { createView as createCochinaView } from './cochina.js';
-import { createView as createRummyView } from './rummy.js';
-import { createView as createRummikubView } from './rummikub.js';
-import { createView as createSlapView } from './slap.js';
-import { createView as createWarView } from './war.js';
-import { createView as createKempsView } from './kemps.js';
-import { RULES } from './rules.js';
-import { GAMES, gameIcon } from './games.js';
+// the result. What's on the table belongs to the game's view, <id>.js for each game in
+// games.js. A game without teams (`state.solo`) has a score per seat, and no team names.
+import { GAMES, RULES, gameIcon } from './games.js';
 import { REACTION_TABS, REACTIONS, IMAGES, FIRST_RECENT } from './reactions.js';
 import { reduceMotion, whenLanded } from './flight.js';
 import { createDeal } from './deal.js';
@@ -25,6 +12,8 @@ import { t } from './i18n.js';
 import { createVoice } from './voice.js';
 import * as avatar from './avatar.js';
 import * as theme from './theme.js';
+// Each game's table, <id>.js, loaded with the rest so nothing runs before it's here.
+const viewModules = await Promise.all(GAMES.map((id) => import(`./${id}.js`)));
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -1466,19 +1455,7 @@ const ctx = {
   },
 };
 ctx.deal = createDeal(ctx);
-const views = {
-  domino: createDominoView(ctx),
-  fives: createFivesView(ctx),
-  truco: createTrucoView(ctx),
-  caida: createCaidaView(ctx),
-  parchis: createParchisView(ctx),
-  cochina: createCochinaView(ctx),
-  rummy: createRummyView(ctx),
-  rummikub: createRummikubView(ctx),
-  slap: createSlapView(ctx),
-  war: createWarView(ctx),
-  kemps: createKempsView(ctx),
-};
+const views = Object.fromEntries(GAMES.map((id, i) => [id, viewModules[i].createView(ctx)]));
 
 // For tests and the console: what this tab knows, and its way to talk to the server.
 // It's what the page already holds, so it's there in production too.
