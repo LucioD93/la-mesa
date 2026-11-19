@@ -210,6 +210,20 @@
       </div>
     </section>
 
+    <!-- This player's own link, to carry on from another device of theirs -->
+    <section class="sheet" id="deviceSheet" hidden>
+      <div class="sheet-body">
+        <div class="sheet-head">
+          <h2 data-i18n="device.title">Play on another device</h2>
+          <button class="icon-btn" data-close aria-label="Close" data-i18n-aria="aria.close">✕</button>
+        </div>
+        <p class="device-text" id="deviceText"></p>
+        <div class="device-qr" id="deviceQr"></div>
+        <p class="device-warn" data-i18n="device.warn">Anyone with this link plays as you. Only open it on your own devices.</p>
+        <button class="btn block" id="deviceCopy" data-i18n="device.copy">Copy link</button>
+      </div>
+    </section>
+
     <!-- The rules of the game on the table -->
     <section class="sheet" id="rulesSheet" hidden>
       <div class="sheet-body">
@@ -240,6 +254,7 @@
     <div class="menu-layer" id="menu" hidden>
       <div class="menu" role="menu" id="menuPanel">
         <button role="menuitem" data-menu="invite"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3m0 0L7.5 7.5M12 3l4.5 4.5M5 12v7a2 2 0 002 2h10a2 2 0 002-2v-7"/></svg><span data-i18n="inviteFriends">Invite friends</span></button>
+        <button role="menuitem" data-menu="device"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="11" height="16" rx="2"/><rect x="16" y="9" width="5" height="11" rx="1.2"/><path d="M8 17h1"/></svg><span data-i18n="device.title">Play on another device</span></button>
         <hr />
         <button role="menuitem" data-menu="style" id="menuStyle"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 100 18c1.1 0 1.7-.8 1.7-1.7 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-.9.8-1.7 1.7-1.7H16a5 5 0 005-5c0-4-4-7.2-9-7.2z"/><path d="M7.5 11h.01M10 7h.01M15 7.5h.01" stroke-width="3"/></svg><span data-i18n="tableStyle">Table style</span><small id="menuStyleName"></small></button>
         <button role="menuitem" data-menu="rules"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.5C10.3 5 8 4.5 3.5 4.5v14c4.5 0 6.8.5 8.5 2 1.7-1.5 4-2 8.5-2v-14C16 4.5 13.7 5 12 6.5zM12 6.5v14"/></svg><span data-i18n="aria.rules">Rules</span></button>

@@ -187,6 +187,11 @@ const en = {
 
   'aria.menu': 'Menu',
   'inviteFriends': 'Invite friends',
+  'device.title': 'Play on another device',
+  'device.text': ({ name }) => `Scan this with your other phone or computer. This match opens there as you, ${name}, in your seat. Your photo stays on this device.`,
+  'device.warn': 'Anyone with this link plays as you. Only open it on your own devices.',
+  'device.copy': 'Copy link',
+  'device.arrived': ({ name }) => `You're ${name} on this device too`,
   'tableStyle': 'Table style',
   'language': 'Language',
   'langName': 'English',
@@ -355,6 +360,11 @@ const es = {
 
   'aria.menu': 'Menú',
   'inviteFriends': 'Invitar amigos',
+  'device.title': 'Jugar en otro dispositivo',
+  'device.text': ({ name }) => `Escanea esto con tu otro teléfono o computadora. La partida se abre ahí como tú, ${name}, en tu puesto. Tu foto se queda en este dispositivo.`,
+  'device.warn': 'Quien tenga este enlace juega como tú. Ábrelo solo en tus propios dispositivos.',
+  'device.copy': 'Copiar enlace',
+  'device.arrived': ({ name }) => `También eres ${name} en este dispositivo`,
   'tableStyle': 'Estilo de mesa',
   'language': 'Idioma',
   'langName': 'Español',

@@ -11,7 +11,7 @@ Created in [T3 Code](https://t3.codes).
 - **Nine games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, All Fives, truco, caída, parchís, roba la cochina, rummy, Rummikub and Irish Snap, and everyone there sees the change. Rummikub is behind a [feature flag](#feature-flags) for now. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again. A player can also go back to the lobby mid-game, from the ⋯ menu or a round's result, after confirming: it ends the game for all four and resets the score.
 - **Table styles.** Anyone can pick how the table looks for everyone in the match, from *Table style* in the ⋯ menu, in the lobby or at the table: Felt (the green table), Pencil (graphite on graph paper, with hatched card backs and colored-pencil teams) Neon (dark glass tiles with lit pips and a glowing grid) Minimal (flat white, hairlines, no shadows) Dark (graphite, charcoal tiles with white pips, amber highlights), Halloween (a moonlit purple night with bats and pumpkin tiles) or Christmas (a red table under falling snow, snow-white tiles with red pips and candy-cane card backs). A new match starts in the style its first player saw last. The fonts are served from `public/fonts/` (all SIL Open Font License).
 - **Team names.** In the lobby, either partner taps *Your team*, above the game, to name the team (up to 16 characters, or one of a few Venezuelan quick picks). Everyone sees it in the lobby, the score and the round results, and gets a toast when it changes. The name stays with the team when players change seats. Without one, the score says Us / Them. A game without teams (Irish Snap) hides all of this: the scoreboard shows you against the best of the others, and the result and score sheet list all four players.
-- **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches.
+- **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches. The server keeps the token in a cookie as well (`server/identity.js`), so a browser that clears its storage, as Safari does after a week away, comes back as the same player. *Play on another device*, in the ⋯ menu, shows a QR code and a link that open the match on your other phone or computer as you, in your seat: that device takes your token and name (your photo stays where it was). Anyone with that link plays as you, and the sheet says so.
 - **Player photos.** Take a picture or choose a file on the home page or in the lobby and it becomes your avatar. A picture taken here never reaches the device's gallery. It is saved only in your browser's `localStorage`; the server passes it to the others in the match and never stores it.
 - **Shareable matches.** A match lives at `/play/<id>`. *Invite friends*, in the lobby and the ⋯ menu, uses the native share sheet when the browser has one (and copies the link when it doesn't), and links unfurl with a preview image in WhatsApp and other chat apps. The preview is the same for every game: chat apps only see the static page, and the game can still change until the match starts. The share sheet's text names the current game.
 - **Bots.** Fill empty seats from the lobby with Venezuelan memes, drawn at random each time. Mid-game, a spectator can take over a bot's seat and hand, and a player who disconnected can be replaced by a bot so the game keeps going. Bots only see their own tiles or cards and the table.
@@ -203,7 +203,7 @@ The project has two runtime dependencies, `partyserver` and `ws`, and uses `wran
 
 ```
 worker/
-  index.js         The Worker: /api/ws to the match's Durable Object, /api/admin, /play/<id>, and the static assets
+  index.js         The Worker: /api/ws to the match's Durable Object, /api/admin, /api/id, /play/<id>, and the static assets
   match-server.js  MatchServer: a match as a hibernating Durable Object (PartyServer), its room's storage and alarm
   stats-server.js  StatsServer: usage counters and who's online across matches, one object named "global"
 wrangler.jsonc     The Worker's config: assets, Durable Object bindings and migrations
@@ -214,6 +214,7 @@ server/
   room.js          A match's room: sockets, state views, bots and the slow-player clock, presence, voice and photo relay, usage
   stats.js         Usage counters and who's online, over a small key-value store
   admin.js         Password check and the report behind the admin page
+  identity.js      A device's player token in a cookie, and /play handing it back to a browser that lost it
   cloudflare.js    This month's Cloudflare usage and estimated bill, from its GraphQL Analytics API
   metered.js       TURN usage from Metered's API
   analytics.js     Match-level events for PostHog (off without POSTHOG_KEY): what each change to a match did, and the player's country
@@ -265,6 +266,7 @@ public/
   js/sound.js      Sound effects
   js/voice.js      Voice chat (WebRTC mesh, signaling over the game socket)
   js/avatar.js     Player photos: camera, file picker, local storage
+  js/qrcode.js     QR codes for *Play on another device* (qrcode-generator 2.0.4 by Kazuhiko Arase, MIT, unchanged)
   js/theme.js      Table styles: paints the page in the match's style and remembers the last one
   js/i18n.js       UI strings (English, Spanish), shared and per game, and language switching
   js/admin.js      Admin page: sign-in and usage
@@ -452,7 +454,7 @@ With `POSTHOG_KEY` set, each match's room sends [PostHog](https://posthog.com) e
 | `bot_takeover` | a bot replaces a player who left | `game`, `humans`, `bots`, `phase` |
 | `voice_joined` | someone joins the voice chat | none |
 
-`distinct_id` is the match id for match events and the player's `publicId` for `player_joined` and `voice_joined`; neither creates a person profile.
+`distinct_id` is the match id for match events and the player's `publicId` for `player_joined` and `voice_joined`; neither creates a person profile. A player is a browser, so counting `publicId`s counts devices: the cookie keeps a browser's token through Safari clearing its storage, and *Play on another device* gives a second device the same one. Someone who plays from a phone and a laptop without that link is still two, and so is an iPhone's home-screen app beside Safari (they keep separate storage and cookies).
 
 ### Feature flags
 

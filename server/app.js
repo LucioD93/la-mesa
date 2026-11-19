@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { createAdmin } from './admin.js';
+import { idCookie, idFromCookie, saveId, withId } from './identity.js';
 import { MATCH_ID, createRoom, matchIdFrom } from './room.js';
 import { Stats, memoryKv } from './stats.js';
 import { devTools } from './dev/config.js';
@@ -53,7 +54,17 @@ function serveStatic(req, res) {
       res.writeHead(302, { location: '/' });
       return res.end();
     }
-    return sendFile(res, path.join(PUBLIC, 'play.html'));
+    const id = idFromCookie(req.headers.cookie);
+    if (!id) return sendFile(res, path.join(PUBLIC, 'play.html'));
+    // With the cookie the page carries this device's token, as on the Worker.
+    return fs.readFile(path.join(PUBLIC, 'play.html'), 'utf8', (err, html) => {
+      if (err) {
+        res.writeHead(500);
+        return res.end();
+      }
+      res.writeHead(200, { 'content-type': MIME['.html'], 'cache-control': 'private, no-store', 'set-cookie': idCookie(id, false) });
+      res.end(withId(html, id));
+    });
   }
   if (p === '/admin') return sendFile(res, path.join(PUBLIC, 'admin.html'));
   if (p === '/healthz') {
@@ -114,6 +125,20 @@ export function createApp({ analytics } = {}) {
       const { status, body } = await admin({ method: req.method, authorization: req.headers.authorization, address: req.socket.remoteAddress });
       res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       return res.end(JSON.stringify(body));
+    }
+    if (p === '/api/id') {
+      let body = '';
+      for await (const chunk of req) if (body.length < 100) body += chunk;
+      const { status, cookie } = saveId({
+        method: req.method,
+        fetchSite: req.headers['sec-fetch-site'],
+        origin: req.headers.origin,
+        host: req.headers.host,
+        secure: false,
+        body,
+      });
+      res.writeHead(status, cookie ? { 'set-cookie': cookie, 'cache-control': 'no-store' } : {});
+      return res.end();
     }
     if (dev && (p === '/api/dev' || p.startsWith('/api/dev/'))) return dev(req, res);
     serveStatic(req, res);
