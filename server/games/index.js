@@ -19,9 +19,10 @@ import { game as parchis } from './parchis.js';
 import { game as cochina } from './cochina.js';
 import { game as rummy } from './rummy.js';
 import { game as rummikub } from './rummikub.js';
+import { game as war } from './war.js';
 import { game as slap } from './slap.js';
 
-const GAMES = { domino, fives, truco, caida, parchis, cochina, rummy, rummikub, slap };
+const GAMES = { domino, fives, truco, caida, parchis, cochina, rummy, rummikub, war, slap };
 
 // Matches saved before there was a choice have no `game` field: those are dominoes.
 export const DEFAULT_GAME = 'domino';

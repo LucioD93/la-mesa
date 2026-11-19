@@ -12,7 +12,7 @@ import { parseArgs } from 'node:util';
 import { WebSocket } from 'ws';
 
 const USAGE = `usage: node scripts/sim.js [game] [options]
-  game              domino, fives, truco, caida, parchis, cochina, rummy, rummikub or slap (default domino)
+  game              domino, fives, truco, caida, parchis, cochina, rummy, rummikub, war or slap (default domino)
   --bots <n>        seats for bots, 0-3 (default 0); headless players take the rest from seat 0
   --seed <s>        repeat the same deals, dice and choices (its own server only)
   --target <n>      the match's target, one of the game's choices
@@ -186,6 +186,7 @@ const STRATEGY = {
     if (r.options.slap && !r.window && mine.slapped !== r.flip.n && rng() < 0.03) return slap();
     return null;
   },
+  war: (st) => (st.round.options.flip ? { t: 'flip' } : null), // there's nothing to choose in war
 };
 
 // Cochina's grab window can close between our seeing it and our grab landing, and a slap can
@@ -234,6 +235,14 @@ const DESCRIBE = {
     if (a.type === 'flip') return `flips ${card(a.card)}, calling ${a.called}${a.match ? ': slap!' : ''}${a.out ? ' (out of cards)' : ''}`;
     if (a.type === 'slap') return `slaps (${a.place})`;
     return `takes ${a.cards} (${a.why === 'false' ? 'a false slap' : 'last hand down'})${a.back ? ', back in' : ''}`;
+  },
+  war: (r) => {
+    const a = r.lastAction;
+    if (!a) return null;
+    if (a.type === 'flip') return `turns ${card(a.card)}${a.down ? ' over one face down' : ''}`;
+    if (a.type === 'war') return `¡guerra! ${a.seats.join(' vs ')}`;
+    if (a.type === 'win') return a.team === null ? `nobody takes ${a.cards}` : `takes ${a.cards}${a.war ? ` after ${a.war} war${a.war > 1 ? 's' : ''}` : ''}`;
+    return null;
   },
 };
 const ACTORS = { truco: ['lastCall', 'lastAction'], caida: ['lastCall', 'lastAction'], parchis: ['lastRoll', 'lastAction'] };
@@ -305,6 +314,8 @@ const send = (p, msg) => p.ws.send(JSON.stringify(msg));
 
 /** A key for the moment, so a player acts once per moment however many states arrive. */
 const momentOf = (st) => {
+  // In war everyone turns at once, so the others' cards change the table before ours lands: only our own pile counts.
+  if (st.game === 'war') return JSON.stringify([st.roundNo, st.phase, st.round?.hand, st.round?.options]);
   // Cochina's and the slap's clocks tick without a move.
   const r = st.round && { ...st.round, grab: st.round.grab && { ...st.round.grab, left: null }, window: st.round.window && { ...st.round.window, left: null } };
   return JSON.stringify([st.roundNo, st.phase, r]);

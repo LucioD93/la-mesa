@@ -547,4 +547,55 @@ export const RULES = {
       ] },
     ],
   },
+
+  war: {
+    en: [
+      { h: 'The game', items: [
+        'One 52-card deck, 2 vs 2. Everyone gets 13 cards face down, and nobody looks at them, not even their own.',
+        'Aces are highest, then K, Q, J, 10 down to 2. Suits don\'t count.',
+        'The team that takes more cards wins the round and scores 1. You pick how many rounds to win (1, 3 or 5) in the lobby.',
+      ] },
+      { h: 'A battle', items: [
+        'All four turn up their top card at once: tap your deck, or drag it onto the table. Nobody chooses, and nobody waits for a turn.',
+        'The highest card takes all four for its team. Partners tied on top take it just the same.',
+        'The cards stay up a moment so everyone sees who took them, then slide onto that team\'s pile.',
+      ] },
+      { h: '¡Guerra!', items: [
+        'If the highest card is tied between the teams, it\'s war. Only the tied players fight it: each lays one card face down and turns up the next, with a single tap.',
+        'The highest of the new cards takes everything on the table, the face-down cards too. Tied again, and it\'s war again.',
+        'With one card left, it goes face up without one face down. A player with no cards left drops out of the war, and if a whole side runs out the other side takes it. If nobody can go on, nobody gets those cards.',
+      ] },
+      { h: 'End of the round', items: [
+        'A player out of cards sits out the battles that are left. The round ends when every card has been played.',
+        'Equal piles score nothing.',
+      ] },
+      { h: 'House rules', items: [
+        'War is usually two players, each taking the cards back into their deck until one has them all, which can go on forever. This version is for two teams, plays through the deck once, and counts the cards taken.',
+      ] },
+    ],
+    es: [
+      { h: 'El juego', items: [
+        'Una baraja francesa de 52 cartas, 2 contra 2. Cada uno recibe 13 cartas boca abajo, y nadie las mira, ni siquiera las suyas.',
+        'El as es la más alta, luego K, Q, J, 10 hasta el 2. La pinta no cuenta.',
+        'El equipo que se lleva más cartas gana la mano y suma 1. Se elige en la sala a cuántas manos se juega (1, 3 o 5).',
+      ] },
+      { h: 'Una batalla', items: [
+        'Los cuatro voltean la carta de arriba a la vez: toca tu mazo, o arrástralo a la mesa. Nadie escoge, y nadie espera turno.',
+        'La carta más alta se lleva las cuatro para su equipo. Si los compañeros empatan arriba, se la llevan igual.',
+        'Las cartas se quedan a la vista un momento para que todos vean quién se las llevó, y luego van a la pila de ese equipo.',
+      ] },
+      { h: '¡Guerra!', items: [
+        'Si la carta más alta está empatada entre los equipos, hay guerra. Solo pelean los empatados: cada uno pone una carta boca abajo y voltea la siguiente, con un solo toque.',
+        'La más alta de las nuevas se lleva todo lo que hay en la mesa, también las de boca abajo. Si empatan otra vez, hay guerra otra vez.',
+        'Con una sola carta, va boca arriba sin poner una abajo. Quien se queda sin cartas sale de la guerra, y si un lado entero se queda sin cartas, el otro se la lleva. Si nadie puede seguir, esas cartas no son de nadie.',
+      ] },
+      { h: 'Fin de la mano', items: [
+        'Quien se queda sin cartas no juega las batallas que faltan. La mano termina cuando se juegan todas las cartas.',
+        'Si las pilas quedan iguales, nadie suma.',
+      ] },
+      { h: 'Reglas de la casa', items: [
+        'La guerra se suele jugar entre dos, y cada uno mete las cartas que gana en su mazo hasta que uno se queda con todas, lo que puede no acabar nunca. Esta versión es para dos equipos, recorre la baraja una sola vez y cuenta las cartas ganadas.',
+      ] },
+    ],
+  },
 };
