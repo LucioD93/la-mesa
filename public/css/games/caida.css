@@ -1,0 +1,23 @@
+/* Caída: its own colors and table, after style.css (public/js/games.js loads it). */
+
+body[data-game='caida'] { --accent: #b45309; --accent-glow: rgba(180, 83, 9, 0.4); }
+
+[data-g='caida'] { --g: #b45309; }
+
+/* ---- caída table -------------------------------------------------------- */
+body[data-game='caida'] .board { --cw: min(13vw, 9dvh, 72px); }
+@media (max-height: 680px) { body[data-game='caida'] .board { --cw: min(13vw, 7dvh); } } /* up to 10 cards have to fit */
+.deal-info { position: absolute; left: 2px; right: 2px; top: 2px; z-index: 1; display: flex; justify-content: space-between; align-items: flex-start; font-size: 11px; color: var(--muted); }
+.deal-pips { display: flex; align-items: center; gap: 6px; }
+.piles b { color: var(--team); font-size: 14px; }
+.loose { position: absolute; inset: 26px 0 0; display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 6px; }
+.loose-item { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.loose-item small { font-size: 11px; color: var(--muted); }
+.loose-item small.hit { color: var(--gold); font-weight: 800; }
+.loose-item.incoming { visibility: hidden; }
+.loose-item.fresh .card { animation: card-drop 0.3s cubic-bezier(0.2, 1.4, 0.4, 1); }
+.loose-item.taken { z-index: 2; }
+.loose-item.taken .card { box-shadow: 0 0 0 3px var(--team), 0 0 16px var(--team); }
+.card.hit { box-shadow: 0 0 0 2px var(--gold), 0 0 12px rgba(252, 211, 77, 0.7); }
+.sung { display: block; font-size: 11px; font-weight: 800; color: var(--gold); }
+.call.count { background: var(--accent); color: var(--on-color); min-width: 88px; }

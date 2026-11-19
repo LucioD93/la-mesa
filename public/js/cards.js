@@ -1,5 +1,8 @@
 // Spanish deck card markup: inline SVG, no image files.
 
+export const SUITS_EN = { o: 'coins', c: 'cups', e: 'swords', b: 'clubs' };
+export const SUITS_ES = { o: 'oros', c: 'copas', e: 'espadas', b: 'bastos' };
+
 const INK = { o: '#a16207', c: '#b91c1c', e: '#1e3a8a', b: '#15803d' };
 
 // Traditional suit marks (see public/suits/), width / height of each drawing.
@@ -58,6 +61,9 @@ export function cardSVG([n, suit]) {
   const body = layout ? layout.map(([x, y, h, rot]) => mark(suit, x, y, h, rot)).join('') : face(n, suit);
   return `<svg viewBox="0 0 100 150" aria-hidden="true">${corner(n, suit)}${body}<g transform="rotate(180 50 75)">${corner(n, suit)}</g></svg>`;
 }
+
+/** A card, wrapped for showing on its own, with any extra classes. */
+export const cardHTML = (c, cls = '') => `<span class="card ${cls}">${cardSVG(c)}</span>`;
 
 export const cardKey = ([n, suit]) => `${n}-${suit}`;
 export const parseKey = (key) => {

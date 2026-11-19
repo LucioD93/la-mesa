@@ -14,4 +14,4 @@ Use the tools in README.md's "Testing tools" section rather than playing a match
 - `npm test` runs everything, including every scenario and a sim of each game.
 - Those run the Node server. For a change to `worker/` or how a room uses its host, also run the real Worker with `npm run dev:worker` and `npm run sim -- <game> --url http://localhost:8787` (several at once, since some bugs only show under load).
 
-A new game also needs a bot move in `STEP` (server/dev/scenarios.js) and a player in `STRATEGY` (scripts/sim.js).
+A new game is its own files plus its id in two lists, `server/games/index.js` and `public/js/games.js`: README.md's "How a game plugs in" lists the files, and `npm test` fails until each one is there. Put game-specific code, strings, CSS and docs in the game's files, not in shared ones, so parallel branches adding games don't collide.

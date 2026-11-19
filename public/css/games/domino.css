@@ -1,0 +1,4 @@
+/* Dominoes: its own colors, after style.css (public/js/games.js loads it). The domino
+   table is in style.css, since All Fives plays on it too. */
+
+[data-g='domino'] { --g: #e11d48; }

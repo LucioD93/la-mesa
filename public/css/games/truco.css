@@ -1,0 +1,14 @@
+/* Truco: its own colors and sizes, after style.css (public/js/games.js loads it). The
+   card table truco started is in style.css, since the other card games use it too. */
+
+body[data-game='truco'] { --accent: #0e7490; --accent-glow: rgba(14, 116, 144, 0.4); }
+
+[data-g='truco'] { --g: #0e7490; }
+
+body[data-game='truco'] .board { --cw: min(15.5vw, 11.5dvh, 92px); }
+
+body[data-game='truco'] .actions { gap: 8px; }
+body[data-game='truco'] .call { min-height: 44px; }
+body[data-game='truco'] .call:is(.yes, .no) { flex: 1 1 40%; }
+body[data-game='truco'] .call:is(.envido, .truco) { flex: 1 1 26%; }
+body[data-game='truco'] .call.flor { flex: 1 1 100%; }

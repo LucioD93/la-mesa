@@ -1,0 +1,22 @@
+/* All Fives: its own colors and table, after style.css (public/js/games.js loads it). */
+
+/* All Fives: what the ends add up to, in a corner of the board; gold when it scores. */
+.ends-count {
+  position: absolute;
+  right: 4px;
+  top: 4px;
+  z-index: 1;
+  margin: 0;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--well-soft);
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  pointer-events: none;
+}
+.ends-count.scores { color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+
+[data-g='fives'] { --g: #059669; }
+
+.game-icon .five { position: absolute; right: -2px; bottom: -3px; font: 800 17px/1 system-ui, sans-serif; color: var(--g, var(--gold)); text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); }

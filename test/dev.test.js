@@ -11,14 +11,6 @@ import { GAME_IDS } from '../server/games/index.js';
 import { diceValues, devTools, rig, seededRng, timeScale } from '../server/dev/config.js';
 import { SCENARIOS, applyScenario, playUntil } from '../server/dev/scenarios.js';
 import { merge } from '../server/dev/tools.js';
-import { NUMBERS, florType, envidoValue } from '../server/games/truco.js';
-import { cantoOf } from '../server/games/caida.js';
-import { bestMelds } from '../server/games/rummy.js';
-import * as rummikub from '../server/games/rummikub.js';
-import * as fives from '../server/games/fives.js';
-import { calledAt } from '../server/games/slap.js';
-import * as war from '../server/games/war.js';
-import * as kemps from '../server/games/kemps.js';
 
 /** Set env vars for one test. */
 function withEnv(t, vars) {
@@ -96,77 +88,8 @@ test('a patch merges objects, replaces arrays, and patches an array by index', (
 
 // ---- scenarios ------------------------------------------------------------------------
 
-/** The next card flipped is the number it calls. */
-const slapsNext = (r) => r.hands[r.turn].at(-1)[0] === calledAt(r.count);
-
-/** What each scenario promises about seat 0, checked on the match it builds. */
-const PROMISES = {
-  lobby: (m) => m.phase === 'lobby' && m.seats.every(Boolean),
-  deal: (m) => m.phase === 'playing' && m.roundNo === 1,
-  'match-point': (m) => m.phase === 'playing' && m.scores.every((s) => s === m.target - 1),
-  'round-end': (m) => m.phase === 'roundEnd' || m.phase === 'matchEnd',
-  'match-end': (m) => m.phase === 'matchEnd',
-  'domino-opening': (m) => m.round.turn === 0 && m.round.hands[0].some((x) => x[0] === 6 && x[1] === 6),
-  'domino-last-tile': (m) => m.round.turn === 0 && m.round.hands[0].length === 1,
-  'domino-stuck': (m) => m.round.turn === 0 && m.pendingAuto()?.delay > 0,
-  'domino-block': (m) => m.round.turn === 0,
-  'fives-score': (m) =>
-    m.round.turn === 0 &&
-    fives.legalMoves(m.round, 0).some((mv) => fives.scoreFor(fives.endsCount(fives.boardAfter(m.round, mv))) >= 15),
-  'fives-spinner': (m) => m.round.turn === 0 && fives.legalMoves(m.round, 0).some((mv) => mv.end === 'U' || mv.end === 'D'),
-  'fives-out': (m) => m.round.turn === 0 && m.round.hands[0].length === 1,
-  'truco-flor': (m) => florType(m.round.dealt[0], m.round.vira) === 'flor' && m.round.turn === 0,
-  'truco-reservada': (m) => florType(m.round.dealt[0], m.round.vira) === 'reservada',
-  'truco-envido': (m) => envidoValue(m.round.dealt[0], m.round.vira) === 33,
-  'truco-answer': (m) => m.round.pending?.team === 0 && m.waitingOn()?.seat === 0,
-  'caida-ronda': (m) => m.round.turn === 0 && cantoOf(m.round.hands[0])?.kind === 'ronda',
-  'caida-caida': (m) => m.round.hands[0].some((c) => c[0] === m.round.lastDrop[0]),
-  'caida-mesa-limpia': (m) => m.round.turn === 0 && m.round.table.length >= 2,
-  'parchis-home': (m) => m.round.turn === 0 && m.round.pieces[2].every((p) => p === 71),
-  'parchis-capture': (m) => m.round.turn === 0,
-  'parchis-leave': (m) => m.round.pieces.flat().every((p) => p === -1),
-  'cochina-steal': (m) => m.round.hands[0].some((c) => c[0] === m.round.piles[1].at(-1)[0]),
-  'cochina-steal-run': (m) => {
-    const top = m.round.piles[1].slice(-4).map((c) => c[0]);
-    return top.slice(1).every((n) => n === top[1]) && top[0] !== top[1] && m.round.hands[0].some((c) => c[0] === top[1]);
-  },
-  'cochina-run': (m) => {
-    const [n] = m.round.piles[1].at(-1);
-    const next = NUMBERS.slice(NUMBERS.indexOf(n) + 1, NUMBERS.indexOf(n) + 3);
-    return PROMISES['cochina-steal-run'](m) && next.every((k) => m.round.table.some((c) => c[0] === k)) && !m.round.table.some((c) => c[0] === n);
-  },
-  'cochina-grab': (m) => m.round.turn === 0,
-  'rummy-take': (m) => m.round.turn === 0 && !m.round.drawn && m.round.discard.length > 0,
-  'rummy-meld': (m) => m.round.turn === 0 && m.round.drawn && bestMelds(m.round.hands[0]).length > 0,
-  'rummy-layoff': (m) => m.round.turn === 0 && m.round.drawn && m.round.melds.length > 0,
-  'rummy-out': (m) => m.round.turn === 0 && m.round.drawn && bestMelds(m.round.hands[0]).length > 0,
-  'rummy-last-card': (m) => m.round.turn === 0 && m.round.drawn && m.round.stock.length === 0,
-  'rummikub-first': (m) => m.round.turn === 0 && !m.round.melded[0] && rummikub.bestSets(m.round.hands[0], { first: true }).length > 0,
-  'rummikub-layoff': (m) => m.round.turn === 0 && m.round.melded[0] && m.round.hands[0].some((id) => m.round.table.some((s) => rummikub.fitTile(s, id))),
-  'rummikub-split': (m) => m.round.turn === 0 && m.round.hands[0].some((id) => m.round.table.some((s) => rummikub.fitTile(s, id)?.length === 2)),
-  'rummikub-joker': (m) => m.round.turn === 0 && m.round.melded[0] && m.round.table.flat().some(rummikub.isJoker),
-  'rummikub-out': (m) => m.round.turn === 0 && rummikub.botMove(m.round, 0).table.flat().length === m.round.table.flat().length + m.round.hands[0].length,
-  'rummikub-empty-pool': (m) => m.round.turn === 0 && m.round.pool.length === 0,
-  'slap-match': (m) => m.round.turn === 0 && !m.round.window && slapsNext(m.round),
-  'slap-last-card': (m) => m.round.turn === 0 && m.round.hands[0].length === 1 && slapsNext(m.round),
-  'slap-out': (m) => m.round.out.includes(0) && m.seats[m.round.turn].bot && slapsNext(m.round),
-  'slap-big-stack': (m) => m.round.turn === 0 && !m.round.window && m.round.stack.length >= 12,
-  'war-war': (m) => {
-    const r = m.round;
-    const top = (s) => war.rankOf(r.hands[s].at(-1));
-    const best = Math.max(...r.fighting.map(top));
-    return r.toFlip.includes(0) && top(0) === best && [1, 3].some((s) => r.fighting.includes(s) && top(s) === best);
-  },
-  'war-last': (m) => m.round.toFlip.includes(0) && m.round.hands[0].length === 1,
-  'kemps-three': (m) => m.round.hands[0].some(([n]) => m.round.hands[0].filter((c) => c[0] === n).length === 3 && m.round.middle.some((c) => c[0] === n)),
-  'kemps-four': (m) => kemps.isFour(m.round.hands[0]),
-  'kemps-signal': (m) => m.round.gesture.seat === 2 && m.round.gesture.sign === m.round.signals[0] && kemps.isFour(m.round.hands[2]),
-  'kemps-corta': (m) => m.round.gesture.seat === 1 && m.round.gesture.sign === m.round.signals[1] && kemps.isFour(m.round.hands[1]),
-  'kemps-exposed': (m) => m.round.learned[0] === m.round.signals[0],
-};
-
-test('every scenario has a check here', () => {
-  assert.deepEqual(Object.keys(PROMISES).sort(), Object.keys(SCENARIOS).sort());
+test('every scenario says what it promises', () => {
+  for (const [name, sc] of Object.entries(SCENARIOS)) assert.equal(typeof sc.check, 'function', name);
 });
 
 test('every scenario sets up its moment in every game it takes, and the round plays on from there', () => {
@@ -176,7 +99,7 @@ test('every scenario sets up its moment in every game it takes, and the round pl
       applyScenario(m, name, { game, seed: 'test' });
       const label = `${name} (${game})`;
       assert.equal(m.game, game, label);
-      assert.ok(PROMISES[name](m), label);
+      assert.ok(sc.check(m), label);
       assert.deepEqual(m.seats[0], { token: 'p0', name: 'p0', bot: false }, label);
       assert.ok(m.seats.slice(1).every((s) => s.bot), label);
       if (m.phase === 'playing') assert.equal(playUntil(m, (r) => r.over), true, `${label} plays to the end`);

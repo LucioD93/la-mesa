@@ -10,9 +10,10 @@
 //                                                      on a running server: watch at /play/demo
 import { parseArgs } from 'node:util';
 import { WebSocket } from 'ws';
+import { setRng } from './sim/common.js';
 
 const USAGE = `usage: node scripts/sim.js [game] [options]
-  game              domino, fives, truco, caida, parchis, cochina, rummy, rummikub, war, slap or kemps (default domino)
+  game              any game in server/games/index.js: domino, truco, war… (default domino)
   --bots <n>        seats for bots, 0-3 (default 0); headless players take the rest from seat 0
   --seed <s>        repeat the same deals, dice and choices (its own server only)
   --target <n>      the match's target, one of the game's choices
@@ -63,16 +64,12 @@ if (!opt.url) {
 }
 const { GAME_IDS } = await import('../server/games/index.js');
 const { seededRng } = await import('../server/dev/config.js');
-const { candidateMelds, layoffFit } = await import('../server/games/rummy.js');
-const rummikub = await import('../server/games/rummikub.js');
-const kemps = await import('../server/games/kemps.js');
 if (!GAME_IDS.includes(game)) {
-  console.error(`unknown game ${game}\n\n${USAGE}`);
+  console.error(`unknown game ${game}: one of ${GAME_IDS.join(', ')}\n\n${USAGE}`);
   process.exit(2);
 }
-// Each choice depends only on the seed, the seat and what it sees, so a seed repeats the whole run.
-let rng = Math.random;
-const pick = (list) => list[Math.floor(rng() * list.length)];
+// The game's headless player and how its moves read in the log: scripts/sim/<game>.js.
+const sim = await import(`./sim/${game}.js`);
 
 const logError = console.error;
 let base = opt.url;
@@ -90,194 +87,17 @@ if (!base) {
 }
 const wsUrl = `${base.replace(/^http/, 'ws')}/api/ws?match=${encodeURIComponent(matchId)}`;
 
-// ---- what a headless player does -----------------------------------------------
-
-const sameCard = (a, b) => a[0] === b[0] && a[1] === b[1];
-
-const kmSent = {}; // seat -> the Kemps swap it sent last
-
-/**
- * The message this seat sends now, or null to wait. Only uses what its own state shows, and
- * `mine`, what this player remembers doing.
- */
-const STRATEGY = {
-  domino: (st) => {
-    const m = st.round.legal.length && pick(st.round.legal);
-    return m ? { t: 'play', tile: m.tile, end: m.end } : null; // with nothing to play, the server passes for us
-  },
-  fives: (st) => STRATEGY.domino(st),
-  truco: (st) => {
-    const r = st.round;
-    const o = r.options;
-    if (o.answer) {
-      // Both partners may answer a bet, and the second would be too late: only the one the server waits on does.
-      const answerer = [(r.pending.by + 1) % 4, (r.pending.by + 3) % 4].find((s) => !st.seats[s].bot);
-      if (answerer !== st.you) return null;
-      if (o.flor) return { t: 'call', what: 'flor' };
-      if (o.envido.length && rng() < 0.2) return { t: 'call', what: pick(o.envido) };
-      if (o.truco && rng() < 0.15) return { t: 'call', what: 'truco' };
-      return { t: 'answer', yes: rng() < 0.7 };
-    }
-    if (!o.play) return null;
-    if (o.flor) return { t: 'call', what: 'flor' };
-    if (o.envido.length && rng() < 0.2) return { t: 'call', what: pick(o.envido) };
-    if (o.truco && rng() < 0.2) return { t: 'call', what: 'truco' };
-    if (rng() < 0.02) return { t: 'call', what: 'mazo' };
-    return { t: 'play', card: pick(r.hand) };
-  },
-  caida: (st) => {
-    const o = st.round.options;
-    if (o.order) return { t: 'order', dir: pick([1, -1]) };
-    if (o.canto) return { t: 'call', what: 'canto' };
-    return o.play ? { t: 'play', card: pick(st.round.hand) } : null;
-  },
-  parchis: (st) => {
-    const o = st.round.options;
-    if (o.roll) return { t: 'roll' };
-    const m = o.moves.length && pick(o.moves);
-    return m ? { t: 'move', color: m.color, piece: m.piece, steps: m.uses[0] } : null;
-  },
-  cochina: (st) => {
-    const r = st.round;
-    if (r.options.grab) {
-      const n = r.grab.num ?? r.grab.card[0]; // a run (escalera) moves on to the next numbers
-      const top = r.tops[1 - (st.you % 2)];
-      if (top?.[0] === n) return { t: 'grab', pile: true };
-      const card = r.table.find((c) => c[0] === n && !sameCard(c, r.grab.card));
-      return card ? { t: 'grab', card } : null;
-    }
-    return r.options.play ? { t: 'play', card: pick(r.hand) } : null;
-  },
-  rummy: (st) => {
-    const r = st.round;
-    const fits = (card) => r.melds.some((m) => layoffFit(m, card));
-    if (r.options.draw) {
-      const top = r.discard.at(-1);
-      const useful = top && (fits(top) || candidateMelds([...r.hand, top]).some((cards) => cards.includes(top)));
-      return { t: 'draw', from: top && (useful || rng() < 0.1) ? 'discard' : 'stock' };
-    }
-    if (!r.options.play) return null;
-    // Put down whatever it can, in a random order: a team that holds cards back loses points
-    // every round, and the match would never reach its target.
-    const melds = candidateMelds(r.hand);
-    if (melds.length) return { t: 'meld', cards: pick(melds) };
-    const offs = r.hand.flatMap((card) => r.melds.flatMap((m, meld) => (layoffFit(m, card) ? [{ card, meld }] : [])));
-    if (offs.length) return { t: 'layoff', ...pick(offs) };
-    // Throw any card that isn't close to a meld; the one just taken can't go straight back, unless it's the last.
-    const free = r.hand.filter((c) => r.hand.length === 1 || !r.taken || !sameCard(c, r.taken));
-    const close = (c) => r.hand.some((d) => d !== c && (d[0] === c[0] || (d[1] === c[1] && Math.abs(d[0] - c[0]) <= 2)));
-    const loose = free.filter((c) => !close(c));
-    return { t: 'discard', card: pick(loose.length ? loose : free) };
-  },
-  rummikub: (st) => {
-    const r = st.round;
-    if (!r.options.play) return null;
-    // The bot's play, worked out from this seat's own rack and the table, sometimes held back
-    // for a draw. Sets go in any order and tiles any way round: the server lays them out.
-    const move = rummikub.botMove({ hands: { [st.you]: r.hand }, table: r.table, melded: r.melded }, st.you);
-    if (move.type !== 'play' || rng() < 0.1) return { t: 'draw' };
-    const table = move.table.map((set) => (rng() < 0.5 ? set.slice().reverse() : set));
-    return { t: 'play', table: table.sort(() => rng() - 0.5) };
-  },
-  slap: (st, mine) => {
-    const r = st.round;
-    // Another slap can arrive before ours is counted: once a card is slapped, it stays slapped.
-    const slap = () => ((mine.slapped = r.flip.n), { t: 'slap', n: r.flip.n });
-    if (r.window && r.options.slap && mine.slapped !== r.flip.n) return slap();
-    if (r.options.flip) return { t: 'flip', n: r.seq };
-    // Now and then a slap on a card that doesn't match, which takes the stack.
-    if (r.options.slap && !r.window && mine.slapped !== r.flip.n && rng() < 0.03) return slap();
-    return null;
-  },
-  war: (st) => (st.round.options.flip ? { t: 'flip' } : null), // there's nothing to choose in war
-  kemps: (st) => {
-    const r = st.round;
-    if (!r.options.swap) return null;
-    const g = r.gesture;
-    // Our partner made our signal: call it. Sometimes we call Stop Kemps on a rival out of the blue.
-    if (g && g.seat === (st.you + 2) % 4 && g.sign === r.signal) return { t: 'kemps' };
-    if (kemps.isFour(r.hand)) return g?.seat === st.you && g.sign === r.signal ? null : { t: 'gesture', sign: r.signal };
-    if (rng() < 0.01) return { t: 'corta', seat: pick(r.options.corta) };
-    if (rng() < 0.05) return { t: 'gesture', sign: pick(kemps.SIGNS.filter((s) => s !== r.signal)) };
-    // A swap still on its way: the card we gave is in hand and the one we took in the middle.
-    const sent = kmSent[st.you];
-    if (sent && r.hand.some((c) => sameCard(c, sent.give)) && r.middle.some((c) => sameCard(c, sent.take))) return null;
-    const move = kemps.bestSwap(r.hand, r.middle);
-    kmSent[st.you] = move;
-    if (move) return { t: 'swap', ...move };
-    return r.options.pass ? { t: 'pass' } : null;
-  },
-};
-
-// Cochina's grab window can close between our seeing it and our grab landing, a slap can land
-// after the next card, and in Kemps someone else can take the card first or our gestures come too
-// close together; that's the game, not a bug.
-const RACES = new Set(['Nothing to grab', 'Too late', 'That card is gone', 'Too fast']);
+// Refusals the game expects when a move races another (its `races`): the game, not a bug.
+const RACES = new Set(sim.races);
 
 // ---- what happened, for the log ----------------------------------------------------
-
-const card = (c) => `${c[0]}${c[1]}`;
-const DESCRIBE = {
-  domino: (r) => r.lastAction && (r.lastAction.type === 'pass' ? 'passes' : `plays ${r.lastAction.tile.join('|')} ${r.lastAction.end}`),
-  fives: (r) => DESCRIBE.domino(r) && `${DESCRIBE.domino(r)}${r.lastAction.points ? `, scores ${r.lastAction.points}` : ''}`,
-  truco: (r) => [r.lastCall && `says ${r.lastCall.what}`, r.lastAction && `plays ${card(r.lastAction.card)}`],
-  caida: (r) => [
-    r.lastCall && `sings ${r.lastCall.what}`,
-    r.lastAction && `plays ${card(r.lastAction.card)}${r.lastAction.taken.length ? `, takes ${r.lastAction.taken.map(card).join(' ')}` : ''}`,
-  ],
-  parchis: (r) => [
-    r.lastRoll && `rolls ${r.lastRoll.values.join('+')}${r.lastRoll.penalty ? ' (third repeat)' : ''}`,
-    r.lastAction && `moves ${r.lastAction.color}:${r.lastAction.piece} ${r.lastAction.from}→${r.lastAction.to}${r.lastAction.captured ? ', captures' : ''}`,
-  ],
-  cochina: (r) => {
-    const a = r.lastAction;
-    if (!a) return null;
-    if (a.type === 'play') return `plays ${card(a.card)}`;
-    if (a.type === 'grab') return a.stolen ? 'steals the cochina' : `grabs ${a.cards.map(card).join(' ')}`;
-    return `lets go (${a.missed} missed)`;
-  },
-  rummy: (r) => {
-    const a = r.lastAction;
-    if (!a) return null;
-    if (a.type === 'draw') return a.from === 'stock' ? 'draws from the deck' : `takes ${card(a.card)}`;
-    if (a.type === 'meld') return `melds ${a.cards.map(card).join(' ')}`;
-    if (a.type === 'layoff') return `lays ${card(a.card)} off on meld ${a.meld}`;
-    return `discards ${card(a.card)}`;
-  },
-  rummikub: (r) => {
-    const a = r.lastAction;
-    if (!a) return null;
-    if (a.type !== 'play') return a.type === 'draw' ? 'draws' : 'passes';
-    return `plays ${a.placed.length === 1 ? '1 tile' : `${a.placed.length} tiles`}${a.first ? ' (first play)' : ''}`;
-  },
-  slap: (r) => {
-    const a = r.lastAction;
-    if (!a) return null;
-    if (a.type === 'flip') return `flips ${card(a.card)}, calling ${a.called}${a.match ? ': slap!' : ''}${a.out ? ' (out of cards)' : ''}`;
-    if (a.type === 'slap') return `slaps (${a.place})`;
-    return `takes ${a.cards} (${a.why === 'false' ? 'a false slap' : 'last hand down'})${a.back ? ', back in' : ''}`;
-  },
-  war: (r) => {
-    const a = r.lastAction;
-    if (!a) return null;
-    if (a.type === 'flip') return `turns ${card(a.card)}${a.down ? ' over one face down' : ''}`;
-    if (a.type === 'war') return `¡guerra! ${a.seats.join(' vs ')}`;
-    if (a.type === 'win') return a.team === null ? `nobody takes ${a.cards}` : `takes ${a.cards}${a.war ? ` after ${a.war} war${a.war > 1 ? 's' : ''}` : ''}`;
-    return null;
-  },
-  kemps: (r) => [
-    r.lastAction?.type === 'swap' && `takes ${card(r.lastAction.take)} for ${card(r.lastAction.give)}`,
-    r.gesture && `makes a gesture: ${r.gesture.sign}`,
-  ],
-};
-const ACTORS = { truco: ['lastCall', 'lastAction'], caida: ['lastCall', 'lastAction'], parchis: ['lastRoll', 'lastAction'], kemps: ['lastAction', 'gesture'] };
 
 const said = new Map(); // what was last printed for each kind of action
 function logActions(st) {
   if (opt.quiet || !st.round) return;
   const r = st.round;
-  const lines = [DESCRIBE[st.game](r)].flat();
-  const sources = ACTORS[st.game] ?? ['lastAction'];
+  const lines = [sim.describe(r)].flat();
+  const sources = sim.actors ?? ['lastAction'];
   lines.forEach((text, i) => {
     const src = r[sources[i]];
     if (!text || !src) return;
@@ -339,8 +159,7 @@ const send = (p, msg) => p.ws.send(JSON.stringify(msg));
 
 /** A key for the moment, so a player acts once per moment however many states arrive. */
 const momentOf = (st) => {
-  // In war everyone turns at once, so the others' cards change the table before ours lands: only our own pile counts.
-  if (st.game === 'war') return JSON.stringify([st.roundNo, st.phase, st.round?.hand, st.round?.options]);
+  if (sim.moment) return sim.moment(st);
   // Cochina's and the slap's clocks tick without a move.
   const r = st.round && { ...st.round, grab: st.round.grab && { ...st.round.grab, left: null }, window: st.round.window && { ...st.round.window, left: null } };
   return JSON.stringify([st.roundNo, st.phase, r]);
@@ -351,8 +170,8 @@ function act(p) {
   if (finished || st.phase !== 'playing' || st.you !== p.seat) return;
   const moment = momentOf(st);
   if (p.acted === moment) return;
-  if (opt.seed) rng = seededRng(`sim:${opt.seed}:${p.seat}:${moment}`);
-  const msg = STRATEGY[st.game](st, p.mine);
+  if (opt.seed) setRng(seededRng(`sim:${opt.seed}:${p.seat}:${moment}`));
+  const msg = sim.play(st, p.mine);
   if (!msg) return;
   p.acted = moment;
   moves += 1;

@@ -1,0 +1,34 @@
+/* War: its own colors and table, after style.css (public/js/games.js loads it). */
+
+[data-g='war'] { --g: #b91c1c; }
+
+.game-icon .swords { position: absolute; right: -5px; bottom: -3px; font-size: 16px; line-height: 1; }
+
+/* ---- war table ---------------------------------------------------------- */
+body[data-game='war'] { --accent: #b91c1c; --accent-glow: rgba(185, 28, 28, 0.4); }
+body[data-game='war'] .board { --cw: min(14vw, 9dvh, 70px); }
+@media (max-height: 680px) { body[data-game='war'] .board { --cw: min(13vw, 7.5dvh); } }
+.war-field { position: absolute; inset: 0; pointer-events: none; }
+/* Truco's slots, a little higher to leave room for the piles; a war fans each seat's cards out toward it. */
+body[data-game='war'] .slot { top: 44%; }
+.war-tag { color: var(--accent); font-size: 14px; font-weight: 900; letter-spacing: 0.02em; }
+.war-piles { --cw: min(9vw, 6dvh, 44px); pointer-events: none; }
+.war-piles .pile .card { box-shadow: 0 0 0 2px var(--team), 0 2px 6px rgba(0, 0, 0, 0.45); }
+.war-piles .edge { background: var(--card-back); }
+.shout.guerra { background: var(--accent); color: #fff; font-size: 30px; letter-spacing: 0.02em; }
+/* Your deck, face down where a hand would be: tap it, or drag it onto the table, to turn a card. */
+body[data-game='war'] .hand { --cw: min(22vw, 13dvh, 88px); display: flex; justify-content: center; min-height: calc(var(--cw) * 1.5 + 16px); padding-top: 8px; }
+.war-deck { display: flex; align-items: center; gap: 12px; padding: 0 4px 10px; border: 0; background: none; color: var(--ink); font: inherit; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; cursor: grab; }
+.war-deck .pile { position: relative; display: block; }
+.war-deck .edge { position: absolute; left: 0; right: 0; height: 100%; border-radius: calc(var(--cw) * 0.09); background: var(--card-back); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
+.war-deck .edge:nth-child(1) { top: 3px; }
+.war-deck .edge:nth-child(2) { top: 6px; }
+.war-deck .edge:nth-child(3) { top: 9px; }
+.war-deck .deck-info { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; text-align: left; }
+.war-deck .deck-info b { font-size: 26px; }
+.war-deck .deck-info small { max-width: 9em; font-size: 13px; color: var(--muted); }
+.war-deck.ready .pile > .card { box-shadow: 0 0 0 3px var(--gold), 0 0 16px rgba(252, 211, 77, 0.55); animation: flor-pulse 1.2s ease-in-out infinite; }
+.war-deck.ready .deck-info small { color: var(--gold); font-weight: 800; }
+.war-deck.dragging { opacity: 0.25; }
+.war-deck.drag-ghost .deck-info { display: none; }
+@media (prefers-reduced-motion: reduce) { .war-deck.ready .pile > .card { animation: none; } }

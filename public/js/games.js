@@ -1,33 +1,34 @@
-// The games the lobby offers, in menu order, and a small picture of each.
-// The server's list is server/games/index.js: a new game goes in both.
-import { tileHTML } from './tiles.js';
-import { cardSVG } from './cards.js';
-import { cardSVG as frenchSVG } from './french.js';
-import { tileHTML as rkTileHTML } from './rummikub-tiles.js';
-
+// The games the lobby offers, in menu order. Each one's name, icon, strings and rules are in
+// games/<id>.js, and its table in <id>.js. The server's list is server/games/index.js: a new
+// game goes in both.
 export const GAMES = ['domino', 'fives', 'truco', 'caida', 'parchis', 'cochina', 'rummy', 'rummikub', 'war', 'slap', 'kemps'];
+
+/** Each game's games/<id>.js, by id. */
+export const GAME_DATA = Object.fromEntries(
+  await Promise.all(GAMES.map(async (id) => [id, await import(`./games/${id}.js`)])),
+);
+
+// Each game's own CSS, games/<id>.css, goes after style.css. Waiting for it means no
+// table or menu of games is ever drawn without its colors.
+if (typeof document !== 'undefined') {
+  await Promise.all(
+    GAMES.map(
+      (id) =>
+        new Promise((done) => {
+          const link = Object.assign(document.createElement('link'), { rel: 'stylesheet', href: `/css/games/${id}.css` });
+          link.onload = link.onerror = done;
+          document.head.append(link);
+        }),
+    ),
+  );
+}
+
 // Behind a feature flag (server/games/index.js): a lobby only lists them once the server
 // offers them, and the home page leaves them out.
-export const FLAGGED = ['rummikub', 'kemps'];
+export const FLAGGED = GAMES.filter((id) => GAME_DATA[id].flagged);
 
-const card = (c, cls = '') => `<span class="card ${cls}">${cardSVG(c)}</span>`;
-
-const ICONS = {
-  domino: () => `<span class="tile v">${tileHTML(6, 3, false)}</span>`,
-  fives: () => `<span class="tile v">${tileHTML(5, 5, false)}</span><span class="five">5</span>`,
-  truco: () => card([1, 'e']),
-  caida: () => card([7, 'c'], 'under') + card([1, 'o']),
-  parchis: () =>
-    `<svg viewBox="0 0 40 40" aria-hidden="true">${['#facc15', '#3b82f6', '#22c55e', '#ef4444']
-      .map((fill, i) => `<rect x="${i % 2 ? 21 : 3}" y="${i < 2 ? 3 : 21}" width="16" height="16" rx="3" fill="${fill}"/>`)
-      .join('')}<circle cx="20" cy="20" r="5" fill="#fbf8ef"/></svg>`,
-  cochina: () => `${card([5, 'b'], 'under')}${card([5, 'o'])}<span class="pig">🐷</span>`,
-  rummy: () => `<span class="card under">${frenchSVG([7, 'H'])}</span><span class="card">${frenchSVG([1, 'S'])}</span>`,
-  rummikub: () => [10, 11 + 13, 104].map((id) => rkTileHTML(id)).join(''), // a black 11, a blue 12 and the joker
-  slap: () => `${card([3, 'e'], 'under')}${card([3, 'c'])}<span class="pig">🖐️</span>`,
-  war: () => `<span class="card under">${frenchSVG([13, 'S'])}</span><span class="card">${frenchSVG([13, 'H'])}</span><span class="swords">⚔️</span>`, // two kings: war
-  kemps: () => `<span class="card under">${frenchSVG([13, 'D'])}</span><span class="card">${frenchSVG([13, 'C'])}</span><span class="wink">😉</span>`,
-};
+/** The full rules of each game, for the rules sheet. */
+export const RULES = Object.fromEntries(GAMES.map((id) => [id, GAME_DATA[id].rules]));
 
 /** The picture of a game, for the lobby's game card and menu. */
-export const gameIcon = (id) => `<span class="game-icon" data-g="${id}" aria-hidden="true">${ICONS[id]()}</span>`;
+export const gameIcon = (id) => `<span class="game-icon" data-g="${id}" aria-hidden="true">${GAME_DATA[id].icon()}</span>`;
