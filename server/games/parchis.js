@@ -195,7 +195,8 @@ export function roll(round, seat, rng = Math.random) {
   const allOut = !round.pieces[colorFor(round, seat)].includes(NEST);
   round.again = again;
   // A 6 only counts 7 with one die: with two, doubles take over from sixes.
-  round.pending = round.dice === 1 && again && allOut ? [SIX_WHEN_ALL_OUT] : values;
+  // A copy, since spending steps and paying bonuses would otherwise change the dice shown.
+  round.pending = round.dice === 1 && again && allOut ? [SIX_WHEN_ALL_OUT] : [...values];
   advance(round);
   round.lastRoll.passed = round.turn !== seat || round.stage === 'roll';
   return round;
