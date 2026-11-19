@@ -4,6 +4,7 @@ import { MATCH_ID, matchIdFrom } from '../server/room.js';
 import { createAdmin } from '../server/admin.js';
 import { createMetered } from '../server/metered.js';
 import { COUNTRY_HEADER, countryOf } from '../server/analytics.js';
+import { idCookie, idFromCookie, saveId, withId } from '../server/identity.js';
 
 export { MatchServer } from './match-server.js';
 export { StatsServer } from './stats-server.js';
@@ -59,11 +60,34 @@ export default {
       return json(status, body);
     }
 
+    // The page keeps its player token in a cookie too (server/identity.js).
+    if (url.pathname === '/api/id') {
+      const { status, cookie } = saveId({
+        method: request.method,
+        fetchSite: request.headers.get('sec-fetch-site'),
+        origin: request.headers.get('origin'),
+        host: url.host,
+        secure: url.protocol === 'https:',
+        body: request.method === 'POST' ? (await request.text()).slice(0, 100) : '',
+      });
+      return new Response(null, { status, headers: cookie ? { 'set-cookie': cookie, 'cache-control': 'no-store' } : {} });
+    }
+
     // /play/<id> is the table, for any match id.
     const play = url.pathname.match(/^\/play\/([^/]+)\/?$/);
     if (play) {
       if (!MATCH_ID.test(play[1].toLowerCase())) return Response.redirect(new URL('/', url), 302);
-      return env.ASSETS.fetch(new Request(new URL('/play', url), request));
+      const id = idFromCookie(request.headers.get('cookie'));
+      if (!id) return env.ASSETS.fetch(new Request(new URL('/play', url), request));
+      // With the cookie the page is this device's own: it carries the token, is never a 304
+      // or cached, and gives the cookie another 400 days.
+      const page = await env.ASSETS.fetch(new URL('/play', url));
+      if (!page.ok) return page;
+      const headers = new Headers(page.headers);
+      for (const name of ['etag', 'last-modified', 'content-length', 'content-encoding']) headers.delete(name);
+      headers.set('cache-control', 'private, no-store');
+      headers.append('set-cookie', idCookie(id, url.protocol === 'https:'));
+      return new Response(withId(await page.text(), id), { status: 200, headers });
     }
 
     return env.ASSETS.fetch(request);

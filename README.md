@@ -2,16 +2,16 @@
 
 # La Mesa
 
-Mobile-first, four-player games (2 vs 2) you play in the browser: partner dominoes, All Fives dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, parchís in pairs, roba la cochina, partnership rummy, Rummikub in pairs, and Kemps (kimi), where partners pass a secret signal. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
+Mobile-first, four-player games you play in the browser: partner dominoes, All Fives dominoes, Venezuelan truco with vira, perico and perica, Venezuelan caída, parchís in pairs, roba la cochina, partnership rummy and Rummikub in pairs, War and Kemps (kimi), where partners pass a secret signal, all 2 vs 2, and Irish Snap (manotazo), every player for themselves. There's no login: create a match, pick the game in the lobby, share the `/play/<match-id>` link, and fill any empty seats with bots.
 
 Created in [T3 Code](https://t3.codes).
 
 ## Features
 
-- **Nine games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, All Fives, truco, caída, parchís, roba la cochina, rummy, Rummikub and Kemps, and everyone there sees the change. Rummikub and Kemps are behind [feature flags](#feature-flags) for now. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again. A player can also go back to the lobby mid-game, from the ⋯ menu or a round's result, after confirming: it ends the game for all four and resets the score.
+- **Eleven games, one link.** The lobby shows the game being played. Tap it for the menu of every game, where anyone in the lobby can switch between dominoes, All Fives, truco, caída, parchís, roba la cochina, rummy, Rummikub, War, Irish Snap and Kemps, and everyone there sees the change. Rummikub and Kemps are behind [feature flags](#feature-flags) for now. The target options follow the game. Once the game starts it stays until the match ends: then *Back to the lobby* lets you pick another game or change seats, and *Rematch* plays the same game again. A player can also go back to the lobby mid-game, from the ⋯ menu or a round's result, after confirming: it ends the game for all four and resets the score.
 - **Table styles.** Anyone can pick how the table looks for everyone in the match, from *Table style* in the ⋯ menu, in the lobby or at the table: Felt (the green table), Pencil (graphite on graph paper, with hatched card backs and colored-pencil teams) Neon (dark glass tiles with lit pips and a glowing grid) Minimal (flat white, hairlines, no shadows) Dark (graphite, charcoal tiles with white pips, amber highlights), Halloween (a moonlit purple night with bats and pumpkin tiles) or Christmas (a red table under falling snow, snow-white tiles with red pips and candy-cane card backs). A new match starts in the style its first player saw last. The fonts are served from `public/fonts/` (all SIL Open Font License).
-- **Team names.** In the lobby, either partner taps *Your team*, above the game, to name the team (up to 16 characters, or one of a few Venezuelan quick picks). Everyone sees it in the lobby, the score and the round results, and gets a toast when it changes. The name stays with the team when players change seats. Without one, the score says Us / Them.
-- **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches.
+- **Team names.** In the lobby, either partner taps *Your team*, above the game, to name the team (up to 16 characters, or one of a few Venezuelan quick picks). Everyone sees it in the lobby, the score and the round results, and gets a toast when it changes. The name stays with the team when players change seats. Without one, the score says Us / Them. A game without teams (Irish Snap) hides all of this: the scoreboard shows you against the best of the others, and the result and score sheet list all four players.
+- **No accounts.** Each browser gets a random token in `localStorage`, and your name is saved there for future matches. The server keeps the token in a cookie as well (`server/identity.js`), so a browser that clears its storage, as Safari does after a week away, comes back as the same player. *Play on another device*, in the ⋯ menu, shows a QR code and a link that open the match on your other phone or computer as you, in your seat: that device takes your token and name (your photo stays where it was). Anyone with that link plays as you, and the sheet says so.
 - **Player photos.** Take a picture or choose a file on the home page or in the lobby and it becomes your avatar. A picture taken here never reaches the device's gallery. It is saved only in your browser's `localStorage`; the server passes it to the others in the match and never stores it.
 - **Shareable matches.** A match lives at `/play/<id>`. *Invite friends*, in the lobby and the ⋯ menu, uses the native share sheet when the browser has one (and copies the link when it doesn't), and links unfurl with a preview image in WhatsApp and other chat apps. The preview is the same for every game: chat apps only see the static page, and the game can still change until the match starts. The share sheet's text names the current game.
 - **Bots.** Fill empty seats from the lobby with Venezuelan memes, drawn at random each time. Mid-game, a spectator can take over a bot's seat and hand, and a player who disconnected can be replaced by a bot so the game keeps going. Bots only see their own tiles or cards and the table.
@@ -170,6 +170,33 @@ Rummikub is behind the PostHog feature flag `rummikub`: a lobby only offers it w
 
 **Not implemented:** a turn timer (the table mocks a player after two minutes instead of one), seeing another player's moves before they press *Done*, and dragging tiles that are already on the table.
 
+### Irish Snap (manotazo) rules
+
+The slap game: Irish Snap in English, manotazo in Spanish. Every table plays it a little differently, so this is how it's played here. The choices are constants at the top of `server/games/slap.js`.
+
+- **Every player for themselves.** The four seats play alone, with no teams, so a match keeps a score per seat (the game sets `solo`). The round winner scores 1, and the first to win 1, 3 or 5 rounds, picked in the lobby, wins the match. The lobby hides team names and the seats' team tags, and the result and score sheet list all four players.
+- **The deal.** The 40-card Spanish deck, dealt face down one at a time from the starter, 10 each. Nobody ever sees a face-down card, their own included. The starter rotates every round.
+- **The count.** Turns go round the table. On your turn you tap your pile and its top card goes face up onto the stack in the middle, blind, as the next number is called: 1 to 7, then sota (10), caballo (11) and rey (12), then 1 again (`COUNT`). The table shows the number called for the top card.
+- **Slap.** When the card is the number just called, everyone slaps the stack: tap it, tap the Slap button, or press space. The last hand down takes the whole stack, turns it over and puts it under their pile, and the count starts again from 1 with whoever was next after the player who flipped, as if nobody had slapped. Snap's rule, where a card matching the one under it also calls for a slap, is off (`SNAP`).
+- **False slaps.** Slapping a card that isn't the number called takes the stack the same way, the table laughs at you, and the count starts again from the player after whoever flipped. A slap names the card it was meant for, so one that reaches the server after the next card was flipped, or after the stack was taken, is dropped ("too late") and never counts as a false slap.
+- **Who's last.** The server keeps the slaps in the order they reach it. The window is 3 seconds (`SLAP_MS`), shown as a bar. Once three hands are down the fourth is last whatever it does, so the stack goes to it at once. When time runs out, whoever never slapped is last. If two or three never slapped, it goes to the first of them in turn order, starting from whoever flipped.
+- **Fair to bots and phones.** A bot slaps on its own clock: after the card has shown on everyone's screen (`FLIP_MS`, the client's 380 ms flip plus the state's trip to the phone), plus a round trip on an ordinary connection (`NET_MS`, 250 ms), plus a reaction drawn between 350 and 1,100 ms (`BOT_REACT_MS`). One time in ten it looks away for 1.2 s more. So a player on a normal connection races the bots on reflexes, not on distance to the server. Between phones it's arrival order: a slower connection is a slower hand. The client sends the slap as the finger touches down, not on release. A bot slaps a card that doesn't match one time in a hundred (`BOT_FOOLED_CHANCE`). A bot flips 1.1 s after the previous card, and waits for the deal, or for a taken stack to slide away, first.
+- **Running out.** With no cards left you're out and your turns are skipped, but you still have to slap the next match (`SLAP_TO_WIN`). Get a hand on it, without being last, and you win the round. Be last, or slap a wrong card, and you pick up the stack and you're back in. If two players are out at that slap and both get a hand down, the first hand down wins. Turning `SLAP_TO_WIN` off makes running out win on the spot.
+- **No match left.** If every card goes onto the stack without a match since it was last taken, nobody can flip, and whoever ran out first wins the round. That ends about 7% of rounds when bots play every seat.
+- **Pace.** A round is about 45 flips, which is under a minute with bots in every seat. A player who takes 20 seconds to flip gets mocked.
+
+**Not implemented:** burning a card as the penalty for a false slap instead of taking the stack, a voice calling the count aloud, and a team version.
+### War rules
+
+War (*guerra*) is usually two players taking the cards they win back into their decks until one holds them all, which can go on for hours. This is a version for two teams that plays through the deck once. The pacing is at the top of `server/games/war.js`.
+
+- One 52-card French deck, 13 cards each, face down, 2 vs 2. Nobody sees their own cards. Aces are high, and suits don't count.
+- **A battle.** All four turn up their top card at once: tap your deck, or drag it onto the table. There are no turns. The highest card takes all four for its team, and partners tied on top take it just the same. The cards stay up for a moment, then slide onto that team's pile.
+- **¡Guerra!** If the highest card is tied between the teams, the tied players (only them) each lay one card face down and turn up the next, with one tap. The highest new card takes everything on the table; tied again, it's war again. With one card left it goes up without one face down. A player out of cards drops out of the war; if a whole side runs out the other takes it, and if nobody can go on, nobody gets those cards.
+- **End of the round.** A player out of cards sits out the battles that are left, and the round ends when every card has been played. The team that took more cards wins the round and scores 1; equal piles score nothing.
+- **Winning.** First team to win 1, 3 or 5 rounds, picked in the lobby.
+- **At the table.** A battle waits on everyone, so the table mocks a slow player after 15 seconds instead of a minute. Your deck only beeps for a war, where the others wait on you.
+
 ### Kemps rules
 
 Kemps is behind the PostHog feature flag `kemps`: a lobby only offers it where the flag is on (see [Feature flags](#feature-flags)). Kemps (*kimi* in Spanish) is a party game for partners with secret signals. Rules vary from table to table; this follows [Pagat](https://www.pagat.com/commerce/kemps.html) and [Wikipedia](https://en.wikipedia.org/wiki/Kemps_(card_game)), adapted to a screen. The timings and the bots' habits are constants at the top of `server/games/kemps.js`.
@@ -201,7 +228,7 @@ The project has two runtime dependencies, `partyserver` and `ws`, and uses `wran
 
 ```
 worker/
-  index.js         The Worker: /api/ws to the match's Durable Object, /api/admin, /play/<id>, and the static assets
+  index.js         The Worker: /api/ws to the match's Durable Object, /api/admin, /api/id, /play/<id>, and the static assets
   match-server.js  MatchServer: a match as a hibernating Durable Object (PartyServer), its room's storage and alarm
   stats-server.js  StatsServer: usage counters and who's online across matches, one object named "global"
 wrangler.jsonc     The Worker's config: assets, Durable Object bindings and migrations
@@ -212,6 +239,7 @@ server/
   room.js          A match's room: sockets, state views, bots and the slow-player clock, presence, voice and photo relay, usage
   stats.js         Usage counters and who's online, over a small key-value store
   admin.js         Password check and the report behind the admin page
+  identity.js      A device's player token in a cookie, and /play handing it back to a browser that lost it
   cloudflare.js    This month's Cloudflare usage and estimated bill, from its GraphQL Analytics API
   metered.js       TURN usage from Metered's API
   analytics.js     Match-level events for PostHog (off without POSTHOG_KEY): what each change to a match did, and the player's country
@@ -231,6 +259,8 @@ server/
     cochina.js     Pure roba la cochina rules and bot AI, plus the `game` object
     rummy.js       Pure rummy rules and bot AI, plus the `game` object
     rummikub.js    Pure Rummikub rules and bot AI, plus the `game` object
+    slap.js        Pure Irish Snap (manotazo) rules and the bots' timing, plus the `game` object
+    war.js         Pure War rules and the bots' pace, plus the `game` object
     kemps.js       Pure Kemps rules, and the bots' and the middle's clock planned from the round, plus the `game` object
 public/
   index.html       Landing page (new match / join by code)
@@ -247,6 +277,8 @@ public/
   js/rummikub.js   Rummikub table: the pool, the sets, building the next table on your turn, how a round reads
   js/kemps.js      Kemps table: the middle, swapping into it, gestures and your signal, the calls, how a hand reads
   js/rummikub-tiles.js  Rummikub tile markup, and the set check the server makes
+  js/war.js        War table: each seat's cards, the piles taken, your deck to tap, how a round reads
+  js/slap.js       Irish Snap table: the stack, the number called, your face-down pile, the hands landing on a match
   js/rules.js      The full rules of each game, for the rules sheet
   js/games.js      The lobby's menu of games and their icons (a new game goes here too)
   js/flight.js     Throwing a tile or card from a seat to the table
@@ -263,6 +295,7 @@ public/
   js/sound.js      Sound effects
   js/voice.js      Voice chat (WebRTC mesh, signaling over the game socket)
   js/avatar.js     Player photos: camera, file picker, local storage
+  js/qrcode.js     QR codes for *Play on another device* (qrcode-generator 2.0.4 by Kazuhiko Arase, MIT, unchanged)
   js/theme.js      Table styles: paints the page in the match's style and remembers the last one
   js/i18n.js       UI strings (English, Spanish), shared and per game, and language switching
   js/admin.js      Admin page: sign-in and usage
@@ -276,9 +309,9 @@ test/              Rules of every game, match, rooms, board layout, game and sty
 
 ### How a game plugs in
 
-A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto`, `waitingOn` and `roundView`, plus `variants` and `slowTurnMs` where a game needs them. The testing tools need two lines per game too: how a bot plays any seat (`STEP` in `server/dev/scenarios.js`) and how a headless player chooses (`STRATEGY` in `scripts/sim.js`).
+A match's `game` field picks its rules. `Match` handles what is common (seats, bots joining, reactions, the lobby, the target) and calls the game's `game` object for the rest. The fields are listed in `server/games/index.js`: `targets`, `defaultTarget`, `newRound`, `handle`, `settle`, `pendingAuto`, `runAuto`, `waitingOn` and `roundView`, plus `variants`, `slowTurnMs` and `solo` (every player for themselves: a score per seat instead of per team) where a game needs them. The testing tools need two lines per game too: how a bot plays any seat (`STEP` in `server/dev/scenarios.js`) and how a headless player chooses (`STRATEGY` in `scripts/sim.js`).
 
-On the client, `play.js` keeps one view per game (`domino.js`, `fives.js`, `truco.js`, `caida.js`, `parchis.js`, `cochina.js`, `rummy.js`, `rummikub.js`, `kemps.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
+On the client, `play.js` keeps one view per game (`domino.js`, `fives.js`, `truco.js`, `caida.js`, `parchis.js`, `cochina.js`, `rummy.js`, `rummikub.js`, `war.js`, `slap.js`, `kemps.js`) and calls the current one for the table, the hand, the status line and the details of the result. `i18n.js` looks in the current game's strings before the shared ones, and CSS rules that share a name between games are scoped with `body[data-game]`.
 
 The `domino.*` browser storage keys predate truco and cover every game. Renaming them would lose players' names, seats and photos. Matches saved without a `game` load as dominoes.
 
@@ -367,8 +400,8 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `teamName` | `name` (up to 16 characters; empty clears it) | Seated players, for their own team, any time. The name stays with the team when players change seats. |
 | `sit` / `stand` | `seat` | Lobby. `sit` also lets a spectator take over a bot mid-game. |
 | `addBots` / `removeBot` | `seat` | Lobby |
-| `game` | `game: "domino" \| "fives" \| "truco" \| "caida" \| "parchis" \| "cochina" \| "rummy" \| "rummikub" \| "kemps"` | Lobby. Resets the target to the game's default. |
-| `target` | `50 \| 75 \| 100`, `100 \| 150 \| 250`, `12 \| 24 \| 32`, `12 \| 24`, `1 \| 2 \| 3`, `1 \| 3 \| 5`, `150 \| 300`, `50 \| 100 \| 200` or `3 \| 5 \| 7` | Lobby, from the current game's list |
+| `game` | `game: "domino" \| "fives" \| "truco" \| "caida" \| "parchis" \| "cochina" \| "rummy" \| "rummikub" \| "war" \| "slap" \| "kemps"` | Lobby. Resets the target to the game's default. |
+| `target` | `50 \| 75 \| 100`, `100 \| 150 \| 250`, `12 \| 24 \| 32`, `12 \| 24`, `1 \| 2 \| 3`, `1 \| 3 \| 5` (roba la cochina, War and Irish Snap), `150 \| 300`, `50 \| 100 \| 200` or `3 \| 5 \| 7` | Lobby, from the current game's list |
 | `variant` | `1 \| 2` | Lobby, a game that offers a choice: parchís's dice |
 | `theme` | `theme: "felt" \| "pencil" \| "neon" \| "minimal" \| "dark" \| "halloween" \| "christmas"` | Lobby. Everyone in the match sees it. |
 | `start` | | Lobby, once all 4 seats are filled |
@@ -386,6 +419,9 @@ All messages are JSON with a `t` field. Messages are limited to 16 KB (voice sig
 | `discard` | `card: [rank, suit]` | Rummy, after drawing. Ends your turn. |
 | `play` | `table: [[tile, …], …]` | Rummikub, your turn: the whole table as it should be after it, every set a list of tile ids (0-103 numbered, color by color, twice over; 104 and 105 the jokers) in any order. The server lays each set out. |
 | `draw` | | Rummikub, your turn: take a tile from the pool, or pass when it's empty |
+| `flip` | `n` (the round's `seq` you saw) | Irish Snap, while `options.flip` is set: your top card onto the stack. A flip sent from an older moment is refused as too late, so a double tap flips one card. |
+| `slap` | `n` (the `flip.n` of the card on top) | Irish Snap, any time there's a card on the stack: a hand on a match joins `window.slaps` in arrival order; on any other card it's a false slap and takes the stack. A slap for a card that's gone is refused as too late. |
+| `flip` | | War, while `options.flip` is set: turn your top card up (in a war, one face down first) |
 | `swap` | `take: [rank, suit]`, `give: [rank, suit]` | Kemps, any time: a card from the middle for one from your hand. Someone else may have taken it first (`That card is gone`). |
 | `pass` | | Kemps: nothing in the middle for you. A second one changes nothing. |
 | `gesture` | `sign: "wink" \| "nose" \| "ear" \| "tongue" \| "brow" \| "shrug"` | Kemps: shows over your seat for everyone (700 ms apart) |
@@ -432,7 +468,7 @@ To run the real Worker, Durable Objects and all, on your machine: `npm run dev:w
 | `CF_PLAN` | `free` | The plan whose limits `/admin` watches: `free` or `paid`. Set in `wrangler.jsonc`. |
 | `POSTHOG_KEY`, `POSTHOG_HOST` | unset, `https://us.i.posthog.com` | PostHog project key (`phc_…`). When set, the matches report [analytics events](#analytics) and follow the [feature flags](#feature-flags); use `https://eu.i.posthog.com` for an EU project. Set it with `wrangler secret put`, not in `wrangler.jsonc`, so `wrangler dev` sends nothing. |
 | `DEV_TOOLS` | unset | `1` turns on [`/api/dev`](#testing-tools) on the local server. The Worker never mounts it. |
-| `TIME_SCALE` | `1` | Multiplies every wait the server schedules: bot moves, forced passes, closing a cochina grab, the slow-player mocking. `0.1` makes bots ten times faster (the client's animations don't speed up). Ignored in the Worker. |
+| `TIME_SCALE` | `1` | Multiplies every wait the server schedules: bot moves, forced passes, closing a cochina grab or a slap window, the slow-player mocking. `0.1` makes bots ten times faster (the client's animations don't speed up). Ignored in the Worker. |
 | `SEED` | unset | Deals, dice and bot choices follow this seed, so the same moves in a match with the same id replay the same game. Ignored in the Worker. |
 | `DEPLOYED` | unset | `1` turns the three knobs above off, for a Node server that strangers can reach. |
 
@@ -449,12 +485,12 @@ With `POSTHOG_KEY` set, each match's room sends [PostHog](https://posthog.com) e
 | `game_switched` | the lobby picks another game | `from`, `to` |
 | `match_started` | the first round is dealt (also a rematch) | `game`, `humans`, `bots`, `target`, `variant`, `theme`, `team_named`, `countries` |
 | `round_finished` | a round ends | `game`, `humans`, `bots`, `round`, `scores` |
-| `match_finished` | a team reaches the target | `game`, `humans`, `bots`, `rounds`, `scores`, `winner_team`, `duration_s` |
+| `match_finished` | a team reaches the target | `game`, `humans`, `bots`, `rounds`, `scores`, `winner_team` (`winner_seat` in a game without teams), `duration_s` |
 | `match_abandoned` | someone returns to the lobby mid-game | `game`, `humans`, `bots`, `round`, `scores` |
 | `bot_takeover` | a bot replaces a player who left | `game`, `humans`, `bots`, `phase` |
 | `voice_joined` | someone joins the voice chat | none |
 
-`distinct_id` is the match id for match events and the player's `publicId` for `player_joined` and `voice_joined`; neither creates a person profile.
+`distinct_id` is the match id for match events and the player's `publicId` for `player_joined` and `voice_joined`; neither creates a person profile. A player is a browser, so counting `publicId`s counts devices: the cookie keeps a browser's token through Safari clearing its storage, and *Play on another device* gives a second device the same one. Someone who plays from a phone and a laptop without that link is still two, and so is an iPhone's home-screen app beside Safari (they keep separate storage and cookies).
 
 ### Feature flags
 
@@ -506,6 +542,8 @@ curl -X PATCH localhost:3000/api/dev/match/demo -d '{"scores": [23, 23]}'
 - Cochina: `cochina-steal`, `cochina-steal-run` (three of a number on the rivals' cochina), `cochina-run` (the same, then the next two numbers on the table), `cochina-grab`
 - Rummy: `rummy-take`, `rummy-meld`, `rummy-layoff`, `rummy-out`, `rummy-last-card`
 - Rummikub: `rummikub-first` (a first play worth 30 on the rack), `rummikub-layoff`, `rummikub-split` (a tile that splits a run), `rummikub-joker`, `rummikub-out`, `rummikub-empty-pool`
+- Irish Snap: `slap-match` (seat 0's next card is the number about to be called), `slap-last-card` (the same, with its last card), `slap-out` (seat 0 is out and a bot is about to flip a match), `slap-big-stack` (12 or more on the stack, to try a false slap). A slap window only lasts 3 seconds, so slap from the page, or with `send`, right after the flip.
+- War: `war-war` (seat 0's next card ties a rival's on top), `war-last` (seat 0's last card)
 - Kemps: `kemps-three` (the fourth is in the middle), `kemps-four`, `kemps-signal` (the partner just made the signal: call it), `kemps-corta` (a rival just made its signal: cut it before its partner calls, which takes a bot about a second), `kemps-exposed` (the bots know seat 0's signal)
 
 `GET /api/dev` describes each one.

@@ -8,6 +8,7 @@
 //   runAuto(match, rng)          play that automatic move
 //   waitingOn(match)             { seat, key } of the human the table waits on, when pendingAuto is null
 //   slowTurnMs                   optional: how long a turn takes before the table mocks the player
+//   solo                         optional: every player for themselves, so match.scores has one per seat
 //   flag                         optional: a PostHog feature flag; the lobby only offers the game where it's on
 //   roundView(round, seat, revealed)   what one player may see of the round
 import { game as domino } from './domino.js';
@@ -18,9 +19,11 @@ import { game as parchis } from './parchis.js';
 import { game as cochina } from './cochina.js';
 import { game as rummy } from './rummy.js';
 import { game as rummikub } from './rummikub.js';
+import { game as war } from './war.js';
+import { game as slap } from './slap.js';
 import { game as kemps } from './kemps.js';
 
-const GAMES = { domino, fives, truco, caida, parchis, cochina, rummy, rummikub, kemps };
+const GAMES = { domino, fives, truco, caida, parchis, cochina, rummy, rummikub, war, slap, kemps };
 
 // Matches saved before there was a choice have no `game` field: those are dominoes.
 export const DEFAULT_GAME = 'domino';

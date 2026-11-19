@@ -1,6 +1,7 @@
 // The game page: connection, lobby, seats, voice, photos, reactions and the frame of
 // the result. What's on the table belongs to the game's view (domino.js, fives.js, truco.js,
-// caida.js, parchis.js, cochina.js, rummy.js, rummikub.js, kemps.js).
+// caida.js, parchis.js, cochina.js, rummy.js, rummikub.js, war.js, slap.js, kemps.js). A game without teams
+// (`state.solo`) has a score per seat, and no team names.
 import { createView as createDominoView } from './domino.js';
 import { createView as createFivesView } from './fives.js';
 import { createView as createTrucoView } from './truco.js';
@@ -9,6 +10,8 @@ import { createView as createParchisView } from './parchis.js';
 import { createView as createCochinaView } from './cochina.js';
 import { createView as createRummyView } from './rummy.js';
 import { createView as createRummikubView } from './rummikub.js';
+import { createView as createSlapView } from './slap.js';
+import { createView as createWarView } from './war.js';
 import { createView as createKempsView } from './kemps.js';
 import { RULES } from './rules.js';
 import { GAMES, gameIcon } from './games.js';
@@ -33,6 +36,15 @@ const gameHint = params.get('game');
 // For testing: `?as=<token>` plays as that token in this tab (`?as=p0` takes the seat a
 // dev scenario set up), and leaves this device's own identity, name and photo alone.
 const playAs = params.get('as')?.slice(0, 64) || null;
+// "Play on another device" opens /play/<id>#me=<token>&name=<name> on that device, which
+// then plays as this one. A fragment never reaches a server, and it's dropped right away.
+const handoff = (() => {
+  const hash = new URLSearchParams(location.hash.slice(1));
+  const me = hash.get('me');
+  if (!me) return null;
+  history.replaceState(null, '', location.pathname + location.search);
+  return /^[A-Za-z0-9_-]{8,64}$/.test(me) && !playAs ? { token: me, name: hash.get('name')?.trim().slice(0, 24) || null } : null;
+})();
 if (gameHint) {
   params.delete('game');
   history.replaceState(null, '', location.pathname + (params.toString() ? `?${params}` : ''));
@@ -44,9 +56,17 @@ function randomHex(bytes) {
   // crypto.randomUUID needs a secure context; plain LAN http:// does not have one.
   return [...crypto.getRandomValues(new Uint8Array(bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
-const token = playAs || localStorage.getItem('domino.token') || randomHex(16);
-if (!playAs) localStorage.setItem('domino.token', token);
-let myName = playAs ? params.get('name') || playAs : localStorage.getItem('domino.name') || t('player', { n: Math.floor(Math.random() * 90 + 10) });
+// The token the server keeps in a cookie, for a browser that has cleared localStorage
+// (server/identity.js). The page tells the server whenever the cookie is missing or out of date.
+const kept = document.querySelector('meta[name="la-mesa-id"]')?.content || null;
+const token = playAs || handoff?.token || localStorage.getItem('domino.token') || kept || randomHex(16);
+if (!playAs) {
+  localStorage.setItem('domino.token', token);
+  if (token !== kept) fetch('/api/id', { method: 'POST', body: token }).catch(() => {});
+}
+let myName = playAs
+  ? params.get('name') || playAs
+  : handoff?.name || localStorage.getItem('domino.name') || t('player', { n: Math.floor(Math.random() * 90 + 10) });
 if (!playAs) localStorage.setItem('domino.name', myName);
 let myPhoto = playAs ? null : avatar.load();
 const photos = {}; // the other players' photos by seat `pid`, for this page only
@@ -289,6 +309,20 @@ async function copyInvite() {
 /** The lobby's invite button: the share sheet where there is one, else copy the link. */
 const invite = () => (navigator.share ? share() : copyInvite());
 
+// This match as this player, for another device of theirs (see `handoff`).
+const deviceUrl = () => `${inviteUrl()}#me=${encodeURIComponent(token)}&name=${encodeURIComponent(myName)}`;
+
+async function openDevice() {
+  $('deviceText').textContent = t('device.text', { name: myName });
+  $('deviceSheet').hidden = false;
+  const { default: qrcode } = await import('./qrcode.js');
+  const qr = qrcode(0, 'M');
+  qr.addData(deviceUrl());
+  qr.make();
+  $('deviceQr').innerHTML = qr.createSvgTag({ cellSize: 4, margin: 16, scalable: true, alt: t('device.title') });
+}
+$('deviceCopy').onclick = async () => (await copy(deviceUrl())) && toast(t('linkCopied'));
+
 // ---- render -----------------------------------------------------------------
 
 function useGame(id) {
@@ -354,7 +388,28 @@ function render(next) {
   requestWakeLock();
 }
 
+/** In a game without teams, the scoreboard has you (or the leader) against the best of the rest. */
+function soloPair() {
+  const ranked = [0, 1, 2, 3].map(seatAt).sort((a, b) => state.scores[b] - state.scores[a]);
+  const left = me() === -1 ? ranked[0] : me();
+  return [left, ranked.find((s) => s !== left)];
+}
+
 function renderScores() {
+  $('scoreBtn').classList.toggle('solo', !!state.solo);
+  if (state.solo) {
+    const [left, right] = soloPair();
+    $('label0').textContent = seatName(left);
+    $('label1').textContent = seatName(right);
+    $('scoreBtn').classList.add('named');
+    $('score0').textContent = state.scores[left];
+    $('score1').textContent = state.scores[right];
+    $('scoreBtn').querySelector('.t0').dataset.team = left % 2;
+    $('scoreBtn').querySelector('.t1').dataset.team = right % 2;
+    $('target').textContent = state.target;
+    $('roundNo').textContent = state.phase === 'lobby' ? t('lobby') : t('round', { n: state.roundNo });
+    return;
+  }
   const left = myTeam();
   const right = 1 - left;
   $('label0').textContent = teamLabel(left);
@@ -375,6 +430,8 @@ function renderLobby() {
   $('lobby').hidden = !show;
   if (!show) return ($('gamesSheet').hidden = $('stylesSheet').hidden = $('teamSheet').hidden = true);
   $('matchCode').textContent = matchId;
+  $('seatsNote').dataset.i18n = state.solo ? 'seatsNoteSolo' : 'seatsNote';
+  $('seatsNote').textContent = t($('seatsNote').dataset.i18n);
   $('inviteUrl').value = inviteUrl();
   if (document.activeElement !== $('nameInput')) $('nameInput').value = myName;
 
@@ -396,7 +453,7 @@ function renderLobby() {
         }
         return `<button class="lobby-seat ${cells[i]}" data-team="${i % 2}" data-sit="${i}" ${
           mine ? 'aria-current="true"' : ''
-        }>${teamTag(i % 2)}${body}</button>`;
+        }>${state.solo ? '' : teamTag(i % 2)}${body}</button>`;
       })
       .join('') + `<div class="lobby-felt"></div>`;
 
@@ -425,10 +482,11 @@ function teamTag(team) {
   return `<span class="team-tag${state.teamNames?.[team] ? ' named' : ''}"><span>${esc(name)}</span></span>`;
 }
 
-/** Your team's name, above the game. Tapping it opens the sheet to rename it. Spectators have no team to name. */
+/** Your team's name, above the game. Tapping it opens the sheet to rename it. Spectators, and games without teams, have none to name. */
 function paintTeamCard() {
   const card = $('teamCard');
-  card.hidden = me() === -1;
+  card.hidden = me() === -1 || !!state.solo;
+  if (card.hidden) $('teamSheet').hidden = true;
   if (card.hidden) return;
   const team = myTeam();
   const named = state.teamNames?.[team];
@@ -1006,14 +1064,12 @@ function renderResult(prev) {
 }
 
 function buildResult(fresh) {
-  const r = state.round;
   const isMatch = state.phase === 'matchEnd';
   const mine = me() !== -1;
-  const card = $('resultCard');
-  const overlay = $('result');
   resultTimer = null;
 
   const res = view.result(isMatch);
+  if (state.solo) return showResult(fresh, soloResult(res, isMatch));
   const winTeam = isMatch ? (state.scores[0] > state.scores[1] ? 0 : 1) : res.winTeam;
   const weWon = mine && winTeam === myTeam();
 
@@ -1034,20 +1090,59 @@ function buildResult(fresh) {
     sub = res.sub;
   }
 
-  card.className = `result-card ${isMatch ? 'match' : ''} ${isMatch && mine ? (weWon ? 'won' : 'lost') : ''}`;
-  if (icon) $('resultEmoji').innerHTML = icon;
-  else $('resultEmoji').textContent = emoji;
-  $('resultTitle').textContent = title;
-  $('resultSub').textContent = sub;
-
   const plus = (team) => (res.gained[team] ? `<em>${signed(res.gained[team])}</em>` : '');
   const order = [myTeam(), 1 - myTeam()];
-  $('resultScores').innerHTML = order
+  const scores = order
     .map(
       (team) =>
         `<div class="rs" data-team="${team}"><span>${teamLabel(team)}</span><b>${state.scores[team]}</b>${plus(team)}</div>`,
     )
     .join(`<div class="rs-target">${t('to', { n: state.target })}</div>`);
+  showResult(fresh, { res, isMatch, won: weWon, emoji, icon, title, sub, scores });
+}
+
+/** The result of a game without teams: who won, and every player's score. */
+function soloResult(res, isMatch) {
+  const mine = me() !== -1;
+  const top = Math.max(...state.scores);
+  const winner = isMatch ? state.scores.indexOf(top) : res.winSeat;
+  const won = mine && winner === me();
+  let emoji, title, sub;
+  if (isMatch) {
+    emoji = !mine || won ? '🏆' : '😭';
+    title = won ? t('youWinMatch') : t('playerWinsMatch', { name: seatName(winner) });
+    sub = t('soloMatchSub', { a: top, n: state.roundNo });
+    if (res.lastRound) sub = t('lastRound', { sub, how: res.lastRound });
+  } else {
+    emoji = !mine ? res.emoji : won ? '🎉' : '😬';
+    title = won ? t('youWinRound') : t('playerWinsRound', { name: seatName(winner) });
+    sub = res.sub;
+  }
+  const scores =
+    `<div class="rs-row">${[0, 1, 2, 3]
+      .map(seatAt)
+      .map(
+        (s) => `<div class="rs" data-team="${s % 2}"${s === winner ? ' aria-current="true"' : ''}>${nameHTML(seatName(s))}<b>${state.scores[s]}</b>${
+          res.gained[s] ? `<em>${signed(res.gained[s])}</em>` : ''
+        }</div>`,
+      )
+      .join('')}</div><div class="rs-target">${t('to', { n: state.target })}</div>`;
+  return { res, isMatch, won, emoji, icon: null, title, sub, scores };
+}
+
+/** Fill in and open the result card, with the fanfare when it's new. */
+function showResult(fresh, { res, isMatch, won, emoji, icon, title, sub, scores }) {
+  const r = state.round;
+  const mine = me() !== -1;
+  const card = $('resultCard');
+  const overlay = $('result');
+  card.className = `result-card ${isMatch ? 'match' : ''} ${isMatch && mine ? (won ? 'won' : 'lost') : ''}`;
+  if (icon) $('resultEmoji').innerHTML = icon;
+  else $('resultEmoji').textContent = emoji;
+  $('resultTitle').textContent = title;
+  $('resultSub').textContent = sub;
+  $('resultScores').classList.toggle('solo', !!state.solo);
+  $('resultScores').innerHTML = scores;
 
   $('resultAwards').innerHTML = res.details;
 
@@ -1081,8 +1176,8 @@ function buildResult(fresh) {
     overlay.classList.remove('peek');
     if (!isMatch) sound.play('roundEnd');
     if (isMatch) {
-      sound.play(!mine || weWon ? 'win' : 'lose');
-      if (!mine || weWon) {
+      sound.play(!mine || won ? 'win' : 'lose');
+      if (!mine || won) {
         fx.confetti();
         buzz([40, 60, 40, 60, 120]);
       } else {
@@ -1097,6 +1192,9 @@ function buildResult(fresh) {
 // ---- score history ----------------------------------------------------------
 
 function renderScoreSheet() {
+  $('history').hidden = !!state.solo;
+  $('soloHistory').hidden = $('soloTotals').hidden = !state.solo;
+  if (state.solo) return renderSoloSheet();
   const left = myTeam();
   const right = 1 - left;
   $('hLabel0').textContent = teamLabel(left);
@@ -1112,6 +1210,18 @@ function renderScoreSheet() {
         })
         .join('')
     : `<tr><td colspan="4" class="muted center">${t('noRounds')}</td></tr>`;
+}
+
+/** Without teams: who won each round and how, and every player's total. */
+function renderSoloSheet() {
+  $('soloBody').innerHTML = state.history.length
+    ? state.history.map((h) => `<tr><td>${h.round}</td><td class="who">${esc(seatName(h.seat))}</td><td class="how">${view.historyRow(h).how}</td></tr>`).join('')
+    : `<tr><td colspan="3" class="muted center">${t('noRounds')}</td></tr>`;
+  $('soloTotals').innerHTML =
+    [0, 1, 2, 3]
+      .map(seatAt)
+      .map((s) => `<span data-team="${s % 2}">${nameHTML(seatName(s))}<b>${state.scores[s]}</b></span>`)
+      .join('') + `<small>${t('to', { n: state.target })}</small>`;
 }
 
 // ---- rules --------------------------------------------------------------------
@@ -1293,6 +1403,7 @@ $('menu').addEventListener('click', (e) => {
   }
   closeMenu();
   if (item === 'invite') share();
+  else if (item === 'device') openDevice();
   else if (item === 'rules') openRules();
   else if (item === 'style' && state) {
     paintStyles();
@@ -1308,6 +1419,7 @@ document.addEventListener('keydown', (e) => e.key === 'Escape' && closeMenu());
 
 i18n.apply();
 paintMenu();
+if (handoff) toast(t('device.arrived', { name: myName }), 3200);
 
 let nameTimer;
 $('nameInput').addEventListener('input', (e) => {
@@ -1363,6 +1475,8 @@ const views = {
   cochina: createCochinaView(ctx),
   rummy: createRummyView(ctx),
   rummikub: createRummikubView(ctx),
+  slap: createSlapView(ctx),
+  war: createWarView(ctx),
   kemps: createKempsView(ctx),
 };
 

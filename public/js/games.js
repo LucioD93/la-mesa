@@ -5,7 +5,7 @@ import { cardSVG } from './cards.js';
 import { cardSVG as frenchSVG } from './french.js';
 import { tileHTML as rkTileHTML } from './rummikub-tiles.js';
 
-export const GAMES = ['domino', 'fives', 'truco', 'caida', 'parchis', 'cochina', 'rummy', 'rummikub', 'kemps'];
+export const GAMES = ['domino', 'fives', 'truco', 'caida', 'parchis', 'cochina', 'rummy', 'rummikub', 'war', 'slap', 'kemps'];
 // Behind a feature flag (server/games/index.js): a lobby only lists them once the server
 // offers them, and the home page leaves them out.
 export const FLAGGED = ['rummikub', 'kemps'];
@@ -24,6 +24,8 @@ const ICONS = {
   cochina: () => `${card([5, 'b'], 'under')}${card([5, 'o'])}<span class="pig">🐷</span>`,
   rummy: () => `<span class="card under">${frenchSVG([7, 'H'])}</span><span class="card">${frenchSVG([1, 'S'])}</span>`,
   rummikub: () => [10, 11 + 13, 104].map((id) => rkTileHTML(id)).join(''), // a black 11, a blue 12 and the joker
+  slap: () => `${card([3, 'e'], 'under')}${card([3, 'c'])}<span class="pig">🖐️</span>`,
+  war: () => `<span class="card under">${frenchSVG([13, 'S'])}</span><span class="card">${frenchSVG([13, 'H'])}</span><span class="swords">⚔️</span>`, // two kings: war
   kemps: () => `<span class="card under">${frenchSVG([13, 'D'])}</span><span class="card">${frenchSVG([13, 'C'])}</span><span class="wink">😉</span>`,
 };
 

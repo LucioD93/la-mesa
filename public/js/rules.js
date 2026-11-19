@@ -426,6 +426,67 @@ export const RULES = {
     ],
   },
 
+  slap: {
+    en: [
+      { h: 'The game', items: [
+        'Irish Snap, or manotazo. 40-card Spanish deck, every player for themselves: no teams.',
+        'The whole deck is dealt face down, 10 each. Nobody ever sees their own cards.',
+        'The round winner scores 1. You pick how many rounds to win (1, 3 or 5) in the lobby.',
+      ] },
+      { h: 'The count', items: [
+        'Turns go round the table. On your turn, tap your pile to flip its top card onto the stack in the middle, blind.',
+        'Each card calls the next number of the count: 1, 2, 3, 4, 5, 6, 7, then sota (10), caballo (11), rey (12), and back to 1.',
+        'The table shows the number called for the top card, and the next one once the stack has been taken.',
+      ] },
+      { h: 'Slap!', items: [
+        'When the card flipped is the number just called, everyone slaps the stack: tap it, or the Slap button, or press space.',
+        'The last hand down takes the whole stack, turns it over and puts it under their pile. The server decides the order the slaps arrive in.',
+        'You have 3 seconds. Once three hands are down the fourth is last anyway. If two or more never slap, the stack goes to the first of them in turn from whoever flipped.',
+        'Then the count starts again from 1 with whoever was next after the player who flipped, as if nobody had slapped.',
+        'Slapping a card that is not the number called is a false slap: you take the stack, the table laughs at you, and the count starts again from the player after whoever flipped.',
+        'Bots slap too. They wait for the card to show on everyone\'s screen, react in about half a second to a second, and now and then they look away, or get fooled.',
+      ] },
+      { h: 'Running out', items: [
+        'With no cards left you are out, and your turns are skipped.',
+        'You still have to slap the next match. Get there in time and you win the round. Be last (or slap wrongly) and you pick up the stack and you are back in.',
+        'If two players are out at the same slap and both get a hand down in time, the first hand down wins.',
+        'If every card goes down without a match, whoever ran out first wins the round.',
+      ] },
+      { h: 'House rules', items: [
+        'Only the count calls for a slap. Snap, where a card matching the one under it also calls for one, is off.',
+      ] },
+    ],
+    es: [
+      { h: 'El juego', items: [
+        'Manotazo (Irish Snap en inglés). Baraja española de 40 cartas, cada quien por su cuenta: no hay equipos.',
+        'Se reparte toda la baraja boca abajo, 10 cartas a cada uno. Nadie ve nunca sus propias cartas.',
+        'Quien gana la mano suma 1. Se elige en la sala a cuántas manos se juega (1, 3 o 5).',
+      ] },
+      { h: 'La cuenta', items: [
+        'Se juega por turnos alrededor de la mesa. En tu turno, toca tu pila para voltear la carta de arriba sobre la pila del medio, sin verla.',
+        'Cada carta canta el siguiente número de la cuenta: 1, 2, 3, 4, 5, 6, 7, luego sota (10), caballo (11), rey (12), y otra vez 1.',
+        'La mesa muestra el número cantado para la carta de arriba, y el siguiente cuando alguien se llevó la pila.',
+      ] },
+      { h: '¡Manotazo!', items: [
+        'Cuando la carta volteada es el número que se acaba de cantar, todos le dan el manotazo a la pila: tócala, o el botón de manotazo, o la barra espaciadora.',
+        'La última mano que llega se lleva toda la pila, la voltea y la pone debajo de la suya. El servidor decide en qué orden llegan los manotazos.',
+        'Tienes 3 segundos. Con tres manos encima, la cuarta es la última de todas formas. Si dos o más no manotean, la pila es para el primero de ellos contando desde quien volteó.',
+        'Después, la cuenta empieza otra vez desde 1 con quien seguía después del que volteó, como si nadie hubiera manoteado.',
+        'Manotear una carta que no es el número cantado es un manotazo en falso: te llevas la pila, la mesa se ríe de ti, y la cuenta sigue con el jugador después del que volteó.',
+        'Los bots también manotean. Esperan a que la carta se vea en todas las pantallas, reaccionan en medio segundo a un segundo, y de vez en cuando se distraen o se dejan engañar.',
+      ] },
+      { h: 'Quedarse sin cartas', items: [
+        'Sin cartas quedas fuera, y se salta tu turno.',
+        'Igual tienes que darle al próximo manotazo. Si llegas a tiempo, ganas la mano. Si llegas de último (o manoteas en falso), te llevas la pila y vuelves a jugar.',
+        'Si dos jugadores están fuera en el mismo manotazo y los dos llegan a tiempo, gana la primera mano que llegó.',
+        'Si todas las cartas salen sin que ninguna pegue, gana quien se quedó sin cartas primero.',
+      ] },
+      { h: 'Reglas de la casa', items: [
+        'Solo la cuenta pide manotazo. La variante en que también se manotea cuando una carta es igual a la de abajo está apagada.',
+      ] },
+    ],
+  },
+
   rummikub: {
     en: [
       { h: 'The game', items: [
@@ -483,6 +544,57 @@ export const RULES = {
       ] },
       { h: 'Reglas de la casa', items: [
         'El Rummikub se juega uno contra uno, o cada uno por su cuenta. Esta es una versión para dos equipos. Los demás solo ven tu mesa nueva cuando le das a Listo, y no hay reloj por turno: la mesa se burla de ti a los dos minutos.',
+      ] },
+    ],
+  },
+
+  war: {
+    en: [
+      { h: 'The game', items: [
+        'One 52-card deck, 2 vs 2. Everyone gets 13 cards face down, and nobody looks at them, not even their own.',
+        'Aces are highest, then K, Q, J, 10 down to 2. Suits don\'t count.',
+        'The team that takes more cards wins the round and scores 1. You pick how many rounds to win (1, 3 or 5) in the lobby.',
+      ] },
+      { h: 'A battle', items: [
+        'All four turn up their top card at once: tap your deck, or drag it onto the table. Nobody chooses, and nobody waits for a turn.',
+        'The highest card takes all four for its team. Partners tied on top take it just the same.',
+        'The cards stay up a moment so everyone sees who took them, then slide onto that team\'s pile.',
+      ] },
+      { h: '¡Guerra!', items: [
+        'If the highest card is tied between the teams, it\'s war. Only the tied players fight it: each lays one card face down and turns up the next, with a single tap.',
+        'The highest of the new cards takes everything on the table, the face-down cards too. Tied again, and it\'s war again.',
+        'With one card left, it goes face up without one face down. A player with no cards left drops out of the war, and if a whole side runs out the other side takes it. If nobody can go on, nobody gets those cards.',
+      ] },
+      { h: 'End of the round', items: [
+        'A player out of cards sits out the battles that are left. The round ends when every card has been played.',
+        'Equal piles score nothing.',
+      ] },
+      { h: 'House rules', items: [
+        'War is usually two players, each taking the cards back into their deck until one has them all, which can go on forever. This version is for two teams, plays through the deck once, and counts the cards taken.',
+      ] },
+    ],
+    es: [
+      { h: 'El juego', items: [
+        'Una baraja francesa de 52 cartas, 2 contra 2. Cada uno recibe 13 cartas boca abajo, y nadie las mira, ni siquiera las suyas.',
+        'El as es la más alta, luego K, Q, J, 10 hasta el 2. La pinta no cuenta.',
+        'El equipo que se lleva más cartas gana la mano y suma 1. Se elige en la sala a cuántas manos se juega (1, 3 o 5).',
+      ] },
+      { h: 'Una batalla', items: [
+        'Los cuatro voltean la carta de arriba a la vez: toca tu mazo, o arrástralo a la mesa. Nadie escoge, y nadie espera turno.',
+        'La carta más alta se lleva las cuatro para su equipo. Si los compañeros empatan arriba, se la llevan igual.',
+        'Las cartas se quedan a la vista un momento para que todos vean quién se las llevó, y luego van a la pila de ese equipo.',
+      ] },
+      { h: '¡Guerra!', items: [
+        'Si la carta más alta está empatada entre los equipos, hay guerra. Solo pelean los empatados: cada uno pone una carta boca abajo y voltea la siguiente, con un solo toque.',
+        'La más alta de las nuevas se lleva todo lo que hay en la mesa, también las de boca abajo. Si empatan otra vez, hay guerra otra vez.',
+        'Con una sola carta, va boca arriba sin poner una abajo. Quien se queda sin cartas sale de la guerra, y si un lado entero se queda sin cartas, el otro se la lleva. Si nadie puede seguir, esas cartas no son de nadie.',
+      ] },
+      { h: 'Fin de la mano', items: [
+        'Quien se queda sin cartas no juega las batallas que faltan. La mano termina cuando se juegan todas las cartas.',
+        'Si las pilas quedan iguales, nadie suma.',
+      ] },
+      { h: 'Reglas de la casa', items: [
+        'La guerra se suele jugar entre dos, y cada uno mete las cartas que gana en su mazo hasta que uno se queda con todas, lo que puede no acabar nunca. Esta versión es para dos equipos, recorre la baraja una sola vez y cuenta las cartas ganadas.',
       ] },
     ],
   },

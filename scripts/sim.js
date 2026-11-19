@@ -12,7 +12,7 @@ import { parseArgs } from 'node:util';
 import { WebSocket } from 'ws';
 
 const USAGE = `usage: node scripts/sim.js [game] [options]
-  game              domino, fives, truco, caida, parchis, cochina, rummy, rummikub or kemps (default domino)
+  game              domino, fives, truco, caida, parchis, cochina, rummy, rummikub, war, slap or kemps (default domino)
   --bots <n>        seats for bots, 0-3 (default 0); headless players take the rest from seat 0
   --seed <s>        repeat the same deals, dice and choices (its own server only)
   --target <n>      the match's target, one of the game's choices
@@ -96,7 +96,10 @@ const sameCard = (a, b) => a[0] === b[0] && a[1] === b[1];
 
 const kmSent = {}; // seat -> the Kemps swap it sent last
 
-/** The message this seat sends now, or null to wait. Only uses what its own state shows. */
+/**
+ * The message this seat sends now, or null to wait. Only uses what its own state shows, and
+ * `mine`, what this player remembers doing.
+ */
 const STRATEGY = {
   domino: (st) => {
     const m = st.round.legal.length && pick(st.round.legal);
@@ -176,6 +179,17 @@ const STRATEGY = {
     const table = move.table.map((set) => (rng() < 0.5 ? set.slice().reverse() : set));
     return { t: 'play', table: table.sort(() => rng() - 0.5) };
   },
+  slap: (st, mine) => {
+    const r = st.round;
+    // Another slap can arrive before ours is counted: once a card is slapped, it stays slapped.
+    const slap = () => ((mine.slapped = r.flip.n), { t: 'slap', n: r.flip.n });
+    if (r.window && r.options.slap && mine.slapped !== r.flip.n) return slap();
+    if (r.options.flip) return { t: 'flip', n: r.seq };
+    // Now and then a slap on a card that doesn't match, which takes the stack.
+    if (r.options.slap && !r.window && mine.slapped !== r.flip.n && rng() < 0.03) return slap();
+    return null;
+  },
+  war: (st) => (st.round.options.flip ? { t: 'flip' } : null), // there's nothing to choose in war
   kemps: (st) => {
     const r = st.round;
     if (!r.options.swap) return null;
@@ -193,11 +207,11 @@ const STRATEGY = {
     if (move) return { t: 'swap', ...move };
     return r.options.pass ? { t: 'pass' } : null;
   },
-
 };
 
-// Cochina's grab window can close between our seeing it and our grab landing, and in Kemps someone
-// else can take the card first or our gestures come too close together; that's the game, not a bug.
+// Cochina's grab window can close between our seeing it and our grab landing, a slap can land
+// after the next card, and in Kemps someone else can take the card first or our gestures come too
+// close together; that's the game, not a bug.
 const RACES = new Set(['Nothing to grab', 'Too late', 'That card is gone', 'Too fast']);
 
 // ---- what happened, for the log ----------------------------------------------------
@@ -235,6 +249,21 @@ const DESCRIBE = {
     if (!a) return null;
     if (a.type !== 'play') return a.type === 'draw' ? 'draws' : 'passes';
     return `plays ${a.placed.length === 1 ? '1 tile' : `${a.placed.length} tiles`}${a.first ? ' (first play)' : ''}`;
+  },
+  slap: (r) => {
+    const a = r.lastAction;
+    if (!a) return null;
+    if (a.type === 'flip') return `flips ${card(a.card)}, calling ${a.called}${a.match ? ': slap!' : ''}${a.out ? ' (out of cards)' : ''}`;
+    if (a.type === 'slap') return `slaps (${a.place})`;
+    return `takes ${a.cards} (${a.why === 'false' ? 'a false slap' : 'last hand down'})${a.back ? ', back in' : ''}`;
+  },
+  war: (r) => {
+    const a = r.lastAction;
+    if (!a) return null;
+    if (a.type === 'flip') return `turns ${card(a.card)}${a.down ? ' over one face down' : ''}`;
+    if (a.type === 'war') return `¡guerra! ${a.seats.join(' vs ')}`;
+    if (a.type === 'win') return a.team === null ? `nobody takes ${a.cards}` : `takes ${a.cards}${a.war ? ` after ${a.war} war${a.war > 1 ? 's' : ''}` : ''}`;
+    return null;
   },
   kemps: (r) => [
     r.lastAction?.type === 'swap' && `takes ${card(r.lastAction.take)} for ${card(r.lastAction.give)}`,
@@ -280,7 +309,7 @@ function done(code, message) {
 const players = [];
 function join(seat) {
   return new Promise((resolve, reject) => {
-    const p = { seat, token: `sim-${matchId}-${seat}`, state: null, acted: null, waiters: [] };
+    const p = { seat, token: `sim-${matchId}-${seat}`, state: null, acted: null, waiters: [], mine: {} };
     p.ws = new WebSocket(wsUrl);
     p.ws.on('open', () => p.ws.send(JSON.stringify({ t: 'hello', token: p.token, name: `sim${seat}`, games: GAME_IDS, game })));
     p.ws.on('error', reject);
@@ -310,7 +339,10 @@ const send = (p, msg) => p.ws.send(JSON.stringify(msg));
 
 /** A key for the moment, so a player acts once per moment however many states arrive. */
 const momentOf = (st) => {
-  const r = st.round && { ...st.round, grab: st.round.grab && { ...st.round.grab, left: null } }; // cochina's clock ticks without a move
+  // In war everyone turns at once, so the others' cards change the table before ours lands: only our own pile counts.
+  if (st.game === 'war') return JSON.stringify([st.roundNo, st.phase, st.round?.hand, st.round?.options]);
+  // Cochina's and the slap's clocks tick without a move.
+  const r = st.round && { ...st.round, grab: st.round.grab && { ...st.round.grab, left: null }, window: st.round.window && { ...st.round.window, left: null } };
   return JSON.stringify([st.roundNo, st.phase, r]);
 };
 
@@ -320,7 +352,7 @@ function act(p) {
   const moment = momentOf(st);
   if (p.acted === moment) return;
   if (opt.seed) rng = seededRng(`sim:${opt.seed}:${p.seat}:${moment}`);
-  const msg = STRATEGY[st.game](st);
+  const msg = STRATEGY[st.game](st, p.mine);
   if (!msg) return;
   p.acted = moment;
   moves += 1;
