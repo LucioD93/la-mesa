@@ -34,6 +34,15 @@ const gameHint = params.get('game');
 // For testing: `?as=<token>` plays as that token in this tab (`?as=p0` takes the seat a
 // dev scenario set up), and leaves this device's own identity, name and photo alone.
 const playAs = params.get('as')?.slice(0, 64) || null;
+// "Play on another device" opens /play/<id>#me=<token>&name=<name> on that device, which
+// then plays as this one. A fragment never reaches a server, and it's dropped right away.
+const handoff = (() => {
+  const hash = new URLSearchParams(location.hash.slice(1));
+  const me = hash.get('me');
+  if (!me) return null;
+  history.replaceState(null, '', location.pathname + location.search);
+  return /^[A-Za-z0-9_-]{8,64}$/.test(me) && !playAs ? { token: me, name: hash.get('name')?.trim().slice(0, 24) || null } : null;
+})();
 if (gameHint) {
   params.delete('game');
   history.replaceState(null, '', location.pathname + (params.toString() ? `?${params}` : ''));
@@ -45,9 +54,17 @@ function randomHex(bytes) {
   // crypto.randomUUID needs a secure context; plain LAN http:// does not have one.
   return [...crypto.getRandomValues(new Uint8Array(bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
-const token = playAs || localStorage.getItem('domino.token') || randomHex(16);
-if (!playAs) localStorage.setItem('domino.token', token);
-let myName = playAs ? params.get('name') || playAs : localStorage.getItem('domino.name') || t('player', { n: Math.floor(Math.random() * 90 + 10) });
+// The token the server keeps in a cookie, for a browser that has cleared localStorage
+// (server/identity.js). The page tells the server whenever the cookie is missing or out of date.
+const kept = document.querySelector('meta[name="la-mesa-id"]')?.content || null;
+const token = playAs || handoff?.token || localStorage.getItem('domino.token') || kept || randomHex(16);
+if (!playAs) {
+  localStorage.setItem('domino.token', token);
+  if (token !== kept) fetch('/api/id', { method: 'POST', body: token }).catch(() => {});
+}
+let myName = playAs
+  ? params.get('name') || playAs
+  : handoff?.name || localStorage.getItem('domino.name') || t('player', { n: Math.floor(Math.random() * 90 + 10) });
 if (!playAs) localStorage.setItem('domino.name', myName);
 let myPhoto = playAs ? null : avatar.load();
 const photos = {}; // the other players' photos by seat `pid`, for this page only
@@ -289,6 +306,20 @@ async function copyInvite() {
 
 /** The lobby's invite button: the share sheet where there is one, else copy the link. */
 const invite = () => (navigator.share ? share() : copyInvite());
+
+// This match as this player, for another device of theirs (see `handoff`).
+const deviceUrl = () => `${inviteUrl()}#me=${encodeURIComponent(token)}&name=${encodeURIComponent(myName)}`;
+
+async function openDevice() {
+  $('deviceText').textContent = t('device.text', { name: myName });
+  $('deviceSheet').hidden = false;
+  const { default: qrcode } = await import('./qrcode.js');
+  const qr = qrcode(0, 'M');
+  qr.addData(deviceUrl());
+  qr.make();
+  $('deviceQr').innerHTML = qr.createSvgTag({ cellSize: 4, margin: 16, scalable: true, alt: t('device.title') });
+}
+$('deviceCopy').onclick = async () => (await copy(deviceUrl())) && toast(t('linkCopied'));
 
 // ---- render -----------------------------------------------------------------
 
@@ -1370,6 +1401,7 @@ $('menu').addEventListener('click', (e) => {
   }
   closeMenu();
   if (item === 'invite') share();
+  else if (item === 'device') openDevice();
   else if (item === 'rules') openRules();
   else if (item === 'style' && state) {
     paintStyles();
@@ -1385,6 +1417,7 @@ document.addEventListener('keydown', (e) => e.key === 'Escape' && closeMenu());
 
 i18n.apply();
 paintMenu();
+if (handoff) toast(t('device.arrived', { name: myName }), 3200);
 
 let nameTimer;
 $('nameInput').addEventListener('input', (e) => {
