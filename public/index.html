@@ -44,14 +44,14 @@
         </div>
         <label class="field">
           <span data-i18n="landing.name">Your name</span>
-          <input id="nameInput" maxlength="24" autocomplete="nickname" enterkeyhint="done" placeholder="Pick a name" data-i18n-placeholder="landing.namePlaceholder" />
+          <input id="nameInput" maxlength="24" autocomplete="nickname" enterkeyhint="next" placeholder="Pick a name" data-i18n-placeholder="landing.namePlaceholder" />
         </label>
       </div>
 
       <button id="newMatch" class="btn primary block" data-i18n="landing.new">New match</button>
 
       <form id="joinForm" class="join">
-        <input id="joinId" placeholder="Match code" data-i18n-placeholder="landing.code" autocomplete="off" autocapitalize="none" spellcheck="false" />
+        <input id="joinId" placeholder="Match code" data-i18n-placeholder="landing.code" enterkeyhint="go" autocomplete="off" autocapitalize="none" spellcheck="false" />
         <button class="btn" data-i18n="landing.join">Join</button>
       </form>
 
@@ -93,7 +93,12 @@
         if (v) localStorage.setItem('domino.name', v);
       };
       nameInput.addEventListener('input', saveName);
-      nameInput.addEventListener('keydown', (e) => e.key === 'Enter' && e.target.blur());
+      // Enter moves on to the match code, the page's next field.
+      nameInput.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter' || e.isComposing) return;
+        e.preventDefault();
+        document.getElementById('joinId').focus();
+      });
       avatar.bindPicker({ onError: () => alert(i18n.t('photoFailed')) });
       document.getElementById('newMatch').onclick = () => {
         saveName();
